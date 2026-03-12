@@ -79,3 +79,47 @@
 #### Scenario: 密码强度验证
 - **WHEN** 用户设置新密码
 - **THEN** 系统验证密码长度至少 8 个字符
+
+### Requirement: 系统对接认证模式
+
+系统 SHALL 支持多种认证模式，便于与其他系统集成。
+
+#### Scenario: 正常模式
+- **WHEN** 配置文件设置 `auth.mode: "normal"` 或未设置
+- **THEN** 系统要求用户登录认证
+
+#### Scenario: 禁用认证模式
+- **WHEN** 配置文件设置 `auth.mode: "disabled"`
+- **THEN** 系统跳过认证，所有请求视为默认用户
+
+#### Scenario: 简单 Token 模式
+- **WHEN** 配置文件设置 `auth.mode: "simple"` 和 `auth.simpleToken: "xxx"`
+- **THEN** 系统接受固定 Token 进行认证，并映射到默认用户
+
+#### Scenario: 请求头模式
+- **WHEN** 配置文件设置 `auth.mode: "header"` 和 `auth.headerName: "X-User-Id"`
+- **THEN** 系统从指定请求头读取用户标识，关联对应用户
+
+#### Scenario: 请求头模式用户不存在
+- **WHEN** 请求头中的用户标识在系统中不存在
+- **THEN** 系统返回 401 错误并提示"用户不存在"
+
+#### Scenario: 系统对接模式配置
+- **WHEN** 用户在配置文件中配置认证模式
+- **THEN** 系统在启动时应用配置的认证模式
+
+#### Scenario: 登录页面隐藏
+- **WHEN** 认证模式为 "disabled" 或 "header"
+- **THEN** 前端不显示登录页面
+
+### Requirement: 认证配置管理
+
+系统 SHALL 提供认证配置的管理接口。
+
+#### Scenario: 查看认证配置
+- **WHEN** 管理员请求 GET /api/v1/auth/config
+- **THEN** 系统返回当前认证模式（不含敏感信息）
+
+#### Scenario: 修改认证模式
+- **WHEN** 管理员通过配置文件修改认证模式并重启服务
+- **THEN** 系统应用新的认证模式

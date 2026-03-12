@@ -27,7 +27,7 @@ context: |
   ## 数据存储
   - 应用数据目录：~/.halo/
   - 数据库文件：~/.halo/halo.db
-  - 空间目录：~/.halo/spaces/
+  - 空间目录：~/.halo/spaces/（改造后：~/.halo/users/{user_id}/spaces/）
 
   ## API 设计
   - HTTP API 前缀：/api/v1/
@@ -38,8 +38,11 @@ context: |
   项目正在从 Electron 桌面应用改造为 B/S 架构的 Web 应用。
   主要变更：
   - 移除 Electron 依赖
-  - 新增用户认证和多租户支持
+  - 新增用户认证（支持系统对接场景）
+  - 新增多租户数据隔离（空间归属用户，按用户隔离）
   - 移除 AI Browser 和产物展示功能
+  - 移除第三方 AI 提供商认证（腾讯、千问、Kiro、Github 等）
+  - AI 提供商改为配置文件或界面直接配置
 
 # Per-artifact rules
 rules:
