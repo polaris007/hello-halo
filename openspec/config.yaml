@@ -1,0 +1,61 @@
+schema: spec-driven
+
+# Project context - shown to AI when creating artifacts
+context: |
+  ## 项目概述
+  Halo 是一个 AI 编程助手应用，提供 Claude Code SDK 集成、空间管理、对话功能、MCP 支持等核心能力。
+
+  ## 技术栈
+  - 前端：React 18 + TypeScript + Vite + Tailwind CSS + Zustand
+  - 后端：Node.js + Express 5 + WebSocket (ws)
+  - 数据库：SQLite (better-sqlite3)
+  - AI：@anthropic-ai/claude-agent-sdk
+  - 构建工具：electron-vite（当前）、Vite（改造后）
+
+  ## 项目结构
+  - src/main/ - Electron 主进程 / 服务端代码
+  - src/renderer/ - React 前端代码
+  - src/preload/ - Electron preload 脚本（将被移除）
+  - src/shared/ - 共享类型定义
+  - src/worker/ - Worker 线程
+
+  ## 代码规范
+  - 语言：TypeScript (ESM)
+  - UI 组件使用 t('English text') 进行国际化，无需手动编写翻译文件
+  - 提交前运行 npm run i18n 自动提取和翻译
+
+  ## 数据存储
+  - 应用数据目录：~/.halo/
+  - 数据库文件：~/.halo/halo.db
+  - 空间目录：~/.halo/spaces/
+
+  ## API 设计
+  - HTTP API 前缀：/api/v1/
+  - 已有双传输层：IPC (本地) + HTTP (远程)
+  - WebSocket 事件与 IPC 事件对齐
+
+  ## 当前架构变更
+  项目正在从 Electron 桌面应用改造为 B/S 架构的 Web 应用。
+  主要变更：
+  - 移除 Electron 依赖
+  - 新增用户认证和多租户支持
+  - 移除 AI Browser 和产物展示功能
+
+# Per-artifact rules
+rules:
+  proposal:
+    - 提案应简洁（1-2 页），聚焦"为什么"而非"怎么做"
+    - 清晰标注 **BREAKING** 变更
+    - Capabilities 部分必须准确，这将决定后续 spec 文件的结构
+  design:
+    - 技术设计应包含架构图（使用 ASCII 或 Mermaid）
+    - 每个决策需说明理由和替代方案
+    - 风险部分需包含缓解措施
+  specs:
+    - 每个需求必须使用 SHALL/MUST 规范性语言
+    - 每个场景必须使用 #### Scenario: 格式（4 个 #）
+    - 场景格式：WHEN...THEN...
+  tasks:
+    - 任务按模块分组，每组编号
+    - 任务粒度适中，一个任务可在一次会话中完成
+    - 使用 `- [ ] X.Y 描述` 格式便于进度追踪

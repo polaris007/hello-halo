@@ -38,3 +38,8 @@ website/
 .DS_Store
 RELEASE_NOTES.md
 # temp
+.claude
+.github
+.opencode
+
+
