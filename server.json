@@ -1,0 +1,13 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3000
+  },
+  "auth": {
+    "mode": "normal",
+    "defaultPassword": "Clqc@1234"
+  },
+  "data": {
+    "basePath": ""
+  }
+}

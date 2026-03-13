@@ -116,14 +116,14 @@ export const api = {
     provider: string,
     model?: string
   ): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/config/validate', { apiKey, apiUrl, provider, model })
+    return httpRequest('POST', '/api/v1/ai-sources/validate', { apiKey, apiUrl, provider, model })
   },
 
   fetchModels: async (
     apiKey: string,
     apiUrl: string
   ): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/config/fetch-models', { apiKey, apiUrl })
+    return httpRequest('POST', '/api/v1/ai-sources/fetch-models', { apiKey, apiUrl })
   },
 
   refreshAISourcesConfig: async (): Promise<ApiResponse> => {

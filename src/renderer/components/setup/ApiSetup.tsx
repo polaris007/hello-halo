@@ -81,7 +81,7 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
     }
   }
 
-  // Fetch models from custom API
+  // Fetch models from custom API (via backend proxy to avoid CORS)
   const fetchModels = async () => {
     if (!apiUrl) {
       setError(t('Please enter API URL first'))
@@ -96,52 +96,19 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
     setError(null)
 
     try {
-      // Construct models endpoint
-      let baseUrl = apiUrl
-      if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
+      const response = await api.fetchModels(apiKey, apiUrl)
 
-      // Remove /chat/completions suffix if present (common mistake)
-      if (baseUrl.endsWith('/chat/completions')) {
-        baseUrl = baseUrl.replace(/\/chat\/completions$/, '')
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to fetch models')
       }
 
-      const url = `${baseUrl}/models`
+      const { models } = response.data as { models: Array<{ id: string; name: string }> }
+      const modelIds = models.map(m => m.id)
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      setFetchedModels(modelIds)
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch models (${response.status})`)
-      }
-
-      const data = await response.json()
-
-      // OpenAI compatible format: { data: [{ id: 'model-id', ... }] }
-      if (data.data && Array.isArray(data.data)) {
-        const models = data.data
-          .map((m: any) => m.id)
-          .filter((id: any) => typeof id === 'string')
-          .sort()
-
-        if (models.length === 0) {
-          throw new Error('No models found in response')
-        }
-
-        setFetchedModels(models)
-
-        // If current model is not in list (and we found models), select the first one?
-        // Or just let user decide.
-        // If current model is default generic one, maybe switch to first fetched.
-        if (models.length > 0 && (!model || model === 'gpt-4o-mini' || model === 'deepseek-chat')) {
-          setModel(models[0])
-        }
-      } else {
-        throw new Error('Invalid API response format (expected data array)')
+      if (modelIds.length > 0 && (!model || model === 'gpt-4o-mini' || model === 'deepseek-chat')) {
+        setModel(modelIds[0])
       }
     } catch {
       setError(t('Failed to fetch models. Check URL and Key.'))

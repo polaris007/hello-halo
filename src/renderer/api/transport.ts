@@ -53,15 +53,15 @@ export async function httpRequest<T>(
       body: body ? JSON.stringify(body) : undefined
     })
 
-    // Handle 401 - token expired or invalid, redirect to login
+    // Handle 401 - token expired or invalid
     if (response.status === 401) {
-      console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token and redirecting to login`)
+      console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token`)
       clearAuthToken()
       // Clear the auth cookie
       document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      // Reload page - server will show login page
-      window.location.reload()
-      return { success: false, error: 'Token expired, please login again' }
+      // Return error, let caller decide how to handle (e.g. show login page)
+      const errorData = await response.json().catch(() => ({}))
+      return { success: false, error: errorData?.error?.message || 'Authentication required' }
     }
 
     const data = await response.json()

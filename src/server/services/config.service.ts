@@ -16,6 +16,7 @@ export interface ServerConfig {
     mode: 'normal' | 'disabled' | 'simple' | 'header'
     simpleToken?: string
     headerName?: string
+    defaultPassword?: string
   }
   aiSources: {
     providers: Array<{
@@ -149,6 +150,9 @@ export function applyEnvOverrides(): ServerConfig {
   }
   if (process.env.HALO_AUTH_HEADER_NAME) {
     config.auth.headerName = process.env.HALO_AUTH_HEADER_NAME
+  }
+  if (process.env.HALO_DEFAULT_PASSWORD) {
+    config.auth.defaultPassword = process.env.HALO_DEFAULT_PASSWORD
   }
 
   // 数据目录

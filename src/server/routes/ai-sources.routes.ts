@@ -12,6 +12,214 @@ const router = Router()
 router.use(authMiddleware)
 
 /**
+ * POST /api/v1/ai-sources/fetch-models - 从外部 API 获取可用模型列表
+ * 通过服务端代理请求，避免浏览器 CORS 限制
+ */
+router.post('/fetch-models', async (req, res) => {
+  try {
+    const { apiKey, apiUrl } = req.body
+
+    if (!apiKey || !apiUrl) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'API key and URL are required' }
+      })
+    }
+
+    // Normalize URL: strip trailing slashes, known path suffixes, and auto-append /v1
+    let baseUrl = apiUrl.replace(/\/+$/, '')
+    const suffixes = ['/chat/completions', '/completions', '/responses', '/v1/chat']
+    for (const suffix of suffixes) {
+      if (baseUrl.endsWith(suffix)) {
+        baseUrl = baseUrl.slice(0, -suffix.length)
+        break
+      }
+    }
+
+    if (!baseUrl.includes('/v1') && !baseUrl.includes('/api/paas')) {
+      baseUrl = `${baseUrl}/v1`
+    }
+
+    const modelsUrl = `${baseUrl}/models`
+
+    console.log('[AI Sources] Fetching models from:', modelsUrl)
+
+    const response = await fetch(modelsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(15000)
+    })
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: { code: 'API_ERROR', message: `Failed to fetch models (${response.status})` }
+      })
+    }
+
+    const data = await response.json()
+
+    if (!data.data || !Array.isArray(data.data)) {
+      return res.status(502).json({
+        success: false,
+        error: { code: 'INVALID_RESPONSE', message: 'Invalid API response format' }
+      })
+    }
+
+    const models = data.data
+      .filter((m: any) => typeof m.id === 'string')
+      .map((m: any) => ({ id: m.id, name: m.id }))
+      .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id))
+
+    console.log(`[AI Sources] Found ${models.length} models`)
+
+    res.json({
+      success: true,
+      data: { models }
+    })
+  } catch (error: any) {
+    const message = error.name === 'AbortError' || error.message?.includes('timeout')
+      ? 'Connection timeout - server may be slow or unreachable'
+      : error.message || 'Failed to fetch models'
+
+    res.status(502).json({
+      success: false,
+      error: { code: 'FETCH_ERROR', message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/ai-sources/validate - 测试 API 连接
+ * 通过服务端发送轻量测试请求，验证 API Key、URL 和模型是否可用
+ */
+router.post('/validate', async (req, res) => {
+  try {
+    const { apiKey, apiUrl, provider, model } = req.body
+
+    if (!apiKey || !apiUrl) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'API key and URL are required' }
+      })
+    }
+
+    // Normalize URL
+    let normalizedUrl = apiUrl.replace(/\/+$/, '')
+    const suffixes = ['/chat/completions', '/completions', '/responses', '/v1/chat']
+    for (const suffix of suffixes) {
+      if (normalizedUrl.endsWith(suffix)) {
+        normalizedUrl = normalizedUrl.slice(0, -suffix.length)
+        break
+      }
+    }
+
+    console.log('[AI Sources] Validating API connection:', normalizedUrl, 'provider:', provider)
+
+    let testUrl: string
+    let testBody: Record<string, unknown>
+    let testHeaders: Record<string, string>
+
+    if (provider === 'anthropic') {
+      // Anthropic Messages API
+      if (!normalizedUrl.includes('/v1')) {
+        testUrl = `${normalizedUrl}/v1/messages`
+      } else {
+        testUrl = `${normalizedUrl}/messages`
+      }
+      testHeaders = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      }
+      testBody = {
+        model: model || 'claude-sonnet-4-20250514',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'hi' }]
+      }
+    } else {
+      // OpenAI-compatible Chat Completions API
+      if (!normalizedUrl.includes('/v1') && !normalizedUrl.includes('/api/paas')) {
+        testUrl = `${normalizedUrl}/v1/chat/completions`
+      } else {
+        testUrl = `${normalizedUrl}/chat/completions`
+      }
+      testHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      }
+      testBody = {
+        model: model || 'gpt-4o-mini',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'hi' }]
+      }
+    }
+
+    console.log('[AI Sources] Testing endpoint:', testUrl)
+
+    const response = await fetch(testUrl, {
+      method: 'POST',
+      headers: testHeaders,
+      body: JSON.stringify(testBody),
+      signal: AbortSignal.timeout(15000)
+    })
+
+    if (response.ok) {
+      res.json({
+        success: true,
+        data: {
+          valid: true,
+          message: 'Connection successful',
+          normalizedUrl,
+          model: (testBody as any).model
+        }
+      })
+    } else {
+      const errorData = await response.text().catch(() => '')
+      let userMessage = `Connection failed (${response.status})`
+
+      if (response.status === 401) {
+        userMessage = 'Invalid API key'
+      } else if (response.status === 403) {
+        userMessage = 'Access denied - check API key permissions'
+      } else if (response.status === 404) {
+        userMessage = 'API endpoint not found - check URL'
+      } else if (response.status === 429) {
+        userMessage = 'Rate limited - try again later'
+      }
+
+      res.json({
+        success: true,
+        data: {
+          valid: false,
+          message: userMessage,
+          normalizedUrl
+        }
+      })
+    }
+  } catch (error: any) {
+    let message = error.message || 'Connection failed'
+
+    if (error.name === 'AbortError' || message.includes('timeout')) {
+      message = 'Connection timeout - server may be slow or unreachable'
+    } else if (message.includes('ECONNREFUSED') || message.includes('ENOTFOUND')) {
+      message = 'Cannot connect to API server - check URL'
+    }
+
+    res.json({
+      success: true,
+      data: {
+        valid: false,
+        message
+      }
+    })
+  }
+})
+
+/**
  * GET /api/v1/ai-sources/providers - 获取所有 AI 提供商
  */
 router.get('/providers', (req, res) => {

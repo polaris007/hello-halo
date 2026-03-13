@@ -5,7 +5,7 @@
 
 import Database from 'better-sqlite3'
 import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, renameSync } from 'fs'
 import { homedir } from 'os'
 
 let db: Database.Database | null = null
@@ -242,5 +242,32 @@ export function runMigrations(): void {
     database.exec(`UPDATE spaces SET user_id = '${defaultUserId}' WHERE user_id = 'system'`)
     database.exec(`UPDATE conversations SET user_id = '${defaultUserId}' WHERE user_id = 'system'`)
     database.exec(`UPDATE configs SET user_id = '${defaultUserId}' WHERE user_id = 'system'`)
+  }
+
+  // ========================================
+  // 迁移空间目录到用户隔离结构
+  // 将 ~/.halo/spaces/{id} 迁移到 ~/.halo/users/{user_id}/spaces/{id}
+  // ========================================
+  const allSpaces = database.prepare('SELECT id, user_id, path FROM spaces').all() as any[]
+  for (const space of allSpaces) {
+    const expectedPath = join(HALO_DATA_DIR, 'users', space.user_id, 'spaces', space.id)
+    if (space.path !== expectedPath) {
+      // 确保用户目录存在
+      const userSpacesDir = join(HALO_DATA_DIR, 'users', space.user_id, 'spaces')
+      if (!existsSync(userSpacesDir)) {
+        mkdirSync(userSpacesDir, { recursive: true })
+      }
+      // 如果旧路径存在且新路径不存在，移动目录
+      if (existsSync(space.path) && !existsSync(expectedPath)) {
+        try {
+          renameSync(space.path, expectedPath)
+          console.log(`Migrated space directory: ${space.path} -> ${expectedPath}`)
+        } catch (err) {
+          console.warn(`Failed to migrate space directory ${space.path}:`, err)
+        }
+      }
+      // 更新数据库中的路径
+      database.prepare('UPDATE spaces SET path = ? WHERE id = ?').run(expectedPath, space.id)
+    }
   }
 }

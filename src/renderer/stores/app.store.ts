@@ -211,9 +211,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (authConfig.success && authConfig.data) {
           const mode = authConfig.data.mode
 
-          // If auth is disabled, skip login and go to config check
-          if (mode === 'disabled') {
-            console.log('[Store] Auth disabled, skipping login')
+          // If auth is disabled or header mode, skip login and go to config check
+          if (mode === 'disabled' || mode === 'header') {
+            console.log('[Store] Auth disabled or header mode, skipping login')
           } else {
             // Check if user is authenticated
             const userResult = await api.getCurrentUser()

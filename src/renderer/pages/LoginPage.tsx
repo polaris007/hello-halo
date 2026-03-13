@@ -24,8 +24,8 @@ export function LoginPage() {
         if (result.success && result.data) {
           const mode = result.data.mode
 
-          // 如果认证被禁用，直接跳转到首页
-          if (mode === 'disabled') {
+          // 如果认证被禁用或使用请求头模式，直接跳转到首页
+          if (mode === 'disabled' || mode === 'header') {
             setView('home')
             return
           }

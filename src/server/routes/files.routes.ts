@@ -23,9 +23,29 @@ const upload = multer({
 })
 
 /**
+ * Multer 错误处理中间件
+ * 处理文件大小超出限制等错误，返回正确的 HTTP 状态码
+ */
+function handleMulterError(err: any, _req: Request, res: Response, next: any) {
+  if (err && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      error: { code: 'FILE_TOO_LARGE', message: '文件大小超过 100MB 限制' }
+    })
+  }
+  if (err) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'UPLOAD_ERROR', message: err.message }
+    })
+  }
+  next()
+}
+
+/**
  * POST /api/v1/spaces/:spaceId/files - 上传文件
  */
-router.post('/spaces/:spaceId/files', upload.single('file'), (req: Request, res: Response) => {
+router.post('/spaces/:spaceId/files', upload.single('file'), handleMulterError, (req: Request, res: Response) => {
   try {
     const { spaceId } = req.params
     const file = req.file

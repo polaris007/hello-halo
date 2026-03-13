@@ -5,7 +5,14 @@
 
 import { randomBytes, createHash } from 'crypto'
 import { hash, compare } from '@node-rs/bcrypt'
+import { existsSync, mkdirSync } from 'fs'
+import { join } from 'path'
+import { homedir } from 'os'
 import { getDatabase } from '../utils/database'
+import { getConfig } from './config.service'
+
+// 数据目录
+const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
 
 const SALT_ROUNDS = 10
 const TOKEN_LENGTH = 32
@@ -21,6 +28,11 @@ const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 分钟
  * 创建用户
  */
 export async function createUser(username: string, password: string, isDefault = false) {
+  // 密码强度验证：至少 8 个字符
+  if (password.length < 8) {
+    throw new Error('密码长度至少 8 个字符')
+  }
+
   const db = getDatabase()
   const id = randomBytes(16).toString('hex')
   const passwordHash = await hash(password, SALT_ROUNDS)
@@ -30,6 +42,12 @@ export async function createUser(username: string, password: string, isDefault =
       INSERT INTO users (id, username, password_hash, is_default)
       VALUES (?, ?, ?, ?)
     `).run(id, username, passwordHash, isDefault ? 1 : 0)
+
+    // 创建用户目录结构：~/.halo/users/{user_id}/spaces/
+    const userSpacesDir = join(HALO_DATA_DIR, 'users', id, 'spaces')
+    if (!existsSync(userSpacesDir)) {
+      mkdirSync(userSpacesDir, { recursive: true })
+    }
 
     return { id, username, is_default: isDefault ? 1 : 0 }
   } catch (error: any) {
@@ -198,19 +216,38 @@ export function logout(token: string) {
 
 /**
  * 初始化默认用户（首次启动时调用）
+ * 密码优先级：server.json auth.defaultPassword > 环境变量 HALO_DEFAULT_PASSWORD > 随机生成
  */
 export async function initializeDefaultUser() {
+  const config = getConfig()
+  const configPassword = config.auth.defaultPassword || process.env.HALO_DEFAULT_PASSWORD
+
   if (hasUsers()) {
+    // 如果配置文件中指定了密码，更新默认管理员的密码
+    if (configPassword) {
+      const db = getDatabase()
+      const defaultUser = db.prepare('SELECT id, username FROM users WHERE is_default = 1 LIMIT 1').get() as any
+      if (defaultUser) {
+        const passwordHash = await hash(configPassword, SALT_ROUNDS)
+        db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+          .run(passwordHash, Math.floor(Date.now() / 1000), defaultUser.id)
+        console.log(`[Auth] Default user "${defaultUser.username}" password updated from config`)
+      }
+    }
     return null
   }
 
-  const defaultPassword = process.env.HALO_DEFAULT_PASSWORD || randomBytes(8).toString('hex')
+  const defaultPassword = configPassword || randomBytes(8).toString('hex')
   const user = await createUser('admin', defaultPassword, true)
 
   console.log('========================================')
   console.log('Default user created:')
   console.log(`  Username: admin`)
-  console.log(`  Password: ${defaultPassword}`)
+  if (configPassword) {
+    console.log(`  Password: (from config)`)
+  } else {
+    console.log(`  Password: ${defaultPassword}`)
+  }
   console.log('========================================')
 
   return { username: 'admin', password: defaultPassword }

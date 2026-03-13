@@ -7,7 +7,11 @@ import { getDatabase } from '../utils/database'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 import { randomUUID } from 'crypto'
+
+// 数据目录
+const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
 
 const router = Router()
 
@@ -86,7 +90,8 @@ router.post('/', (req, res) => {
 
     const db = getDatabase()
     const id = randomUUID()
-    const spacePath = join(process.env.HALO_DATA_DIR || '', 'spaces', id)
+    // 按用户隔离文件系统：~/.halo/users/{user_id}/spaces/{space_id}/
+    const spacePath = join(HALO_DATA_DIR, 'users', req.userId!, 'spaces', id)
 
     // 确保空间目录存在
     if (!existsSync(spacePath)) {
