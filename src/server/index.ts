@@ -4,6 +4,7 @@
  */
 
 import express from 'express'
+import cors from 'cors'
 import { createServer } from 'http'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -28,6 +29,37 @@ if (!existsSync(HALO_DATA_DIR)) {
 }
 
 // ========================================
+// DATABASE INITIALIZATION
+// ========================================
+
+import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from './utils/database'
+import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service'
+import { loadAuthConfig } from './middleware/auth.middleware'
+import { loadConfig, applyEnvOverrides, getConfig } from './services/config.service'
+
+// Load configuration
+loadConfig()
+applyEnvOverrides()
+
+// Initialize database
+initializeDatabase()
+runMigrations()
+
+// Initialize default user if no users exist
+initializeDefaultUser()
+
+// Cleanup expired sessions on startup
+cleanupExpiredSessions()
+
+// Load auth config from environment
+const config = getConfig()
+loadAuthConfig({
+  mode: config.auth.mode,
+  simpleToken: config.auth.simpleToken,
+  headerName: config.auth.headerName || 'X-User-Id',
+})
+
+// ========================================
 // EXPRESS APP SETUP
 // ========================================
 
@@ -36,9 +68,46 @@ const app = express()
 // Trust proxy (for reverse proxy deployments)
 app.set('trust proxy', 1)
 
+// CORS configuration
+app.use(cors({
+  origin: process.env.HALO_CORS_ORIGIN || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
+
 // Body parsers
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// ========================================
+// API ROUTES
+// ========================================
+
+import { router as authRoutes } from './routes/auth.routes'
+import { router as spacesRoutes } from './routes/spaces.routes'
+import { router as configsRoutes } from './routes/configs.routes'
+import { router as filesRoutes } from './routes/files.routes'
+import { router as aiSourcesRoutes } from './routes/ai-sources.routes'
+import { router as agentRoutes } from './routes/agent.routes'
+import { router as appsRoutes } from './routes/apps.routes'
+import { router as storeRoutes } from './routes/store.routes'
+import { router as searchRoutes } from './routes/search.routes'
+import { router as notifyChannelsRoutes } from './routes/notify-channels.routes'
+import { router as systemRoutes } from './routes/system.routes'
+import { initializeWebSocket } from './services/websocket.service'
+
+app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/spaces', spacesRoutes)
+app.use('/api/v1/configs', configsRoutes)
+app.use('/api/v1/ai-sources', aiSourcesRoutes)
+app.use('/api/v1/agent', agentRoutes)
+app.use('/api/v1/apps', appsRoutes)
+app.use('/api/v1/store', storeRoutes)
+app.use('/api/v1/search', searchRoutes)
+app.use('/api/v1/notify-channels', notifyChannelsRoutes)
+app.use('/api/v1/system', systemRoutes)
+app.use('/api/v1', filesRoutes)
 
 // ========================================
 // HEALTH CHECK ENDPOINTS
@@ -49,27 +118,31 @@ app.get('/health', (_req, res) => {
 })
 
 app.get('/ready', async (_req, res) => {
-  // TODO: Check database connection
-  res.json({ status: 'ok', checks: { database: 'ok' } })
+  try {
+    const db = getDatabase()
+    db.prepare('SELECT 1').get()
+    res.json({ status: 'ok', checks: { database: 'ok' } })
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      checks: { database: 'error' }
+    })
+  }
 })
-
-// ========================================
-// API ROUTES
-// ========================================
-
-// TODO: Import and use routes
-// app.use('/api/v1', apiRoutes)
 
 // ========================================
 // STATIC FILE SERVING (SPA)
 // ========================================
 
-// TODO: Serve static files from dist/client
+const clientDistPath = join(__dirname, '../client')
+if (existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath))
 
-// SPA fallback - all non-API routes should serve index.html
-// app.get('*', (_req, res) => {
-//   res.sendFile(join(__dirname, '../client/index.html'))
-// })
+  // SPA fallback
+  app.get('*', (_req, res) => {
+    res.sendFile(join(clientDistPath, 'index.html'))
+  })
+}
 
 // ========================================
 // ERROR HANDLING
@@ -92,9 +165,14 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 const server = createServer(app)
 
+// 初始化 WebSocket
+initializeWebSocket(server)
+
 server.listen(HALO_PORT, HALO_HOST, () => {
   console.log(`Halo server running at http://${HALO_HOST}:${HALO_PORT}`)
   console.log(`Data directory: ${HALO_DATA_DIR}`)
+  console.log(`Auth mode: ${process.env.HALO_AUTH_MODE || 'normal'}`)
+  console.log(`WebSocket available at ws://${HALO_HOST}:${HALO_PORT}/ws`)
 })
 
 // ========================================
@@ -103,6 +181,7 @@ server.listen(HALO_PORT, HALO_HOST, () => {
 
 const shutdown = () => {
   console.log('\nShutting down gracefully...')
+  closeDatabase()
   server.close(() => {
     console.log('Server closed')
     process.exit(0)

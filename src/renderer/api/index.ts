@@ -38,17 +38,38 @@ export const api = {
   isRemoteMode: () => true,
   isAuthenticated: () => !!getAuthToken(),
 
-  login: async (token: string): Promise<ApiResponse> => {
-    const result = await httpRequest<void>('POST', '/api/remote/login', { token })
-    if (result.success) {
-      setAuthToken(token)
+  // Username/password login
+  login: async (username: string, password: string): Promise<ApiResponse> => {
+    const result = await httpRequest<any>('POST', '/api/v1/auth/login', { username, password })
+    if (result.success && result.data?.session?.token) {
+      setAuthToken(result.data.session.token)
       connectWebSocket()
     }
     return result
   },
 
-  logout: () => {
-    clearAuthToken()
+  logout: async (): Promise<ApiResponse> => {
+    const result = await httpRequest<void>('POST', '/api/v1/auth/logout')
+    if (result.success) {
+      clearAuthToken()
+      disconnectWebSocket()
+    }
+    return result
+  },
+
+  getCurrentUser: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/auth/me')
+  },
+
+  getAuthConfig: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/auth/config')
+  },
+
+  connectWebSocket: () => {
+    connectWebSocket()
+  },
+
+  disconnectWebSocket: () => {
     disconnectWebSocket()
   },
 
@@ -557,8 +578,6 @@ export const api = {
     onEvent('agent:ask-question', callback),
 
   // ===== WebSocket Control =====
-  connectWebSocket,
-  disconnectWebSocket,
   subscribeToConversation,
   unsubscribeFromConversation,
 

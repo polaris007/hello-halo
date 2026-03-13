@@ -1,0 +1,34 @@
+{
+  "$schema": "./server-config-schema.json",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3000
+  },
+  "auth": {
+    "mode": "normal",
+    "simpleToken": "",
+    "headerName": "X-User-Id"
+  },
+  "aiSources": {
+    "providers": [
+      {
+        "id": "anthropic",
+        "name": "Anthropic",
+        "type": "anthropic",
+        "apiKey": "",
+        "baseUrl": "https://api.anthropic.com"
+      },
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "type": "openai",
+        "apiKey": "",
+        "baseUrl": "https://api.openai.com"
+      }
+    ]
+  },
+  "data": {
+    "basePath": "~/.halo",
+    "maxUploadSize": 104857600
+  }
+}

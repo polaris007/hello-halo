@@ -21,7 +21,6 @@ import { useCanvasStore, useCanvasIsOpen, useCanvasIsMaximized } from '../stores
 import { canvasLifecycle } from '../services/canvas-lifecycle'
 import { useSearchStore } from '../stores/search.store'
 import { ChatView } from '../components/chat/ChatView'
-import { ArtifactRail } from '../components/artifact/ArtifactRail'
 import { ConversationList } from '../components/chat/ConversationList'
 import { ChatHistoryPanel } from '../components/chat/ChatHistoryPanel'
 import { Header } from '../components/layout/Header'
@@ -234,11 +233,6 @@ export function SpacePage() {
     setShowConversationList(newValue)
     persistLayout({ sidebarOpen: newValue })
   }, [showConversationList])
-
-  // Persist artifact rail width on drag end
-  const handleArtifactRailWidthChange = useCallback((width: number) => {
-    persistLayout({ artifactRailWidth: width })
-  }, [])
 
   // Exit maximized mode when canvas closes
   useEffect(() => {
@@ -467,16 +461,7 @@ export function SpacePage() {
           </div>
         )}
 
-        {/* Artifact rail - auto-collapses when maximized via useEffect above */}
-        {/* Smart collapse: collapses when canvas is open, respects user preference */}
-        {!isMobile && (
-          <ArtifactRail
-            externalExpanded={effectiveRailExpanded}
-            onExpandedChange={setRailExpanded}
-            initialWidth={artifactRailWidthConfig}
-            onWidthChange={handleArtifactRailWidthChange}
-          />
-        )}
+        {/* ArtifactRail removed - B/S architecture no longer displays artifacts */}
       </div>
 
       {/* Mobile Canvas Overlay */}
@@ -506,10 +491,7 @@ export function SpacePage() {
         </div>
       )}
 
-      {/* Mobile Artifact Rail (shown as bottom sheet / overlay) */}
-      {isMobile && (
-        <ArtifactRail />
-      )}
+      {/* ArtifactRail removed - B/S architecture no longer displays artifacts */}
     </div>
   )
 }

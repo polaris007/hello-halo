@@ -1,0 +1,29 @@
+[Unit]
+Description=Halo Server - AI Programming Assistant
+After=network.target
+
+[Service]
+Type=simple
+User=halo
+Group=halo
+WorkingDirectory=/opt/halo
+Environment=NODE_ENV=production
+Environment=HALO_DATA_DIR=/var/lib/halo
+Environment=HALO_PORT=3000
+Environment=HALO_HOST=127.0.0.1
+ExecStart=/usr/bin/node /opt/halo/dist/server/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=halo-server
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/halo
+
+[Install]
+WantedBy=multi-user.target

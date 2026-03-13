@@ -204,12 +204,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
 
+      // B/S Architecture: Check authentication first
+      console.log('[Store] Checking authentication...')
+      try {
+        const authConfig = await api.getAuthConfig()
+        if (authConfig.success && authConfig.data) {
+          const mode = authConfig.data.mode
+
+          // If auth is disabled, skip login and go to config check
+          if (mode === 'disabled') {
+            console.log('[Store] Auth disabled, skipping login')
+          } else {
+            // Check if user is authenticated
+            const userResult = await api.getCurrentUser()
+            if (!userResult.success) {
+              console.log('[Store] Not authenticated, showing login')
+              set({ view: 'login', isLoading: false })
+              return
+            }
+            console.log('[Store] User authenticated')
+          }
+        }
+      } catch (authError) {
+        // Auth check failed, show login
+        console.warn('[Store] Auth check failed, showing login:', authError)
+        set({ view: 'login', isLoading: false })
+        return
+      }
+
       // Windows: Check Git Bash availability first
-      // Wrapped in its own try-catch because this IPC handler lives in extended services.
-      // If the bootstrap timeout fires before extended services are ready, this call
-      // will fail with "No handler registered". That is NOT a reason to show the setup
-      // page — the user's config/API key is unrelated to git-bash availability.
-      // The check will be retried when extended-ready arrives (see completeDeferredGitBashCheck).
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
       const isWindows = /Windows/.test(userAgent)
       if (isWindows) {
@@ -230,15 +253,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             console.log('[Store] Git Bash found')
           }
         } catch (gitBashError) {
-          // IPC handler not registered yet (extended services not ready).
-          // Mark as pending so the check runs once extended-ready arrives.
           console.warn('[Store] Git Bash check deferred (IPC not ready):', gitBashError)
           set({ gitBashCheckPending: true })
         }
       }
 
-      // Load config from main process
-      // config:get handler is registered in Essential services, so this always works.
+      // Load config from server
       console.log('[Store] Loading config...')
       const response = await api.getConfig()
       console.log('[Store] Config response:', response.success ? 'success' : 'failed')
@@ -249,7 +269,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ config })
 
         // Determine initial view based on config
-        // Show setup if first launch or no AI source configured (OAuth or Custom API)
+        // Show setup if first launch or no AI source configured
         if (config.isFirstLaunch || !hasAnyAISource(config.aiSources)) {
           console.log('[Store] First launch or no AI source, showing setup')
           set({ view: 'setup' })

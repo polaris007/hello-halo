@@ -23,7 +23,6 @@ import {
   Loader2,
 } from 'lucide-react'
 import { getToolIcon } from '../icons/ToolIcons'
-import { BrowserTaskCard, isBrowserTool } from '../tool/BrowserTaskCard'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { FileChangesFooter } from '../diff'
 import { MessageImages } from './ImageAttachmentPreview'
@@ -262,22 +261,7 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
   }, [message.content])
 
   // Extract browser tools from thoughts (tool_use type with browser tool names)
-  // Note: Tool calls are stored in thoughts, not in message.toolCalls
-  // When thoughts are stored separately (null), browser tools won't show until thoughts are loaded
-  const browserToolCalls = useMemo(() => {
-    if (!Array.isArray(message.thoughts)) return []
-    return message.thoughts
-      .filter(t => t.type === 'tool_use' && t.toolName && isBrowserTool(t.toolName))
-      .map(t => ({
-        id: t.id,
-        name: t.toolName!,
-        status: 'success' as const,  // Thoughts are recorded after completion
-        input: t.toolInput || {},
-      }))
-  }, [message.thoughts])
-
-  // Check if there are running browser tools (based on isWorking state)
-  const hasBrowserActivity = isWorking && browserToolCalls.length > 0
+  // BrowserTaskCard removed - AI Browser functionality no longer available in B/S architecture
 
   // Error-only message (no content): render standalone error block without bubble wrapper
   const isErrorOnly = !isUser && !message.content && !!message.error && !isWorking
@@ -352,13 +336,7 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
         </div>
       )}
 
-      {/* Browser task card - browser tools displayed separately */}
-      {browserToolCalls.length > 0 && (
-        <BrowserTaskCard
-          browserToolCalls={browserToolCalls}
-          isActive={isWorking || hasBrowserActivity}
-        />
-      )}
+      {/* BrowserTaskCard removed - AI Browser functionality no longer available in B/S architecture */}
 
       {/* Thought history - only for assistant messages with thoughts (when not hidden) */}
       {/* Supports both inline thoughts (v1/loaded) and separated thoughts (v2, lazy loaded on expand) */}

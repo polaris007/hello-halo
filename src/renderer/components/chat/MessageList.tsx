@@ -23,7 +23,6 @@ import { CollapsedThoughtProcess, LazyCollapsedThoughtProcess } from './Collapse
 import { CompactNotice } from './CompactNotice'
 import { InterruptedBubble } from './InterruptedBubble'
 import { MarkdownRenderer } from './MarkdownRenderer'
-import { BrowserTaskCard, isBrowserTool } from '../tool/BrowserTaskCard'
 import { AskUserQuestionCard } from './AskUserQuestionCard'
 import type { Message, Thought, CompactInfo, AgentErrorType, PendingQuestion } from '../../types'
 import { useTranslation } from '../../i18n'
@@ -281,7 +280,6 @@ interface StreamingRevision {
   thoughts: Thought[]
   isThinking: boolean
   textBlockVersion: number
-  streamingBrowserToolCalls: { id: string; name: string; status: 'running' | 'success'; input: any }[]
   pendingQuestion: PendingQuestion | null
   onAnswerQuestion?: (answers: Record<string, string>) => void
 }
@@ -300,15 +298,7 @@ function StreamingFooterContent({ revisionRef }: { revisionRef: React.RefObject<
           <ThoughtProcess thoughts={rev.thoughts} isThinking={rev.isThinking} />
         )}
 
-        {/* Real-time browser task card - shows AI browser operations as they happen */}
-        {rev.streamingBrowserToolCalls.length > 0 && (
-          <div className="mb-4">
-            <BrowserTaskCard
-              browserToolCalls={rev.streamingBrowserToolCalls}
-              isActive={rev.isThinking}
-            />
-          </div>
-        )}
+        {/* BrowserTaskCard removed - AI Browser functionality no longer available in B/S architecture */}
 
         {/* Streaming bubble with accumulated content and auto-scroll */}
         <StreamingBubble
@@ -405,22 +395,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     return map
   }, [displayMessages])
 
-  // Extract real-time browser tool calls from streaming thoughts
-  // This enables BrowserTaskCard to show operations as they happen
-  const streamingBrowserToolCalls = useMemo(() => {
-    return thoughts
-      .filter(t => t.type === 'tool_use' && t.toolName && isBrowserTool(t.toolName))
-      .map(t => ({
-        id: t.id,
-        name: t.toolName!,
-        // Determine status: if there's a subsequent tool_result for this tool, it's complete
-        // Otherwise it's still running
-        status: thoughts.some(
-          r => r.type === 'tool_result' && r.id.startsWith(t.id.replace('_use', '_result'))
-        ) ? 'success' as const : 'running' as const,
-        input: t.toolInput || {},
-      }))
-  }, [thoughts])
+  // BrowserTaskCard removed - AI Browser functionality no longer available in B/S architecture
 
   // Track at-bottom state via native DOM scroll events (independent of Virtuoso).
   const handleAtBottomStateChange = useCallback((atBottom: boolean) => {
@@ -518,7 +493,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     return { streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
              streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion }
   }, [streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
-      streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion])
+      pendingQuestion, onAnswerQuestion])
   const streamingRevisionRef = useRef(streamingRevision)
   streamingRevisionRef.current = streamingRevision
 

@@ -6,7 +6,6 @@ import { useEffect, useRef, Suspense, lazy } from 'react'
 import { useAppStore } from './stores/app.store'
 import { useChatStore } from './stores/chat.store'
 import { useOnboardingStore } from './stores/onboarding.store'
-import { initAIBrowserStoreListeners } from './stores/ai-browser.store'
 import { initPerfStoreListeners } from './stores/perf.store'
 import { useSpaceStore } from './stores/space.store'
 import { useSearchStore } from './stores/search.store'
@@ -18,7 +17,6 @@ import { GitBashSetup } from './components/setup/GitBashSetup'
 import { SearchPanel } from './components/search/SearchPanel'
 import { SearchHighlightBar } from './components/search/SearchHighlightBar'
 import { OnboardingOverlay } from './components/onboarding'
-import { UpdateNotification } from './components/updater/UpdateNotification'
 import { NotificationToast } from './components/notification/NotificationToast'
 import { useNotificationStore } from './stores/notification.store'
 import { api } from './api'
@@ -32,6 +30,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.H
 const SpacePage = lazy(() => import('./pages/SpacePage').then(m => ({ default: m.SpacePage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const AppsPage = lazy(() => import('./pages/AppsPage').then(m => ({ default: m.AppsPage })))
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
 
 // Page loading fallback - minimal spinner that matches app style
 function PageLoader() {
@@ -193,12 +192,10 @@ export default function App() {
     }
   }, [])
 
-  // Initialize AI Browser IPC listeners for active view sync
+  // Initialize perf store listeners
   useEffect(() => {
-    console.log('[App] Initializing AI Browser store listeners')
+    console.log('[App] Initializing perf store listeners')
     initPerfStoreListeners()
-    const cleanup = initAIBrowserStoreListeners()
-    return cleanup
   }, [])
 
   // Register agent event listeners (global - handles events for all conversations)
@@ -548,6 +545,12 @@ export default function App() {
         return <GitBashSetup onComplete={handleGitBashSetupComplete} />
       case 'setup':
         return <SetupFlow />
+      case 'login':
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <LoginPage />
+          </Suspense>
+        )
       case 'home':
         return (
           <Suspense fallback={<PageLoader />}>
@@ -586,8 +589,6 @@ export default function App() {
       <SearchHighlightBar />
       {/* Onboarding overlay - renders on top of everything */}
       <OnboardingOverlay />
-      {/* Update notification listener - pushes toasts into notification store */}
-      <UpdateNotification />
       {/* Unified in-app toast notifications */}
       <NotificationToast />
     </div>
