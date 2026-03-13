@@ -39,7 +39,7 @@ export const api = {
   isAuthenticated: () => !!getAuthToken(),
 
   // Username/password login
-  login: async (username: string, password: string): Promise<ApiResponse> => {
+  login: async (username: string, password: string): Promise<ApiResponse<{ session: { token: string }; user: { id: string; username: string } }>> => {
     const result = await httpRequest<any>('POST', '/api/v1/auth/login', { username, password })
     if (result.success && result.data?.session?.token) {
       setAuthToken(result.data.session.token)
@@ -57,11 +57,11 @@ export const api = {
     return result
   },
 
-  getCurrentUser: async (): Promise<ApiResponse> => {
+  getCurrentUser: async (): Promise<ApiResponse<{ id: string; username: string }>> => {
     return httpRequest('GET', '/api/v1/auth/me')
   },
 
-  getAuthConfig: async (): Promise<ApiResponse> => {
+  getAuthConfig: async (): Promise<ApiResponse<{ mode: string }>> => {
     return httpRequest('GET', '/api/v1/auth/config')
   },
 

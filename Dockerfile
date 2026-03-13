@@ -8,14 +8,19 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copy package files
+# Install build tools for native modules (better-sqlite3, bcrypt)
+RUN apk add --no-cache python3 make g++
+
+# Copy package files and patches
 COPY package.json package-lock.json* ./
+COPY patches ./patches
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (devDependencies needed for vite, typescript, tailwindcss, etc.)
+RUN npm ci --ignore-scripts && npx patch-package
 
-# Copy source code
-COPY vite.config.ts tsconfig.json tsconfig.server.json ./
+# Copy config files needed for frontend build
+COPY vite.config.ts tsconfig.json tsconfig.web.json tsconfig.server.json ./
+COPY postcss.config.cjs tailwind.config.cjs ./
 COPY src/renderer ./src/renderer
 COPY src/shared ./src/shared
 COPY public ./public
@@ -30,14 +35,18 @@ FROM node:20-alpine AS server-builder
 
 WORKDIR /app
 
-# Copy package files
+# Install build tools for native modules
+RUN apk add --no-cache python3 make g++
+
+# Copy package files and patches
 COPY package.json package-lock.json* ./
+COPY patches ./patches
 
-# Install dependencies (including devDependencies for TypeScript)
-RUN npm ci
+# Install ALL dependencies (devDependencies needed for TypeScript)
+RUN npm ci --ignore-scripts && npx patch-package
 
-# Copy source code
-COPY vite.config.ts tsconfig.json tsconfig.server.json ./
+# Copy config files needed for server build
+COPY tsconfig.json tsconfig.web.json tsconfig.server.json ./
 COPY src/server ./src/server
 COPY src/shared ./src/shared
 
@@ -51,9 +60,20 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install production dependencies only
+# Install build tools for native modules (better-sqlite3, bcrypt)
+RUN apk add --no-cache python3 make g++
+
+# Copy package files and patches
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+COPY patches ./patches
+
+# Install production dependencies only, then apply patches
+RUN npm ci --omit=dev --ignore-scripts \
+    && npx --yes patch-package \
+    && npm rebuild better-sqlite3
+
+# Remove build tools to reduce image size
+RUN apk del python3 make g++
 
 # Copy built assets from builders
 COPY --from=frontend-builder /app/dist/client ./dist/client

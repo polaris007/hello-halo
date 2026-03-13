@@ -3,14 +3,13 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { api } from '../api'
-import { setAuthToken } from '../api/transport'
+import { useAppStore } from '../stores/app.store'
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { setView } = useAppStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -27,7 +26,7 @@ export function LoginPage() {
 
           // 如果认证被禁用，直接跳转到首页
           if (mode === 'disabled') {
-            navigate('/')
+            setView('home')
             return
           }
 
@@ -39,7 +38,7 @@ export function LoginPage() {
     }
 
     fetchAuthMode()
-  }, [navigate])
+  }, [setView])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,14 +49,12 @@ export function LoginPage() {
       const result = await api.login(username, password)
 
       if (result.success && result.data) {
-        // 保存 Token
-        setAuthToken(result.data.session.token)
-
         // 连接到 WebSocket
         api.connectWebSocket()
 
-        // 跳转到首页
-        navigate('/')
+        // 重新初始化应用
+        const { initialize } = useAppStore.getState()
+        await initialize()
       } else {
         setError(result.error || t('Login failed'))
       }

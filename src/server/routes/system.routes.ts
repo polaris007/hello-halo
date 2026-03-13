@@ -4,8 +4,11 @@
  */
 
 import { Router, Request, Response } from 'express'
+import { createRequire } from 'module'
+import os from 'os'
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
 
+const require = createRequire(import.meta.url)
 const router = Router()
 
 /**
@@ -38,8 +41,6 @@ router.get('/version', optionalAuthMiddleware, async (req: Request, res: Respons
  */
 router.get('/info', optionalAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const os = require('os')
-
     res.json({
       success: true,
       data: {

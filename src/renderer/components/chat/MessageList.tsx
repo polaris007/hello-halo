@@ -491,7 +491,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   // the store to trigger re-renders when streaming state changes.
   const streamingRevision = useMemo(() => {
     return { streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
-             streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion }
+             pendingQuestion, onAnswerQuestion }
   }, [streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
       pendingQuestion, onAnswerQuestion])
   const streamingRevisionRef = useRef(streamingRevision)

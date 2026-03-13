@@ -37,11 +37,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       // 获取认证模式
       const configResult = await api.getAuthConfig()
-      if (configResult.success) {
-        set({ authMode: configResult.data?.mode || 'normal' })
+      if (configResult.success && configResult.data) {
+        set({ authMode: configResult.data.mode || 'normal' })
 
         // 如果认证被禁用，标记为已认证
-        if (configResult.data?.mode === 'disabled') {
+        if (configResult.data.mode === 'disabled') {
           set({ isAuthenticated: true, isLoading: false })
           return
         }
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (userResult.success && userResult.data) {
           set({
             isAuthenticated: true,
-            user: userResult.data,
+            user: { id: userResult.data.id, username: userResult.data.username },
             isLoading: false
           })
 
@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (result.success && result.data) {
         set({
           isAuthenticated: true,
-          user: result.data.user,
+          user: { id: result.data.user.id, username: result.data.user.username },
           isLoading: false
         })
         return { success: true }
