@@ -1,21 +1,10 @@
 /**
- * Transport Layer - Abstracts IPC vs HTTP communication
- * Automatically selects the appropriate transport based on environment
+ * Transport Layer - HTTP/WebSocket communication for B/S architecture
  */
 
-// Detect if running in Electron (has window.halo via preload)
-export function isElectron(): boolean {
-  return typeof window !== 'undefined' && 'halo' in window
-}
-
-// Detect if running as remote web client
-export function isRemoteClient(): boolean {
-  return !isElectron()
-}
-
-// Get the remote server URL (for remote clients)
-export function getRemoteServerUrl(): string {
-  // In remote mode, use the current origin
+// Get the server URL
+export function getServerUrl(): string {
+  // In B/S mode, use the current origin
   return window.location.origin
 }
 
@@ -42,7 +31,7 @@ export function clearAuthToken(): void {
 }
 
 /**
- * HTTP Transport - Makes API calls to remote server
+ * HTTP Transport - Makes API calls to server
  */
 export async function httpRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -50,7 +39,7 @@ export async function httpRequest<T>(
   body?: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   const token = getAuthToken()
-  const url = `${getRemoteServerUrl()}${path}`
+  const url = `${getServerUrl()}${path}`
 
   console.log(`[HTTP] ${method} ${path} - token: ${token ? 'present' : 'missing'}`)
 
@@ -93,14 +82,13 @@ export async function httpRequest<T>(
 }
 
 /**
- * WebSocket connection for real-time events (remote mode)
+ * WebSocket connection for real-time events
  */
 let wsConnection: WebSocket | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
 export function connectWebSocket(): void {
-  if (!isRemoteClient()) return
   if (wsConnection?.readyState === WebSocket.OPEN) return
 
   const token = getAuthToken()
@@ -109,7 +97,7 @@ export function connectWebSocket(): void {
     return
   }
 
-  const wsUrl = `${getRemoteServerUrl().replace('http', 'ws')}/ws`
+  const wsUrl = `${getServerUrl().replace('http', 'ws')}/ws`
   console.log('[WS] Connecting to:', wsUrl)
 
   wsConnection = new WebSocket(wsUrl)
@@ -133,9 +121,9 @@ export function connectWebSocket(): void {
         // Dispatch to registered listeners
         const listeners = wsEventListeners.get(message.channel)
         if (listeners) {
-          for (const callback of listeners) {
+          listeners.forEach((callback) => {
             callback(message.data)
-          }
+          })
         }
       }
     } catch (error) {
@@ -148,7 +136,7 @@ export function connectWebSocket(): void {
     wsConnection = null
 
     // Attempt to reconnect after 3 seconds
-    if (isRemoteClient() && getAuthToken()) {
+    if (getAuthToken()) {
       wsReconnectTimer = setTimeout(connectWebSocket, 3000)
     }
   }
@@ -193,52 +181,15 @@ export function unsubscribeFromConversation(conversationId: string): void {
 }
 
 /**
- * Register event listener (works for both IPC and WebSocket)
+ * Register event listener (WebSocket only in B/S mode)
  */
 export function onEvent(channel: string, callback: (data: unknown) => void): () => void {
-  if (isElectron()) {
-    // Use IPC in Electron
-    const methodMap: Record<string, keyof typeof window.halo> = {
-      'agent:message': 'onAgentMessage',
-      'agent:tool-call': 'onAgentToolCall',
-      'agent:tool-result': 'onAgentToolResult',
-      'agent:error': 'onAgentError',
-      'agent:complete': 'onAgentComplete',
-      'agent:thought': 'onAgentThought',
-      'agent:thought-delta': 'onAgentThoughtDelta',
-      'agent:mcp-status': 'onAgentMcpStatus',
-      'agent:compact': 'onAgentCompact',
-      'agent:ask-question': 'onAgentAskQuestion',
-      'remote:status-change': 'onRemoteStatusChange',
-      'browser:state-change': 'onBrowserStateChange',
-      'browser:zoom-changed': 'onBrowserZoomChanged',
-      'canvas:tab-action': 'onCanvasTabAction',
-      'ai-browser:active-view-changed': 'onAIBrowserActiveViewChanged',
-      'artifact:tree-update': 'onArtifactTreeUpdate',
-      'perf:snapshot': 'onPerfSnapshot',
-      'perf:warning': 'onPerfWarning',
-      'app:status_changed': 'onAppStatusChanged',
-      'app:activity_entry:new': 'onAppActivityEntry',
-      'app:escalation:new': 'onAppEscalation',
-      'app:navigate': 'onAppNavigate',
-      'notification:toast': 'onNotificationToast'
-    }
+  if (!wsEventListeners.has(channel)) {
+    wsEventListeners.set(channel, new Set())
+  }
+  wsEventListeners.get(channel)!.add(callback)
 
-    const method = methodMap[channel]
-    if (method && typeof window.halo[method] === 'function') {
-      return (window.halo[method] as (cb: (data: unknown) => void) => () => void)(callback)
-    }
-
-    return () => {}
-  } else {
-    // Use WebSocket in remote mode
-    if (!wsEventListeners.has(channel)) {
-      wsEventListeners.set(channel, new Set())
-    }
-    wsEventListeners.get(channel)!.add(callback)
-
-    return () => {
-      wsEventListeners.get(channel)?.delete(callback)
-    }
+  return () => {
+    wsEventListeners.get(channel)?.delete(callback)
   }
 }

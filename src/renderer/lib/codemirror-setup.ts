@@ -181,15 +181,15 @@ const languageMap: Record<string, () => LanguageSupport | Extension> = {
   groovy: () => StreamLanguage.define(groovy),
 
   // C-like languages (legacy modes)
-  kotlin: () => StreamLanguage.define(clike),
-  kt: () => StreamLanguage.define(clike),
-  kts: () => StreamLanguage.define(clike),
-  csharp: () => StreamLanguage.define(clike),
-  cs: () => StreamLanguage.define(clike),
-  scala: () => StreamLanguage.define(clike),
-  dart: () => StreamLanguage.define(clike),
-  objectivec: () => StreamLanguage.define(clike),
-  m: () => StreamLanguage.define(clike), // Objective-C
+  kotlin: () => StreamLanguage.define(clike as any),
+  kt: () => StreamLanguage.define(clike as any),
+  kts: () => StreamLanguage.define(clike as any),
+  csharp: () => StreamLanguage.define(clike as any),
+  cs: () => StreamLanguage.define(clike as any),
+  scala: () => StreamLanguage.define(clike as any),
+  dart: () => StreamLanguage.define(clike as any),
+  objectivec: () => StreamLanguage.define(clike as any),
+  m: () => StreamLanguage.define(clike as any), // Objective-C
 
   // R language (proper support)
   r: () => StreamLanguage.define(r),

@@ -1,11 +1,11 @@
 ## 1. 项目结构重构
 
-- [ ] 1.1 创建 `src/server/` 目录结构
-- [ ] 1.2 更新 `package.json`：移除 Electron 依赖，添加服务端启动脚本
-- [ ] 1.3 创建新的 Vite 配置文件 `vite.config.ts`（替换 electron-vite）
-- [ ] 1.4 创建服务端入口文件 `src/server/index.ts`
-- [ ] 1.5 删除 `src/preload/` 目录
-- [ ] 1.6 删除 `electron.vite.config.ts`
+- [x] 1.1 创建 `src/server/` 目录结构
+- [x] 1.2 更新 `package.json`：移除 Electron 依赖，添加服务端启动脚本
+- [x] 1.3 创建新的 Vite 配置文件 `vite.config.ts`（替换 electron-vite）
+- [x] 1.4 创建服务端入口文件 `src/server/index.ts`
+- [x] 1.5 删除 `src/preload/` 目录
+- [x] 1.6 删除 `electron.vite.config.ts`
 
 ## 2. 服务端核心功能
 

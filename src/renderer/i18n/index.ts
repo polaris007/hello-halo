@@ -107,11 +107,11 @@ i18n
     returnEmptyString: false,
 
     // Enable debug in development
-    debug: import.meta.env.DEV
+    debug: typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV
   })
 
 // Re-export useTranslation for convenience
-export const useTranslation = useI18nTranslation
+export const useTranslation: typeof useI18nTranslation = useI18nTranslation
 
 /**
  * Change language and persist to localStorage

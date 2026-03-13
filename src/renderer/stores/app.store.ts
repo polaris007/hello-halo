@@ -147,20 +147,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   refreshGitBashStatus: async () => {
-    if (!window.platform?.isWindows) return
+    // In B/S mode, Git Bash is handled by server
+    // Check platform from user agent
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const isWindows = /Windows/.test(userAgent)
+    if (!isWindows) return
 
     try {
       const status = await api.getGitBashStatus()
       if (status.success && status.data) {
-        const { mockMode } = status.data
-        set({ mockBashMode: !!mockMode })
-
-        // Reset install progress if no longer in mock mode
-        if (!mockMode) {
-          set({
-            gitBashInstallProgress: { phase: 'idle', progress: 0, message: '' }
-          })
-        }
+        // No mockMode in B/S architecture
+        set({ mockBashMode: false })
       }
     } catch (e) {
       console.error('[App] Failed to refresh Git Bash status:', e)
@@ -173,7 +170,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // re-runs the check so Windows users without Git Bash still see the setup flow.
   completeDeferredGitBashCheck: async () => {
     if (!get().gitBashCheckPending) return
-    if (!window.platform?.isWindows) {
+    // Check platform from user agent
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const isWindows = /Windows/.test(userAgent)
+    if (!isWindows) {
       set({ gitBashCheckPending: false })
       return
     }
@@ -183,14 +183,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const gitBashStatus = await api.getGitBashStatus()
       console.log('[Store] Deferred Git Bash status response:', gitBashStatus)
       if (gitBashStatus.success && gitBashStatus.data) {
-        const { found, mockMode } = gitBashStatus.data
-
-        if (mockMode) {
-          set({ mockBashMode: true })
-        }
+        const { found } = gitBashStatus.data
 
         // Git Bash genuinely not available — redirect to setup
-        if (!found && !mockMode) {
+        if (!found) {
           console.log('[Store] Deferred check: Git Bash not found, showing gitBashSetup')
           set({ view: 'gitBashSetup' })
         }
@@ -214,28 +210,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       // will fail with "No handler registered". That is NOT a reason to show the setup
       // page — the user's config/API key is unrelated to git-bash availability.
       // The check will be retried when extended-ready arrives (see completeDeferredGitBashCheck).
-      if (window.platform?.isWindows) {
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+      const isWindows = /Windows/.test(userAgent)
+      if (isWindows) {
         console.log('[Store] Windows detected, checking Git Bash status...')
         try {
           const gitBashStatus = await api.getGitBashStatus()
           console.log('[Store] Git Bash status response:', gitBashStatus)
           if (gitBashStatus.success && gitBashStatus.data) {
-            const { found, source, mockMode } = gitBashStatus.data
+            const { found } = gitBashStatus.data
 
-            // Track mock mode for showing warning banner later
-            if (mockMode) {
-              console.log('[Store] Git Bash in mock mode, will show warning banner')
-              set({ mockBashMode: true })
-            }
-
-            // If Git Bash not found and not previously configured, show setup
-            if (!found && !mockMode) {
+            // If Git Bash not found, show setup
+            if (!found) {
               console.log('[Store] Git Bash not found, showing setup')
               set({ view: 'gitBashSetup', isLoading: false })
               return
             }
 
-            console.log('[Store] Git Bash found:', source, mockMode ? '(mock mode)' : '')
+            console.log('[Store] Git Bash found')
           }
         } catch (gitBashError) {
           // IPC handler not registered yet (extended services not ready).

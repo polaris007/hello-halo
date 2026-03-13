@@ -19,7 +19,7 @@
  * - Bottom toolbar for future extensibility
  */
 
-import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
+import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent, DragEvent, RefObject } from 'react'
 import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
@@ -452,7 +452,7 @@ function InputToolbar({
       <div className="flex items-center gap-1">
         {/* Attachment menu */}
         {!isGenerating && !isOnboarding && (
-          <div className="relative" ref={attachMenuRef}>
+          <div className="relative" ref={attachMenuRef as RefObject<HTMLDivElement>}>
             <button
               onClick={onAttachMenuToggle}
               disabled={isProcessingImages}

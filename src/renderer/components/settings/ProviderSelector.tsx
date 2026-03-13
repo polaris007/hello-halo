@@ -282,13 +282,14 @@ export function ProviderSelector({
         finalModel
       )
 
-      if (!validationResponse.success || !validationResponse.data?.valid) {
+      const validationData = validationResponse.data as { valid?: boolean; message?: string; normalizedUrl?: string } | undefined
+      if (!validationResponse.success || !validationData?.valid) {
         setValidationResult({
           valid: false,
-          message: validationResponse.data?.message || validationResponse.error || t('Connection failed')
+          message: validationData?.message || validationResponse.error || t('Connection failed')
         })
       } else {
-        const normalizedUrl = validationResponse.data.normalizedUrl || apiUrl
+        const normalizedUrl = validationData.normalizedUrl || apiUrl
         if (normalizedUrl !== apiUrl) {
           setApiUrl(normalizedUrl)
         }

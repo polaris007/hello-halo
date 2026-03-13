@@ -162,16 +162,16 @@ function LazyCollapsedThoughtItem({
   scrollContainerRef,
 }: {
   thought: Thought
-  scrollContainerRef: RefObject<HTMLDivElement | null>
+  scrollContainerRef: RefObject<HTMLDivElement>
 }) {
-  const [ref, isVisible] = useLazyVisible('150px', scrollContainerRef)
+  const [ref, isVisible] = useLazyVisible('150px', scrollContainerRef as RefObject<HTMLDivElement | null>)
 
   if (isVisible) {
     return <ThoughtItem thought={thought} />
   }
 
   return (
-    <div ref={ref} style={{ minHeight: COLLAPSED_THOUGHT_ESTIMATED_HEIGHT }} className="border-b border-border/20 last:border-b-0" />
+    <div ref={ref as RefObject<HTMLDivElement>} style={{ minHeight: COLLAPSED_THOUGHT_ESTIMATED_HEIGHT }} className="border-b border-border/20 last:border-b-0" />
   )
 }
 

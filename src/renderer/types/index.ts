@@ -7,11 +7,14 @@ import {
   AISourcesConfig,
   DEFAULT_MODEL,
   getCurrentModelName,
-  hasAnyAISource
+  hasAnyAISource,
+  ApiProvider
 } from '../../shared/types/ai-sources';
 import { NotificationChannelsConfig }  from '../../shared/types/notification-channels';
+import type { FileChangesSummary } from '../../shared/file-changes';
 // Re-export them
 export { DEFAULT_MODEL, getCurrentModelName, hasAnyAISource };
+export type { ApiProvider, FileChangesSummary };
 
 // Re-export types from shared module (v2)
 export type {
@@ -23,7 +26,6 @@ export type {
   ProviderId,
   BuiltinProviderId,
   ModelOption,
-  ApiProvider,
   BackendRequestConfig,
   LoginStatus,
   OAuthLoginState,
@@ -338,7 +340,6 @@ export interface ThoughtsSummary {
  * Lightweight file changes summary stored in message metadata.
  * Allows immediate display of file change stats without loading full thoughts.
  */
-export type { FileChangesSummary } from '../../shared/file-changes';
 
 export interface Message {
   id: string;

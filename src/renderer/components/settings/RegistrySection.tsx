@@ -28,8 +28,9 @@ export function RegistrySection() {
       setLoading(true)
       setError(null)
       const result = await api.storeGetRegistries()
-      if (result.success && result.data) {
-        setRegistries(result.data)
+      const registriesData = result.data as { registries?: RegistrySource[] } | undefined
+      if (result.success && registriesData?.registries) {
+        setRegistries(registriesData.registries)
       } else {
         setError(result.error || t('Failed to load registries'))
       }

@@ -166,8 +166,9 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     try {
       console.log('[ArtifactTree] loadTree START, spaceId:', spaceId)
       const response = await api.listArtifactsTree(spaceId)
+      const dataArray = response.data as unknown[] | undefined
       console.log('[ArtifactTree] loadTree IPC response: success=%s, nodeCount=%d',
-        response.success, response.data?.length ?? 0)
+        response.success, dataArray?.length ?? 0)
       if (response.success && response.data) {
         const nodes = response.data as ArtifactTreeNode[]
         treeDataRef.current = nodes
@@ -193,8 +194,9 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       setLoadingPaths(prev => new Set(prev).add(dirPath))
       const response = await api.loadArtifactChildren(spaceId, dirPath)
 
+      const childrenArray = response.data as unknown[] | undefined
       console.log('[ArtifactTree] loadChildren IPC response: success=%s, childCount=%d, path=%s',
-        response.success, response.data?.length ?? 0, dirPath)
+        response.success, childrenArray?.length ?? 0, dirPath)
       if (response.success && response.data) {
         const children = response.data as ArtifactTreeNode[]
         const parent = nodeIndex.current.get(dirPath)

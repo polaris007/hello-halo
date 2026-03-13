@@ -276,7 +276,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const displayIsGenerating = isMockAnimating || isGenerating
   const displayIsThinking = isMockThinking || isThinking
   const displayIsStreaming = isStreaming  // Only real streaming (not mock)
-  const hasMessages = displayMessages.length > 0 || displayStreamingContent || displayIsThinking
+  const hasMessages = displayMessages.length > 0 || !!displayStreamingContent || !!displayIsThinking
 
   // Track previous compact state for smooth transitions
   const prevCompactRef = useRef(isCompact)

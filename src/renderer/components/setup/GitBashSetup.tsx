@@ -43,27 +43,10 @@ export function GitBashSetup({ onComplete }: GitBashSetupProps) {
     // Start installation
     setPhase('downloading')
 
-    try {
-      const result = await window.halo.installGitBash((progressData: DownloadProgress) => {
-        setPhase(progressData.phase as Phase)
-        setProgress(progressData.progress)
-        setMessage(progressData.message)
-        if (progressData.error) {
-          setError(progressData.error)
-        }
-      })
-
-      if (result.success) {
-        setPhase('done')
-        setTimeout(() => onComplete(true), 1500)
-      } else {
-        setPhase('error')
-        setError(result.error || t('Unknown error'))
-      }
-    } catch (e) {
-      setPhase('error')
-      setError(e instanceof Error ? e.message : String(e))
-    }
+    // In B/S architecture, Git Bash is handled by the server
+    // Skip the installation UI
+    setPhase('skipped')
+    setTimeout(() => onComplete(false), 1500)
   }
 
   const handleRetry = () => {
@@ -73,7 +56,7 @@ export function GitBashSetup({ onComplete }: GitBashSetupProps) {
   }
 
   const handleManualInstall = () => {
-    window.halo.openExternal?.('https://git-scm.com/downloads/win')
+    window.open('https://git-scm.com/downloads/win', '_blank')
   }
 
   // Choice screen
@@ -82,7 +65,7 @@ export function GitBashSetup({ onComplete }: GitBashSetupProps) {
       <div className="fixed inset-0 bg-background flex items-center justify-center overflow-auto">
         <div className="w-[520px] p-8 rounded-2xl bg-card border border-border shadow-xl">
           <div className="flex items-center gap-3 mb-6">
-            <HaloLogo size={40} animated={false} />
+            <HaloLogo size={40} />
             <h2 className="text-xl font-semibold">{t('First-time setup required')}</h2>
           </div>
 

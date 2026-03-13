@@ -359,7 +359,7 @@ function LazyThoughtItem({
   }
 
   return (
-    <div ref={ref} style={{ minHeight: THOUGHT_ITEM_ESTIMATED_HEIGHT }} />
+    <div ref={ref as RefObject<HTMLDivElement>} style={{ minHeight: THOUGHT_ITEM_ESTIMATED_HEIGHT }} />
   )
 }
 

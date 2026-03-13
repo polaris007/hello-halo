@@ -198,7 +198,7 @@ export function extractFileChangesSummary(thoughts: Thought[]): FileChangesSumma
  * so the diff modal won't show actual diffs — only stats and file names.
  */
 export function summaryToFileChanges(summary: FileChangesSummary): FileChanges {
-  const edits: FileChange[] = summary.edited.map((e, i) => ({
+  const edits: FileChange[] = summary.edited.map((e: { file: string; added: number; removed: number }, i: number) => ({
     id: `summary-edit-${i}`,
     file: e.file,
     fileName: getFileName(e.file),
@@ -206,7 +206,7 @@ export function summaryToFileChanges(summary: FileChangesSummary): FileChanges {
     stats: { added: e.added, removed: e.removed }
   }))
 
-  const writes: FileChange[] = summary.created.map((w, i) => ({
+  const writes: FileChange[] = summary.created.map((w: { file: string; lines: number }, i: number) => ({
     id: `summary-write-${i}`,
     file: w.file,
     fileName: getFileName(w.file),

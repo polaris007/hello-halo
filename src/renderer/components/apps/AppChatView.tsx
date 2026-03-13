@@ -140,7 +140,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
         id: `user-${Date.now()}`,
         role: 'user',
         content,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(),
       }
       setMessages(prev => [...prev, userMsg])
       setLoadState('loaded')

@@ -154,7 +154,7 @@ export function ToolCard({ toolCall, conversationId }: ToolCardProps) {
             <div className={`flex items-center gap-1 ${status.color}`}>
               <StatusIcon
                 size={12}
-                className={status.spin ? 'animate-spin' : ''}
+                className={(status as any).spin ? 'animate-spin' : ''}
               />
               <span className="text-xs">{status.text}</span>
             </div>

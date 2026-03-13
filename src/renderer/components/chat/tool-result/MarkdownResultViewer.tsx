@@ -67,7 +67,7 @@ export function MarkdownResultViewer({
       {/* Markdown content */}
       <div
         ref={(node) => {
-          contentRef.current = node
+          ;(contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
           checkOverflow(node)
         }}
         className={`

@@ -796,7 +796,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Stop generation for a specific conversation
   stopGeneration: async (conversationId?: string) => {
-    const targetId = conversationId || get().getCurrentSpaceState().currentConversationId
+    const targetId = conversationId || get().getCurrentSpaceState().currentConversationId || undefined
     try {
       await api.stopGeneration(targetId)
 

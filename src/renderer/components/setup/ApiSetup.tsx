@@ -229,14 +229,15 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
       const effectiveApiUrl = apiUrl || 'https://api.anthropic.com'
       const result = await api.validateApi(apiKey, effectiveApiUrl, provider, model)
 
-      if (!result.success || !result.data?.valid) {
+      const validationData = result.data as { valid?: boolean; message?: string; normalizedUrl?: string } | undefined
+      if (!result.success || !validationData?.valid) {
         setValidationResult({
           valid: false,
-          message: result.data?.message || result.error || t('Connection failed')
+          message: validationData?.message || result.error || t('Connection failed')
         })
       } else {
         // Auto-correct URL if backend normalized it
-        const normalizedUrl = result.data.normalizedUrl || effectiveApiUrl
+        const normalizedUrl = validationData.normalizedUrl || effectiveApiUrl
         if (normalizedUrl !== apiUrl) {
           setApiUrl(normalizedUrl)
         }

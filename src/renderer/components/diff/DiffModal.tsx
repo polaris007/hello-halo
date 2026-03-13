@@ -94,14 +94,11 @@ export function DiffModal({
     }
   }, [file])
 
-  // Open in folder (Electron only)
+  // Open in folder (not available in B/S mode)
   const handleOpenFolder = useCallback(() => {
-    if (!file) return
-    // This will be handled by the preload bridge
-    if (window.halo?.openFolder) {
-      window.halo.openFolder(file.file)
-    }
-  }, [file])
+    // Not available in B/S architecture
+    console.log('Open folder not available in web mode')
+  }, [])
 
   if (!isOpen || !file) return null
 
@@ -220,16 +217,6 @@ export function DiffModal({
               )}
             </button>
 
-            {/* Open folder button (only in Electron) */}
-            {typeof window !== 'undefined' && window.halo?.openFolder && (
-              <button
-                onClick={handleOpenFolder}
-                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title={t('Open in folder')}
-              >
-                <FolderOpen size={18} />
-              </button>
-            )}
 
             {/* Close button */}
             <button

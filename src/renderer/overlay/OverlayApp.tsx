@@ -35,22 +35,26 @@ export function OverlayApp() {
       setState(prev => ({ ...prev, ...newState }))
     }
 
-    // Subscribe to IPC events
-    if (window.electron?.ipcRenderer) {
-      window.electron.ipcRenderer.on('overlay:state-change', handleOverlayState)
+    // Subscribe to IPC events (only available in Electron environment)
+    const electronApi = (window as any).electron?.ipcRenderer
+    if (electronApi) {
+      electronApi.on('overlay:state-change', handleOverlayState)
+      electronApi.send('overlay:ready')
     }
 
-    // Notify main process that overlay is ready
-    window.electron?.ipcRenderer?.send('overlay:ready')
-
     return () => {
-      window.electron?.ipcRenderer?.removeListener('overlay:state-change', handleOverlayState)
+      if (electronApi) {
+        electronApi.removeListener('overlay:state-change', handleOverlayState)
+      }
     }
   }, [])
 
   // Handle capsule click - notify main process
   const handleCapsuleClick = () => {
-    window.electron?.ipcRenderer?.send('overlay:exit-maximized')
+    const electronApi = (window as any).electron?.ipcRenderer
+    if (electronApi) {
+      electronApi.send('overlay:exit-maximized')
+    }
   }
 
   return (

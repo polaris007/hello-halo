@@ -163,7 +163,7 @@ export function useLayoutPreferences(
   return {
     effectiveRailExpanded,
     effectiveChatWidth,
-    preferences: layoutPrefs ? { layout: layoutPrefs } : undefined,
+    preferences: layoutPrefs as SpaceLayoutPreferences | undefined,
     hasUserOverride: userRailOverride !== null,
     setRailExpanded,
     setChatWidth,

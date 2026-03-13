@@ -1,6 +1,6 @@
 import { resolve } from 'path'
 import { readFileSync, existsSync } from 'fs'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 /**
@@ -48,63 +48,52 @@ const analyticsDefine = {
 }
 
 /**
- * Build-time metadata injected into the renderer bundle
+ * Build-time metadata injected into the client bundle
  */
 const buildMetaDefine = {
   '__BUILD_TIME__': JSON.stringify(new Date().toISOString()),
 }
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  main: {
-    plugins: [
-      externalizeDepsPlugin()
-    ],
-    define: analyticsDefine,
-    build: {
-      sourcemap: true,
-      rollupOptions: {
-        input: {
-          index: resolve(__dirname, 'src/main/index.ts'),
-          // File watcher worker — runs in a separate child process
-          'worker/file-watcher/index': resolve(__dirname, 'src/worker/file-watcher/index.ts')
-        },
-        output: {
-          format: 'es',
-          entryFileNames: '[name].mjs'
-        }
-      }
-    }
+  plugins: [react()],
+  root: resolve(__dirname, 'src/renderer'),
+  publicDir: resolve(__dirname, 'public'),
+  define: {
+    ...analyticsDefine,
+    ...buildMetaDefine,
   },
-  preload: {
-    plugins: [externalizeDepsPlugin()],
-    build: {
-      rollupOptions: {
-        input: {
-          index: resolve(__dirname, 'src/preload/index.ts')
-        },
-        output: {
-          format: 'es',
-          entryFileNames: '[name].mjs'
-        }
-      }
-    }
-  },
-  renderer: {
-    root: resolve(__dirname, 'src/renderer'),
-    build: {
-      rollupOptions: {
-        input: {
-          index: resolve(__dirname, 'src/renderer/index.html'),
-          overlay: resolve(__dirname, 'src/renderer/overlay.html')
-        }
-      }
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src/renderer'),
     },
-    define: buildMetaDefine,
-    plugins: [react()],
-    resolve: {
-      alias: {
-        '@': resolve(__dirname, 'src/renderer')
-      }
-    }
-  }
+  },
+  build: {
+    outDir: resolve(__dirname, 'dist/client'),
+    emptyOutDir: true,
+    sourcemap: true,
+    rollupOptions: {
+      input: {
+        index: resolve(__dirname, 'src/renderer/index.html'),
+        overlay: resolve(__dirname, 'src/renderer/overlay.html'),
+      },
+    },
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/ready': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

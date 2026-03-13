@@ -305,6 +305,7 @@ function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEd
  * Empty State - Shown when no tabs are open
  */
 function EmptyState() {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center max-w-md px-4">

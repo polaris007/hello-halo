@@ -11,7 +11,6 @@
  */
 
 import { ReactNode } from 'react'
-import { isElectron } from '../../api/transport'
 
 interface HeaderProps {
   /** Left side content (after platform padding) */
@@ -22,35 +21,26 @@ interface HeaderProps {
   className?: string
 }
 
-// Get platform info with fallback for SSR/browser
+// Get platform info with fallback for browser
 const getPlatform = () => {
-  if (typeof window !== 'undefined' && window.platform) {
-    return window.platform
-  }
-  // Fallback for non-Electron environments (e.g., remote web access)
+  // In B/S architecture, detect from user agent
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const isMac = /Mac|iPod|iPhone|iPad/.test(userAgent)
+  const isWindows = /Windows/.test(userAgent)
+  const isLinux = /Linux/.test(userAgent) && !/Android/.test(userAgent)
+
   return {
-    platform: 'darwin' as const,
-    isMac: true,
-    isWindows: false,
-    isLinux: false
+    platform: isMac ? 'darwin' : isWindows ? 'win32' : isLinux ? 'linux' : 'darwin',
+    isMac,
+    isWindows,
+    isLinux
   }
 }
 
 export function Header({ left, right, className = '' }: HeaderProps) {
-  const platform = getPlatform()
-  const isInElectron = isElectron()
+  // In B/S architecture, use normal padding (no traffic lights or titleBarOverlay)
+  const platformPadding = 'pl-4 pr-4'
 
-  // Platform-specific padding classes
-  // macOS: traffic lights overlay on the left
-  // Windows/Linux: titleBarOverlay buttons overlay on the right
-  // Browser/Mobile: no overlay, use normal padding
-  const platformPadding = isInElectron
-    ? platform.isMac
-      ? 'pl-20 pr-4'   // Electron macOS: 80px left for traffic lights
-      : 'pl-4 pr-36'   // Electron Windows/Linux: 140px right for titleBarOverlay buttons
-    : 'pl-4 pr-4'      // Browser/Mobile: normal padding
-
-  // Header height: 40px, trafficLightPosition.y should be 40/2 - 7 = 13
   return (
     <header
       className={`
