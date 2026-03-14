@@ -251,6 +251,11 @@ export function sendToRenderer(
   // Always include spaceId and conversationId in event data
   const eventData = { ...data, spaceId, conversationId }
 
+  // Debug log for important events
+  if (channel === 'agent:message' || channel === 'agent:complete' || channel === 'agent:error') {
+    console.log(`[Agent] sendToRenderer: channel=${channel}, conversationId=${conversationId}, hasWebSocket=${!!websocketService}`)
+  }
+
   // Broadcast via WebSocket to subscribed users
   if (websocketService) {
     try {

@@ -140,6 +140,16 @@ export async function getOrCreateV2Session(
 
   // Create new session
   console.log(`[Agent][${conversationId}] Creating new V2 session...`)
+  console.log(`[Agent][${conversationId}] SDK Options:`)
+  console.log(`[Agent][${conversationId}]   - model: ${sdkOptions.model}`)
+  console.log(`[Agent][${conversationId}]   - cwd: ${sdkOptions.cwd}`)
+  console.log(`[Agent][${conversationId}]   - maxTurns: ${sdkOptions.maxTurns}`)
+  console.log(`[Agent][${conversationId}]   - includePartialMessages: ${sdkOptions.includePartialMessages}`)
+  console.log(`[Agent][${conversationId}]   - permissionMode: ${sdkOptions.permissionMode}`)
+  console.log(`[Agent][${conversationId}]   - executable: ${sdkOptions.executable}`)
+  console.log(`[Agent][${conversationId}]   - env.ANTHROPIC_API_KEY: ${sdkOptions.env?.ANTHROPIC_API_KEY ? sdkOptions.env.ANTHROPIC_API_KEY.substring(0, 10) + '...' : 'NOT SET'}`)
+  console.log(`[Agent][${conversationId}]   - env.ANTHROPIC_BASE_URL: ${sdkOptions.env?.ANTHROPIC_BASE_URL}`)
+  console.log(`[Agent][${conversationId}]   - env.CLAUDE_CONFIG_DIR: ${sdkOptions.env?.CLAUDE_CONFIG_DIR}`)
 
   const session = await unstable_v2_createSession(sdkOptions)
 

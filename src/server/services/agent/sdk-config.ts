@@ -314,7 +314,20 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     mcpServers
   } = params
 
-  console.log(`[SDK Config] buildBaseSdkOptions: workDir="${workDir}", spaceId="${spaceId}"`)
+  console.log(`[SDK Config] ============================================`)
+  console.log(`[SDK Config] buildBaseSdkOptions:`)
+  console.log(`[SDK Config]   - workDir: ${workDir}`)
+  console.log(`[SDK Config]   - spaceId: ${spaceId}`)
+  console.log(`[SDK Config]   - conversationId: ${conversationId}`)
+  console.log(`[SDK Config]   - nodePath: ${nodePath}`)
+  console.log(`[SDK Config]   - maxTurns: ${params.maxTurns ?? 50}`)
+  console.log(`[SDK Config]   - mcpServers: ${mcpServers ? Object.keys(mcpServers).join(', ') : 'none'}`)
+  console.log(`[SDK Config] Credentials:`)
+  console.log(`[SDK Config]   - sdkModel: ${credentials.sdkModel}`)
+  console.log(`[SDK Config]   - displayModel: ${credentials.displayModel}`)
+  console.log(`[SDK Config]   - anthropicBaseUrl: ${credentials.anthropicBaseUrl}`)
+  console.log(`[SDK Config]   - anthropicApiKey: ${credentials.anthropicApiKey ? credentials.anthropicApiKey.substring(0, 10) + '...' : 'NOT SET'}`)
+  console.log(`[SDK Config] --------------------------------------------`)
 
   // Build environment variables
   const env = buildSdkEnv({

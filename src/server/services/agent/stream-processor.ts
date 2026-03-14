@@ -175,22 +175,44 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   const toolIdToThoughtId = new Map<string, string>()
 
   const t1 = Date.now()
-  console.log(`[Agent][${conversationId}] Sending message to V2 session...`)
+  console.log(`[Agent][${conversationId}] ============================================`)
+  console.log(`[Agent][${conversationId}] Sending message to V2 session:`)
+  if (typeof messageContent === 'string') {
+    console.log(`[Agent][${conversationId}]   - type: text`)
+    console.log(`[Agent][${conversationId}]   - content: ${messageContent.substring(0, 100)}${messageContent.length > 100 ? '...' : ''}`)
+  } else {
+    console.log(`[Agent][${conversationId}]   - type: multi-modal`)
+    console.log(`[Agent][${conversationId}]   - content blocks: ${messageContent.length}`)
+    messageContent.forEach((block, idx) => {
+      console.log(`[Agent][${conversationId}]     [${idx}] type: ${block.type}`)
+    })
+  }
+  console.log(`[Agent][${conversationId}]   - displayModel: ${displayModel}`)
+  console.log(`[Agent][${conversationId}]   - v2Session exists: ${!!v2Session}`)
+  console.log(`[Agent][${conversationId}]   - v2Session.send exists: ${!!v2Session?.send}`)
+  console.log(`[Agent][${conversationId}]   - v2Session.stream exists: ${!!v2Session?.stream}`)
+  console.log(`[Agent][${conversationId}] --------------------------------------------`)
 
   // Send message to V2 session and stream response
   // For multi-modal messages, we need to send as SDKUserMessage
-  if (typeof messageContent === 'string') {
-    v2Session.send(messageContent)
-  } else {
-    // Multi-modal message: construct SDKUserMessage
-    const userMessage = {
-      type: 'user' as const,
-      message: {
-        role: 'user' as const,
-        content: messageContent
+  try {
+    if (typeof messageContent === 'string') {
+      v2Session.send(messageContent)
+    } else {
+      // Multi-modal message: construct SDKUserMessage
+      const userMessage = {
+        type: 'user' as const,
+        message: {
+          role: 'user' as const,
+          content: messageContent
+        }
       }
+      v2Session.send(userMessage as any)
     }
-    v2Session.send(userMessage as any)
+    console.log(`[Agent][${conversationId}] Message sent successfully`)
+  } catch (sendError) {
+    console.error(`[Agent][${conversationId}] Failed to send message:`, sendError)
+    throw sendError
   }
 
   // Stream messages from V2 session

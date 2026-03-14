@@ -101,6 +101,12 @@ let wsConnection: WebSocket | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
+// Pending subscriptions queue - stores conversation IDs to subscribe when connection is ready
+const pendingSubscriptions = new Set<string>()
+
+// Connection state tracking
+let isConnectionReady = false
+
 export function connectWebSocket(authMode?: string): void {
   if (wsConnection?.readyState === WebSocket.OPEN) return
 
@@ -123,6 +129,7 @@ export function connectWebSocket(authMode?: string): void {
 
   wsConnection.onopen = () => {
     console.log('[WS] Connected')
+    isConnectionReady = false // Will be set to true after auth:success
     // Authenticate
     wsConnection?.send(JSON.stringify({ type: 'auth', payload: { token } }))
   }
@@ -133,18 +140,49 @@ export function connectWebSocket(authMode?: string): void {
 
       if (message.type === 'auth:success') {
         console.log('[WS] Authenticated')
+        isConnectionReady = true
+        // Process pending subscriptions
+        if (pendingSubscriptions.size > 0) {
+          console.log(`[WS] Processing ${pendingSubscriptions.size} pending subscriptions`)
+          pendingSubscriptions.forEach(conversationId => {
+            subscribeToConversation(conversationId)
+          })
+          pendingSubscriptions.clear()
+        }
         return
       }
 
+      if (message.type === 'subscribed') {
+        console.log('[WS] Subscribed to conversation:', message.payload?.conversationId)
+        return
+      }
+
+      // Handle agent events from backend (format: { type: 'agent:event', payload: { eventType, data } })
+      if (message.type === 'agent:event') {
+        const { eventType, data } = message.payload
+        console.log(`[WS] Received agent event: ${eventType}, conversation: ${data?.conversationId}`)
+        const listeners = wsEventListeners.get(eventType)
+        if (listeners) {
+          listeners.forEach((callback) => {
+            callback(data)
+          })
+        }
+        return
+      }
+
+      // Handle legacy event format (format: { type: 'event', channel, data })
       if (message.type === 'event') {
-        // Dispatch to registered listeners
         const listeners = wsEventListeners.get(message.channel)
         if (listeners) {
           listeners.forEach((callback) => {
             callback(message.data)
           })
         }
+        return
       }
+
+      // Handle other message types
+      console.log('[WS] Received message:', message.type)
     } catch (error) {
       console.error('[WS] Failed to parse message:', error)
     }
@@ -153,6 +191,7 @@ export function connectWebSocket(authMode?: string): void {
   wsConnection.onclose = () => {
     console.log('[WS] Disconnected')
     wsConnection = null
+    isConnectionReady = false
 
     // Attempt to reconnect after 3 seconds
     if (getAuthToken()) {
@@ -178,14 +217,20 @@ export function disconnectWebSocket(): void {
 }
 
 export function subscribeToConversation(conversationId: string): void {
-  if (wsConnection?.readyState === WebSocket.OPEN) {
-    wsConnection.send(
-      JSON.stringify({
-        type: 'subscribe',
-        payload: { conversationId }
-      })
-    )
+  // If connection is not ready, queue the subscription
+  if (!isConnectionReady || wsConnection?.readyState !== WebSocket.OPEN) {
+    console.log(`[WS] Queueing subscription for conversation: ${conversationId}`)
+    pendingSubscriptions.add(conversationId)
+    return
   }
+
+  console.log(`[WS] Subscribing to conversation: ${conversationId}`)
+  wsConnection.send(
+    JSON.stringify({
+      type: 'subscribe',
+      payload: { conversationId }
+    })
+  )
 }
 
 export function unsubscribeFromConversation(conversationId: string): void {
