@@ -153,11 +153,11 @@ export const api = {
 
   // ===== Space =====
   getHaloSpace: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/spaces/halo')
+    return httpRequest('GET', '/api/v1/spaces/halo')
   },
 
   listSpaces: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/spaces')
+    return httpRequest('GET', '/api/v1/spaces')
   },
 
   createSpace: async (input: {
@@ -165,28 +165,44 @@ export const api = {
     icon: string
     customPath?: string
   }): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/spaces', input)
+    return httpRequest('POST', '/api/v1/spaces', input)
   },
 
   deleteSpace: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('DELETE', `/api/spaces/${spaceId}`)
+    return httpRequest('DELETE', `/api/v1/spaces/${spaceId}`)
   },
 
   getSpace: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}`)
   },
 
   openSpaceFolder: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/spaces/${spaceId}/open`)
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/open`)
   },
 
   getDefaultSpacePath: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/spaces/default-path')
+    return httpRequest('GET', '/api/v1/spaces/default-path')
   },
 
   selectFolder: async (): Promise<ApiResponse> => {
-    // Cannot select folder in web mode
-    return { success: false, error: 'Cannot select folder in web mode' }
+    // In web mode, folder selection is handled by ServerFolderPicker component
+    // This method is kept for compatibility but should not be called directly in web mode
+    return { success: false, error: 'Use ServerFolderPicker component in web mode' }
+  },
+
+  // ===== Filesystem Browsing (B/S mode) =====
+  getFilesystemRoots: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/filesystem/roots')
+  },
+
+  browseFilesystem: async (path: string, showHidden?: boolean): Promise<ApiResponse> => {
+    const params = new URLSearchParams({ path })
+    if (showHidden) params.set('showHidden', 'true')
+    return httpRequest('GET', `/api/v1/filesystem/browse?${params.toString()}`)
+  },
+
+  createDirectory: async (path: string): Promise<ApiResponse> => {
+    return httpRequest('POST', '/api/v1/filesystem/mkdir', { path })
   },
 
   updateSpace: async (

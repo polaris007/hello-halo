@@ -5,8 +5,8 @@
 import { Router } from 'express'
 import { getDatabase } from '../utils/database'
 import { authMiddleware } from '../middleware/auth.middleware'
-import { existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
+import { existsSync, mkdirSync, accessSync, statSync, constants } from 'fs'
+import { join, resolve } from 'path'
 import { homedir } from 'os'
 import { randomUUID } from 'crypto'
 
@@ -19,13 +19,31 @@ const router = Router()
 router.use(authMiddleware)
 
 /**
+ * GET /api/v1/spaces/default-path - 获取默认空间路径
+ */
+router.get('/default-path', (req, res) => {
+  try {
+    const defaultPath = join(HALO_DATA_DIR, 'spaces')
+    res.json({
+      success: true,
+      data: defaultPath
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
  * GET /api/v1/spaces - 获取当前用户的空间列表
  */
 router.get('/', (req, res) => {
   try {
     const db = getDatabase()
     const spaces = db.prepare(`
-      SELECT id, name, path, created_at, updated_at
+      SELECT id, name, path, working_dir, created_at, updated_at
       FROM spaces
       WHERE user_id = ?
       ORDER BY created_at DESC
@@ -50,7 +68,7 @@ router.get('/:id', (req, res) => {
   try {
     const db = getDatabase()
     const space = db.prepare(`
-      SELECT id, name, path, created_at, updated_at
+      SELECT id, name, path, working_dir, created_at, updated_at
       FROM spaces
       WHERE id = ? AND user_id = ?
     `).get(req.params.id, req.userId) as any
@@ -79,13 +97,49 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { name } = req.body
+    const { name, customPath } = req.body
 
     if (!name) {
       return res.status(400).json({
         success: false,
         error: { code: 'INVALID_REQUEST', message: '空间名称不能为空' }
       })
+    }
+
+    // 验证 customPath（如果提供）
+    let workingDir: string | null = null
+    if (customPath) {
+      const resolvedCustomPath = resolve(customPath)
+
+      if (!existsSync(resolvedCustomPath)) {
+        // 路径不存在，尝试自动创建
+        try {
+          mkdirSync(resolvedCustomPath, { recursive: true })
+        } catch (mkdirError: any) {
+          return res.status(400).json({
+            success: false,
+            error: { code: 'PATH_CREATE_FAILED', message: `Failed to create directory: ${mkdirError.message}` }
+          })
+        }
+      }
+
+      // 路径已存在或刚创建成功，进行类型和权限检查
+      try {
+        const stat = statSync(resolvedCustomPath)
+        if (!stat.isDirectory()) {
+          return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_PATH', message: 'The specified custom path is not a directory' }
+          })
+        }
+        accessSync(resolvedCustomPath, constants.R_OK)
+      } catch {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_PATH', message: 'No read permission for the specified custom path' }
+        })
+      }
+      workingDir = resolvedCustomPath
     }
 
     const db = getDatabase()
@@ -99,9 +153,9 @@ router.post('/', (req, res) => {
     }
 
     db.prepare(`
-      INSERT INTO spaces (id, user_id, name, path)
-      VALUES (?, ?, ?, ?)
-    `).run(id, req.userId, name, spacePath)
+      INSERT INTO spaces (id, user_id, name, path, working_dir)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, req.userId, name, spacePath, workingDir)
 
     res.status(201).json({
       success: true,
@@ -109,6 +163,7 @@ router.post('/', (req, res) => {
         id,
         name,
         path: spacePath,
+        working_dir: workingDir,
         created_at: Date.now(),
         updated_at: Date.now()
       }

@@ -245,6 +245,17 @@ export function runMigrations(): void {
   }
 
   // ========================================
+  // 迁移 spaces 表：添加 working_dir 列
+  // ========================================
+  const spacesColumnsAfterUserId = database.pragma("table_info('spaces')") as any[]
+  const spacesHasWorkingDir = spacesColumnsAfterUserId.some(col => col.name === 'working_dir')
+
+  if (!spacesHasWorkingDir) {
+    console.log('Running migration: adding working_dir to spaces table')
+    database.exec(`ALTER TABLE spaces ADD COLUMN working_dir TEXT`)
+  }
+
+  // ========================================
   // 迁移空间目录到用户隔离结构
   // 将 ~/.halo/spaces/{id} 迁移到 ~/.halo/users/{user_id}/spaces/{id}
   // ========================================

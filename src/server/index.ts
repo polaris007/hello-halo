@@ -95,6 +95,7 @@ import { router as storeRoutes } from './routes/store.routes'
 import { router as searchRoutes } from './routes/search.routes'
 import { router as notifyChannelsRoutes } from './routes/notify-channels.routes'
 import { router as systemRoutes } from './routes/system.routes'
+import { router as filesystemRoutes } from './routes/filesystem.routes'
 import { initializeWebSocket } from './services/websocket.service'
 
 app.use('/api/v1/auth', authRoutes)
@@ -107,6 +108,7 @@ app.use('/api/v1/store', storeRoutes)
 app.use('/api/v1/search', searchRoutes)
 app.use('/api/v1/notify-channels', notifyChannelsRoutes)
 app.use('/api/v1/system', systemRoutes)
+app.use('/api/v1/filesystem', filesystemRoutes)
 app.use('/api/v1', filesRoutes)
 
 // ========================================

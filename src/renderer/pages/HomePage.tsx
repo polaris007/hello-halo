@@ -18,7 +18,8 @@ import {
 } from '../components/icons/ToolIcons'
 import { Header } from '../components/layout/Header'
 import { SpaceGuide } from '../components/space/SpaceGuide'
-import { Monitor, Blocks, ArrowRight, AlertCircle } from 'lucide-react'
+import { ServerFolderPicker } from '../components/space/ServerFolderPicker'
+import { Blocks, ArrowRight, AlertCircle } from 'lucide-react'
 import { api } from '../api'
 import { useTranslation } from '../i18n'
 import { useAppsStore } from '../stores/apps.store'
@@ -53,6 +54,7 @@ export function HomePage() {
   const [useCustomPath, setUseCustomPath] = useState(false)
   const [customPath, setCustomPath] = useState<string | null>(null)
   const [defaultPath, setDefaultPath] = useState<string>('~/.halo/spaces')
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
 
   // Load spaces on mount
   useEffect(() => {
@@ -79,23 +81,31 @@ export function HomePage() {
 
   // Handle folder selection
   const handleSelectFolder = async () => {
-    if (isWebMode) return // Disabled in web mode
+    if (isWebMode) {
+      // In web mode, open ServerFolderPicker
+      setShowFolderPicker(true)
+      return
+    }
     const res = await api.selectFolder()
     if (res.success && res.data) {
-      const path = res.data as string
-      setCustomPath(path)
-      setUseCustomPath(true)
-      // Extract directory name as suggested space name
-      const dirName = path.split(/[/\\]/).pop() || ''
-      if (dirName && !newSpaceName.trim()) {
-        setNewSpaceName(dirName)
-      }
-      // Focus the space name input
-      setTimeout(() => {
-        spaceNameInputRef.current?.focus()
-        spaceNameInputRef.current?.select()
-      }, 100)
+      applySelectedFolder(res.data as string)
     }
+  }
+
+  // Apply selected folder path (shared between Electron and web mode)
+  const applySelectedFolder = (path: string) => {
+    setCustomPath(path)
+    setUseCustomPath(true)
+    // Extract directory name as suggested space name
+    const dirName = path.split(/[/\\]/).pop() || ''
+    if (dirName && !newSpaceName.trim()) {
+      setNewSpaceName(dirName)
+    }
+    // Focus the space name input
+    setTimeout(() => {
+      spaceNameInputRef.current?.focus()
+      spaceNameInputRef.current?.select()
+    }, 100)
   }
 
   // Reset dialog state
@@ -105,6 +115,7 @@ export function HomePage() {
     setNewSpaceIcon(DEFAULT_SPACE_ICON)
     setUseCustomPath(false)
     setCustomPath(null)
+    setShowFolderPicker(false)
   }
 
   // Handle space click - no reset needed, SpacePage handles its own state
@@ -423,51 +434,49 @@ export function HomePage() {
                 {/* Custom location */}
                 <label
                   className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                    isWebMode
-                      ? 'cursor-not-allowed opacity-60 border-border'
-                      : useCustomPath
-                        ? 'cursor-pointer border-primary bg-primary/5'
-                        : 'cursor-pointer border-border hover:border-muted-foreground/50'
+                    useCustomPath
+                      ? 'cursor-pointer border-primary bg-primary/5'
+                      : 'cursor-pointer border-border hover:border-muted-foreground/50'
                   }`}
                 >
                   <input
                     type="radio"
                     name="pathType"
                     checked={useCustomPath}
-                    onChange={() => !isWebMode && setUseCustomPath(true)}
-                    disabled={isWebMode}
+                    onChange={() => setUseCustomPath(true)}
                     className="w-4 h-4 text-primary"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm">{t('Custom Folder')}</div>
-                    {isWebMode ? (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Monitor className="w-3 h-3" />
-                        {t('Please select folder in desktop app')}
-                      </div>
-                    ) : customPath ? (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {shortenPath(customPath)}
+                    <div className="text-sm mb-1">{t('Custom Folder')}</div>
+                    {useCustomPath ? (
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={customPath || ''}
+                          onChange={(e) => setCustomPath(e.target.value || null)}
+                          onClick={(e) => e.stopPropagation()}
+                          placeholder={t('Enter path or click Browse')}
+                          className="flex-1 min-w-0 px-2 py-1 text-xs bg-input rounded border border-border focus:border-primary focus:outline-none transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleSelectFolder()
+                          }}
+                          className="px-2 py-1 text-xs bg-secondary hover:bg-secondary/80 rounded flex items-center gap-1 transition-colors flex-shrink-0"
+                        >
+                          <FolderOpen className="w-3 h-3" />
+                          {t('Browse')}
+                        </button>
                       </div>
                     ) : (
                       <div className="text-xs text-muted-foreground">
-                        {t('Select an existing project or folder')}
+                        {t('Enter a path or browse to select a folder')}
                       </div>
                     )}
                   </div>
-                  {!isWebMode && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        handleSelectFolder()
-                      }}
-                      className="px-3 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-md flex items-center gap-1.5 transition-colors"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      {t('Browse')}
-                    </button>
-                  )}
                 </label>
               </div>
             </div>
@@ -495,7 +504,7 @@ export function HomePage() {
               </button>
               <button
                 onClick={handleCreateSpace}
-                disabled={!newSpaceName.trim() || (useCustomPath && !customPath)}
+                disabled={!newSpaceName.trim() || (useCustomPath && !customPath?.trim())}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t('Create')}
@@ -562,6 +571,16 @@ export function HomePage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Server Folder Picker (web mode) */}
+      {showFolderPicker && (
+        <ServerFolderPicker
+          onSelect={(path) => {
+            setShowFolderPicker(false)
+            applySelectedFolder(path)
+          }}
+          onCancel={() => setShowFolderPicker(false)}
+        />
       )}
     </div>
   )
