@@ -1,14 +1,12 @@
-/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**
  * Halo - React Entry Point
  */
 
 // ========================================
 // LOGGING INITIALIZATION (must be first)
 // ========================================
-// Initialize electron-log only in Electron environment.
-// In remote browser mode, native console is used since there's no IPC transport.
-// Non-blocking: don't use top-level await to avoid blocking module graph in Vite dev mode
-// Note: In B/S architecture, electron-log is not available, use native console
+import { overrideConsole } from './utils/logger'
+overrideConsole()
 
 import ReactDOM from 'react-dom/client'
 import App from './App'

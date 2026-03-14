@@ -3,6 +3,10 @@
  * The main entry point for the B/S architecture web server
  */
 
+// Initialize logger first (before other imports to capture all logs)
+import { overrideConsole } from './utils/logger.js'
+overrideConsole()
+
 import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'

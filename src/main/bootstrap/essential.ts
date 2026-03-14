@@ -28,6 +28,7 @@ import { registerSystemHandlers } from '../ipc/system'
 import { registerUpdaterHandlers, initAutoUpdater } from '../services/updater.service'
 import { registerAuthHandlers } from '../ipc/auth'
 import { registerBootstrapStatusHandler } from './state'
+import { registerLoggerHandlers } from '../ipc/logger'
 
 /**
  * Initialize essential services required for first screen render
@@ -51,6 +52,9 @@ export function initializeEssentialServices(): void {
 
   // Config: Must be first - other services may depend on configuration
   registerConfigHandlers()
+
+  // Logger: Client-side logging to file (separate from server logs)
+  registerLoggerHandlers()
 
   // Auth: OAuth login handlers for multi-platform login (generic + backward compat)
   registerAuthHandlers()

@@ -5,6 +5,7 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { getConfig, saveConfig } from '../services/config.service'
+import { randomUUID } from 'crypto'
 
 const router = Router()
 
@@ -488,6 +489,205 @@ router.get('/models', (req, res) => {
     res.json({
       success: true,
       data: models
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+// ============================================================================
+// V2 AI Sources API - 操作数据库存储的 aiSources 配置
+// ============================================================================
+
+import { getDatabase } from '../utils/database'
+import { clearConfigCache } from '../services/agent/helpers'
+import type { AISource, AISourcesConfig } from '../../shared/types/ai-sources'
+import { createSource, addSource, updateSource, deleteSource, setCurrentSource, setCurrentModel, createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
+
+const AI_SOURCES_KEY = 'aiSources'
+
+/**
+ * Get aiSources config from database for current user
+ */
+function getUserAISources(userId: string): AISourcesConfig {
+  const db = getDatabase()
+  const row = db.prepare('SELECT value FROM configs WHERE user_id = ? AND key = ?').get(userId, AI_SOURCES_KEY) as any
+  if (row) {
+    try {
+      return JSON.parse(row.value)
+    } catch {
+      return createEmptyAISourcesConfig()
+    }
+  }
+  return createEmptyAISourcesConfig()
+}
+
+/**
+ * Save aiSources config to database for current user
+ */
+function saveUserAISources(userId: string, config: AISourcesConfig): void {
+  const db = getDatabase()
+  const now = Date.now()
+  const value = JSON.stringify(config)
+
+  const existing = db.prepare('SELECT id FROM configs WHERE user_id = ? AND key = ?').get(userId, AI_SOURCES_KEY) as any
+  if (existing) {
+    db.prepare('UPDATE configs SET value = ?, updated_at = ? WHERE user_id = ? AND key = ?')
+      .run(value, now, userId, AI_SOURCES_KEY)
+  } else {
+    db.prepare('INSERT INTO configs (id, user_id, key, value, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(randomUUID(), userId, AI_SOURCES_KEY, value, now, now)
+  }
+
+  // Clear agent config cache so next request picks up new config
+  clearConfigCache()
+}
+
+/**
+ * POST /api/v1/ai-sources/sources - 添加 AI Source (v2)
+ */
+router.post('/sources', (req, res) => {
+  try {
+    const sourceData = req.body as AISource
+
+    if (!sourceData.name || !sourceData.provider || !sourceSourceData.model) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'Missing required fields' }
+      })
+    }
+
+    const config = getUserAISources(req.userId!)
+    const newSource = createSource({
+      name: sourceData.name,
+      provider: sourceData.provider,
+      authType: sourceData.authType,
+      apiUrl: sourceData.apiUrl,
+      apiKey: sourceData.apiKey,
+      accessToken: sourceData.accessToken,
+      refreshToken: sourceData.refreshToken,
+      tokenExpires: sourceData.tokenExpires,
+      user: sourceData.user,
+      model: sourceData.model,
+      availableModels: sourceData.availableModels || []
+    })
+
+    const newConfig = addSource(config, newSource)
+    saveUserAISources(req.userId!, newConfig)
+
+    res.json({
+      success: true,
+      data: newConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * PUT /api/v1/ai-sources/sources/:id - 更新 AI Source (v2)
+ */
+router.put('/sources/:id', (req, res) => {
+  try {
+    const sourceId = req.params.id
+    const updates = req.body as Partial<AISource>
+
+    const config = getUserAISources(req.userId!)
+    const newConfig = updateSource(config, sourceId, updates)
+    saveUserAISources(req.userId!, newConfig)
+
+    res.json({
+      success: true,
+      data: newConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * DELETE /api/v1/ai-sources/sources/:id - 删除 AI Source (v2)
+ */
+router.delete('/sources/:id', (req, res) => {
+  try {
+    const sourceId = req.params.id
+
+    const config = getUserAISources(req.userId!)
+    const newConfig = deleteSource(config, sourceId)
+    saveUserAISources(req.userId!, newConfig)
+
+    res.json({
+      success: true,
+      data: newConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/ai-sources/switch-source - 切换当前 AI Source (v2)
+ */
+router.post('/switch-source', (req, res) => {
+  try {
+    const { sourceId } = req.body
+
+    if (!sourceId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'Source ID is required' }
+      })
+    }
+
+    const config = getUserAISources(req.userId!)
+    const newConfig = setCurrentSource(config, sourceId)
+    saveUserAISources(req.userId!, newConfig)
+
+    res.json({
+      success: true,
+      data: newConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/ai-sources/set-model - 设置当前模型 (v2)
+ */
+router.post('/set-model', (req, res) => {
+  try {
+    const { modelId } = req.body
+
+    if (!modelId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'Model ID is required' }
+      })
+    }
+
+    const config = getUserAISources(req.userId!)
+    const newConfig = setCurrentModel(config, modelId)
+    saveUserAISources(req.userId!, newConfig)
+
+    res.json({
+      success: true,
+      data: newConfig
     })
   } catch (error: any) {
     res.status(500).json({

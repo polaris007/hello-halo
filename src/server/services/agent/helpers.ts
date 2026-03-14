@@ -8,6 +8,7 @@
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
+import { getDatabase } from '../../utils/database'
 
 // ============================================
 // Working Directory Management
@@ -48,23 +49,48 @@ export function getWorkingDir(spaceId: string): string {
 
 // Simple config cache
 let configCache: any = null
+let configCacheTime = 0
+const CONFIG_CACHE_TTL = 5000 // 5 seconds
 
 /**
- * Get config from file
- * Server-side version - reads from ~/.halo/config.json
+ * Get config from database
+ * Server-side version - reads from database (synced with frontend)
  */
 async function getConfig(): Promise<any> {
-  if (configCache) return configCache
+  const now = Date.now()
+  if (configCache && (now - configCacheTime) < CONFIG_CACHE_TTL) {
+    return configCache
+  }
 
   try {
-    const configPath = join(getHaloDataDir(), 'config.json')
-    if (existsSync(configPath)) {
-      const configData = await import('fs').then(fs => fs.readFileSync(configPath, 'utf-8'))
-      configCache = JSON.parse(configData)
-      return configCache
+    const db = getDatabase()
+    // Get default user (for single-user mode) or first user
+    const user = db.prepare('SELECT id FROM users WHERE is_default = 1 LIMIT 1').get() as any
+      || db.prepare('SELECT id FROM users LIMIT 1').get() as any
+
+    if (!user) {
+      console.warn('[Agent] No user found in database')
+      return {}
     }
+
+    // Get all configs for this user
+    const configs = db.prepare('SELECT key, value FROM configs WHERE user_id = ?').all(user.id) as any[]
+
+    // Build config object
+    const cfg: any = {}
+    for (const row of configs) {
+      try {
+        cfg[row.key] = JSON.parse(row.value)
+      } catch {
+        cfg[row.key] = row.value
+      }
+    }
+
+    configCache = cfg
+    configCacheTime = now
+    return cfg
   } catch (error) {
-    console.error('[Agent] Failed to read config:', error)
+    console.error('[Agent] Failed to read config from database:', error)
   }
 
   // Return default config
@@ -72,27 +98,66 @@ async function getConfig(): Promise<any> {
 }
 
 /**
- * Get API credentials from config file
- * Server-side version - reads from config file
+ * Clear config cache (call when config is updated)
+ */
+export function clearConfigCache(): void {
+  configCache = null
+  configCacheTime = 0
+}
+
+/**
+ * Get API credentials from config
+ * Server-side version - reads from database (synced with frontend)
  */
 export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
   // If config is not provided, load it
   const cfg = config || await getConfig()
+
+  console.log('[Agent] getApiCredentials - config loaded:', {
+    hasAiSources: !!cfg.aiSources,
+    version: cfg.aiSources?.version,
+    sourcesCount: cfg.aiSources?.sources?.length,
+    currentId: cfg.aiSources?.currentId
+  })
 
   // Try to get from config first
   const aiSources = cfg.aiSources
   if (aiSources?.version === 2 && aiSources.sources?.length > 0) {
     const currentSource = aiSources.sources.find((s: any) => s.id === aiSources.currentId) || aiSources.sources[0]
 
+    console.log('[Agent] getApiCredentials - currentSource:', {
+      id: currentSource?.id,
+      name: currentSource?.name,
+      provider: currentSource?.provider,
+      authType: currentSource?.authType,
+      apiUrl: currentSource?.apiUrl,
+      model: currentSource?.model
+    })
+
     if (currentSource) {
+      // Map frontend field names to backend field names
+      // Frontend: apiUrl, Backend: baseUrl
+      const baseUrl = currentSource.apiUrl || currentSource.baseUrl || 'https://api.anthropic.com'
+      const apiKey = currentSource.apiKey || process.env.ANTHROPIC_API_KEY || ''
+      const model = currentSource.model || 'claude-sonnet-4-20250514'
+      const displayModel = currentSource.name || currentSource.model || 'Claude'
+
+      // Determine provider type
       const provider = currentSource.provider === 'anthropic' ? 'anthropic' :
                        currentSource.authType === 'oauth' ? 'oauth' : 'openai'
 
+      console.log('[Agent] getApiCredentials - mapped credentials:', {
+        baseUrl,
+        apiKey: apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET',
+        model,
+        provider
+      })
+
       return {
-        baseUrl: currentSource.baseUrl || 'https://api.anthropic.com',
-        apiKey: currentSource.apiKey || process.env.ANTHROPIC_API_KEY || '',
-        model: currentSource.model || 'claude-sonnet-4-20250514',
-        displayModel: currentSource.name || currentSource.model || 'Claude',
+        baseUrl,
+        apiKey,
+        model,
+        displayModel,
         provider,
         customHeaders: currentSource.customHeaders,
         apiType: currentSource.apiType,
