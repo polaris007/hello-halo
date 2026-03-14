@@ -98,6 +98,8 @@ import { router as notifyChannelsRoutes } from './routes/notify-channels.routes'
 import { router as systemRoutes } from './routes/system.routes'
 import { router as filesystemRoutes } from './routes/filesystem.routes'
 import { initializeWebSocket } from './services/websocket.service'
+import { setWebSocketService } from './services/agent/helpers'
+import * as websocketServiceModule from './services/websocket.service'
 
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/spaces', spacesRoutes)
@@ -171,6 +173,9 @@ const server = createServer(app)
 
 // 初始化 WebSocket
 initializeWebSocket(server)
+
+// 设置 WebSocket 服务供 Agent 使用
+setWebSocketService(websocketServiceModule)
 
 server.listen(HALO_PORT, HALO_HOST, () => {
   console.log(`Halo server running at http://${HALO_HOST}:${HALO_PORT}`)

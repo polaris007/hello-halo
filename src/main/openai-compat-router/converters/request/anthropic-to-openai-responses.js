@@ -1,0 +1,51 @@
+/**
+ * Request Converter: Anthropic -> OpenAI Responses API
+ */
+import { convertAnthropicMessagesToResponsesInput } from '../messages';
+import { convertAnthropicToolsToResponses, convertAnthropicToolChoiceToResponses, convertAnthropicThinkingToResponsesReasoning } from '../tools';
+/**
+ * Convert Anthropic request to OpenAI Responses API request
+ */
+export function convertAnthropicToOpenAIResponses(anthropicRequest) {
+    // Convert messages to input items
+    const inputItems = convertAnthropicMessagesToResponsesInput(anthropicRequest.messages, anthropicRequest.system);
+    // Check for images in the input
+    const hasImages = inputItems.some((item) => {
+        if ('content' in item && Array.isArray(item.content)) {
+            return item.content.some((part) => part.type === 'input_image');
+        }
+        return false;
+    });
+    // Convert tools
+    const tools = convertAnthropicToolsToResponses(anthropicRequest.tools);
+    const hasTools = !!tools && tools.length > 0;
+    // Build request - only include essential parameters
+    // Omit max_output_tokens as many providers don't support it
+    const request = {
+        model: anthropicRequest.model,
+        input: inputItems,
+        stream: anthropicRequest.stream
+    };
+    // Add tools if present
+    if (tools && tools.length > 0) {
+        request.tools = tools;
+        request.tool_choice = convertAnthropicToolChoiceToResponses(anthropicRequest.tool_choice);
+    }
+    // Convert thinking -> reasoning
+    if (anthropicRequest.thinking) {
+        request.reasoning = convertAnthropicThinkingToResponsesReasoning(anthropicRequest.thinking);
+    }
+    return {
+        request,
+        hasImages,
+        hasTools
+    };
+}
+/**
+ * Simplified conversion that returns just the request
+ * (for backward compatibility)
+ */
+export function convertRequest(anthropicRequest) {
+    return convertAnthropicToOpenAIResponses(anthropicRequest).request;
+}
+//# sourceMappingURL=anthropic-to-openai-responses.js.map

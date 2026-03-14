@@ -83,7 +83,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         // Only proxy actual HTTP API requests, not module imports
         // Module imports should be resolved by Vite's module resolution
@@ -112,16 +112,16 @@ export default defineConfig({
         },
       },
       '/ws': {
-        target: 'ws://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         ws: true,
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
       '/ready': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
     },
