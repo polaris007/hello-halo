@@ -75,27 +75,27 @@ export const api = {
 
   // ===== Generic Auth (provider-agnostic) =====
   authGetProviders: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/auth/providers')
+    return httpRequest('GET', '/api/v1/auth/providers')
   },
 
   authStartLogin: async (providerType: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/auth/start-login', { providerType })
+    return httpRequest('POST', '/api/v1/auth/start-login', { providerType })
   },
 
   authCompleteLogin: async (providerType: string, state: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/auth/complete-login', { providerType, state })
+    return httpRequest('POST', '/api/v1/auth/complete-login', { providerType, state })
   },
 
   authRefreshToken: async (providerType: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/auth/refresh-token', { providerType })
+    return httpRequest('POST', '/api/v1/auth/refresh-token', { providerType })
   },
 
   authCheckToken: async (providerType: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/auth/check-token?providerType=${providerType}`)
+    return httpRequest('GET', `/api/v1/auth/check-token?providerType=${providerType}`)
   },
 
   authLogout: async (providerType: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/auth/logout', { providerType })
+    return httpRequest('POST', '/api/v1/auth/logout', { providerType })
   },
 
   onAuthLoginProgress: (callback: (data: { provider: string; status: string }) => void) =>
@@ -103,11 +103,11 @@ export const api = {
 
   // ===== Config =====
   getConfig: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/config')
+    return httpRequest('GET', '/api/v1/configs')
   },
 
   setConfig: async (updates: Record<string, unknown>): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/config', updates)
+    return httpRequest('POST', '/api/v1/configs', updates)
   },
 
   validateApi: async (
@@ -127,28 +127,28 @@ export const api = {
   },
 
   refreshAISourcesConfig: async (): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/config/refresh-ai-sources')
+    return httpRequest('POST', '/api/v1/configs/refresh-ai-sources')
   },
 
   // ===== AI Sources CRUD =====
   aiSourcesSwitchSource: async (sourceId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/ai-sources/switch-source', { sourceId })
+    return httpRequest('POST', '/api/v1/ai-sources/switch-source', { sourceId })
   },
 
   aiSourcesSetModel: async (modelId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/ai-sources/set-model', { modelId })
+    return httpRequest('POST', '/api/v1/ai-sources/set-model', { modelId })
   },
 
   aiSourcesAddSource: async (source: unknown): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/ai-sources/sources', source as Record<string, unknown>)
+    return httpRequest('POST', '/api/v1/ai-sources/sources', source as Record<string, unknown>)
   },
 
   aiSourcesUpdateSource: async (sourceId: string, updates: unknown): Promise<ApiResponse> => {
-    return httpRequest('PUT', `/api/ai-sources/sources/${sourceId}`, updates as Record<string, unknown>)
+    return httpRequest('PUT', `/api/v1/ai-sources/sources/${sourceId}`, updates as Record<string, unknown>)
   },
 
   aiSourcesDeleteSource: async (sourceId: string): Promise<ApiResponse> => {
-    return httpRequest('DELETE', `/api/ai-sources/sources/${sourceId}`)
+    return httpRequest('DELETE', `/api/v1/ai-sources/sources/${sourceId}`)
   },
 
   // ===== Space =====
@@ -209,7 +209,7 @@ export const api = {
     spaceId: string,
     updates: { name?: string; icon?: string }
   ): Promise<ApiResponse> => {
-    return httpRequest('PUT', `/api/spaces/${spaceId}`, updates)
+    return httpRequest('PUT', `/api/v1/spaces/${spaceId}`, updates)
   },
 
   updateSpacePreferences: async (
@@ -221,27 +221,27 @@ export const api = {
       }
     }
   ): Promise<ApiResponse> => {
-    return httpRequest('PUT', `/api/spaces/${spaceId}/preferences`, preferences)
+    return httpRequest('PUT', `/api/v1/spaces/${spaceId}/preferences`, preferences)
   },
 
   getSpacePreferences: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}/preferences`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/preferences`)
   },
 
   // ===== Conversation =====
   listConversations: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}/conversations`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/conversations`)
   },
 
   createConversation: async (spaceId: string, title?: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/spaces/${spaceId}/conversations`, { title })
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/conversations`, { title })
   },
 
   getConversation: async (
     spaceId: string,
     conversationId: string
   ): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}/conversations/${conversationId}`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/conversations/${conversationId}`)
   },
 
   updateConversation: async (
@@ -251,7 +251,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'PUT',
-      `/api/spaces/${spaceId}/conversations/${conversationId}`,
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}`,
       updates
     )
   },
@@ -262,7 +262,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'DELETE',
-      `/api/spaces/${spaceId}/conversations/${conversationId}`
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}`
     )
   },
 
@@ -273,7 +273,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'POST',
-      `/api/spaces/${spaceId}/conversations/${conversationId}/messages`,
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}/messages`,
       message
     )
   },
@@ -285,7 +285,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'PUT',
-      `/api/spaces/${spaceId}/conversations/${conversationId}/messages/last`,
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}/messages/last`,
       updates
     )
   },
@@ -297,7 +297,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'GET',
-      `/api/spaces/${spaceId}/conversations/${conversationId}/messages/${messageId}/thoughts`
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}/messages/${messageId}/thoughts`
     )
   },
 
@@ -308,7 +308,7 @@ export const api = {
   ): Promise<ApiResponse> => {
     return httpRequest(
       'POST',
-      `/api/spaces/${spaceId}/conversations/${conversationId}/star`,
+      `/api/v1/spaces/${spaceId}/conversations/${conversationId}/star`,
       { starred }
     )
   },
@@ -349,27 +349,27 @@ export const api = {
   }): Promise<ApiResponse> => {
     // Subscribe to conversation events before sending
     subscribeToConversation(request.conversationId)
-    return httpRequest('POST', '/api/agent/message', request)
+    return httpRequest('POST', '/api/v1/agent/message', request)
   },
 
   stopGeneration: async (conversationId?: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/agent/stop', { conversationId })
+    return httpRequest('POST', '/api/v1/agent/stop', { conversationId })
   },
 
   approveTool: async (conversationId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/agent/approve', { conversationId })
+    return httpRequest('POST', '/api/v1/agent/approve', { conversationId })
   },
 
   rejectTool: async (conversationId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/agent/reject', { conversationId })
+    return httpRequest('POST', '/api/v1/agent/reject', { conversationId })
   },
 
   getSessionState: async (conversationId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/agent/session/${conversationId}`)
+    return httpRequest('GET', `/api/v1/agent/session/${conversationId}`)
   },
 
   ensureSessionWarm: async (spaceId: string, conversationId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/agent/warm', { spaceId, conversationId }).catch(() => ({
+    return httpRequest('POST', '/api/v1/agent/warm', { spaceId, conversationId }).catch(() => ({
       success: false
     }))
   },
@@ -379,25 +379,25 @@ export const api = {
     id: string
     answers: Record<string, string>
   }): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/agent/answer-question', data)
+    return httpRequest('POST', '/api/v1/agent/answer-question', data)
   },
 
   testMcpConnections: async (): Promise<{ success: boolean; servers: unknown[]; error?: string }> => {
-    const result = await httpRequest('POST', '/api/agent/test-mcp')
+    const result = await httpRequest('POST', '/api/v1/agent/test-mcp')
     return result as { success: boolean; servers: unknown[]; error?: string }
   },
 
   // ===== Artifact =====
   listArtifacts: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}/artifacts`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/artifacts`)
   },
 
   listArtifactsTree: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/spaces/${spaceId}/artifacts/tree`)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/artifacts/tree`)
   },
 
   loadArtifactChildren: async (spaceId: string, dirPath: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/children`, { dirPath })
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/artifacts/children`, { dirPath })
   },
 
   initArtifactWatcher: async (_spaceId: string): Promise<ApiResponse> => {
@@ -439,7 +439,7 @@ export const api = {
 
   downloadArtifact: (filePath: string): void => {
     const token = getAuthToken()
-    const url = `/api/artifacts/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(token || '')}`
+    const url = `/api/v1/artifacts/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(token || '')}`
     const link = document.createElement('a')
     link.href = url
     link.download = filePath.split('/').pop() || 'download'
@@ -450,15 +450,15 @@ export const api = {
 
   getArtifactDownloadUrl: (filePath: string): string => {
     const token = getAuthToken()
-    return `/api/artifacts/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(token || '')}`
+    return `/api/v1/artifacts/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(token || '')}`
   },
 
   readArtifactContent: async (filePath: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/artifacts/content?path=${encodeURIComponent(filePath)}`)
+    return httpRequest('GET', `/api/v1/artifacts/content?path=${encodeURIComponent(filePath)}`)
   },
 
   saveArtifactContent: async (filePath: string, content: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/artifacts/save', { path: filePath, content })
+    return httpRequest('POST', '/api/v1/artifacts/save', { path: filePath, content })
   },
 
   detectFileType: async (filePath: string): Promise<ApiResponse<{
@@ -468,7 +468,7 @@ export const api = {
     language?: string
     mimeType: string
   }>> => {
-    return httpRequest('GET', `/api/artifacts/detect-type?path=${encodeURIComponent(filePath)}`)
+    return httpRequest('GET', `/api/v1/artifacts/detect-type?path=${encodeURIComponent(filePath)}`)
   },
 
   // ===== Onboarding =====
@@ -477,7 +477,7 @@ export const api = {
     fileName: string,
     content: string
   ): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/spaces/${spaceId}/onboarding/artifact`, { fileName, content })
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/onboarding/artifact`, { fileName, content })
   },
 
   saveOnboardingConversation: async (
@@ -485,7 +485,7 @@ export const api = {
     userMessage: string,
     aiResponse: string
   ): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/spaces/${spaceId}/onboarding/conversation`, { userMessage, aiResponse })
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/onboarding/conversation`, { userMessage, aiResponse })
   },
 
   // ===== Remote Access (not available in B/S mode) =====
@@ -564,11 +564,11 @@ export const api = {
 
   // ===== Notification Channels =====
   testNotificationChannel: async (channelType: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/notify-channels/test', { channelType })
+    return httpRequest('POST', '/api/v1/notify-channels/test', { channelType })
   },
 
   clearNotificationChannelCache: async (): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/notify-channels/clear-cache')
+    return httpRequest('POST', '/api/v1/notify-channels/clear-cache')
   },
 
   // ===== Event Listeners =====
@@ -697,7 +697,7 @@ export const api = {
     conversationId?: string,
     spaceId?: string
   ): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/search', {
+    return httpRequest('POST', '/api/v1/search', {
       query,
       scope,
       conversationId,
@@ -706,7 +706,7 @@ export const api = {
   },
 
   cancelSearch: async (): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/search/cancel')
+    return httpRequest('POST', '/api/v1/search/cancel')
   },
 
   onSearchProgress: (callback: (data: { current: number; total: number; searchId: string }) => void) =>
@@ -725,7 +725,7 @@ export const api = {
   },
 
   getVersion: async (): Promise<ApiResponse<string>> => {
-    return httpRequest('GET', '/api/system/version')
+    return httpRequest('GET', '/api/v1/system/version')
   },
 
   onUpdaterStatus: (_callback: (data: {
@@ -880,44 +880,44 @@ export const api = {
     if (filter?.status) params.set('status', filter.status)
     if (filter?.type) params.set('type', filter.type)
     const qs = params.toString()
-    return httpRequest('GET', `/api/apps${qs ? '?' + qs : ''}`)
+    return httpRequest('GET', `/api/v1/apps${qs ? '?' + qs : ''}`)
   },
 
   appGet: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}`)
+    return httpRequest('GET', `/api/v1/apps/${appId}`)
   },
 
   appInstall: async (input: { spaceId: string; spec: unknown; userConfig?: Record<string, unknown> }): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/apps/install', input as Record<string, unknown>)
+    return httpRequest('POST', '/api/v1/apps/install', input as Record<string, unknown>)
   },
 
   appUninstall: async (appId: string, options?: { purge?: boolean }): Promise<ApiResponse> => {
     const qs = options?.purge ? '?purge=true' : ''
-    return httpRequest('DELETE', `/api/apps/${appId}${qs}`)
+    return httpRequest('DELETE', `/api/v1/apps/${appId}${qs}`)
   },
 
   appReinstall: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/reinstall`)
+    return httpRequest('POST', `/api/v1/apps/${appId}/reinstall`)
   },
 
   appDelete: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('DELETE', `/api/apps/${appId}/permanent`)
+    return httpRequest('DELETE', `/api/v1/apps/${appId}/permanent`)
   },
 
   appPause: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/pause`)
+    return httpRequest('POST', `/api/v1/apps/${appId}/pause`)
   },
 
   appResume: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/resume`)
+    return httpRequest('POST', `/api/v1/apps/${appId}/resume`)
   },
 
   appTrigger: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/trigger`)
+    return httpRequest('POST', `/api/v1/apps/${appId}/trigger`)
   },
 
   appGetState: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}/state`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/state`)
   },
 
   appGetActivity: async (appId: string, options?: { limit?: number; offset?: number; type?: string; since?: number }): Promise<ApiResponse> => {
@@ -926,67 +926,67 @@ export const api = {
     if (options?.offset) params.set('offset', String(options.offset))
     if (options?.since) params.set('before', String(options.since))
     const qs = params.toString()
-    return httpRequest('GET', `/api/apps/${appId}/activity${qs ? '?' + qs : ''}`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/activity${qs ? '?' + qs : ''}`)
   },
 
   appGetSession: async (appId: string, runId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}/runs/${runId}/session`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/runs/${runId}/session`)
   },
 
   appRespondEscalation: async (appId: string, escalationId: string, response: { choice?: string; text?: string }): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/escalation/${escalationId}/respond`, response as Record<string, unknown>)
+    return httpRequest('POST', `/api/v1/apps/${appId}/escalation/${escalationId}/respond`, response as Record<string, unknown>)
   },
 
   appUpdateConfig: async (appId: string, config: Record<string, unknown>): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/config`, config)
+    return httpRequest('POST', `/api/v1/apps/${appId}/config`, config)
   },
 
   appUpdateFrequency: async (appId: string, subscriptionId: string, frequency: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/frequency`, { subscriptionId, frequency })
+    return httpRequest('POST', `/api/v1/apps/${appId}/frequency`, { subscriptionId, frequency })
   },
 
   appUpdateOverrides: async (appId: string, overrides: Record<string, unknown>): Promise<ApiResponse> => {
-    return httpRequest('PATCH', `/api/apps/${appId}/overrides`, overrides)
+    return httpRequest('PATCH', `/api/v1/apps/${appId}/overrides`, overrides)
   },
 
   appUpdateSpec: async (appId: string, specPatch: Record<string, unknown>): Promise<ApiResponse> => {
-    return httpRequest('PATCH', `/api/apps/${appId}/spec`, specPatch)
+    return httpRequest('PATCH', `/api/v1/apps/${appId}/spec`, specPatch)
   },
 
   appGrantPermission: async (appId: string, permission: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/permissions/grant`, { permission })
+    return httpRequest('POST', `/api/v1/apps/${appId}/permissions/grant`, { permission })
   },
 
   appRevokePermission: async (appId: string, permission: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/permissions/revoke`, { permission })
+    return httpRequest('POST', `/api/v1/apps/${appId}/permissions/revoke`, { permission })
   },
 
   appExportSpec: async (appId: string): Promise<ApiResponse<{ yaml: string; filename: string }>> => {
-    return httpRequest('GET', `/api/apps/${appId}/export-spec`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/export-spec`)
   },
 
   appImportSpec: async (input: { spaceId: string; yamlContent: string; userConfig?: Record<string, unknown> }): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/apps/import-spec', input as Record<string, unknown>)
+    return httpRequest('POST', '/api/v1/apps/import-spec', input as Record<string, unknown>)
   },
 
   appChatSend: async (request: { appId: string; spaceId: string; message: string; thinkingEnabled?: boolean }): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${request.appId}/chat/send`, request as unknown as Record<string, unknown>)
+    return httpRequest('POST', `/api/v1/apps/${request.appId}/chat/send`, request as unknown as Record<string, unknown>)
   },
 
   appChatStop: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/apps/${appId}/chat/stop`)
+    return httpRequest('POST', `/api/v1/apps/${appId}/chat/stop`)
   },
 
   appChatStatus: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}/chat/status`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/chat/status`)
   },
 
   appChatMessages: async (appId: string, spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}/chat/messages?spaceId=${spaceId}`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/chat/messages?spaceId=${spaceId}`)
   },
 
   appChatSessionState: async (appId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/apps/${appId}/chat/session-state`)
+    return httpRequest('GET', `/api/v1/apps/${appId}/chat/session-state`)
   },
 
   onAppStatusChanged: (callback: (data: unknown) => void) =>
@@ -1012,39 +1012,39 @@ export const api = {
       params.set('tags', query.tags.join(','))
     }
     const qs = params.toString()
-    return httpRequest('GET', `/api/store/apps${qs ? '?' + qs : ''}`)
+    return httpRequest('GET', `/api/v1/store/apps${qs ? '?' + qs : ''}`)
   },
 
   storeGetAppDetail: async (slug: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/store/apps/${slug}`)
+    return httpRequest('GET', `/api/v1/store/apps/${slug}`)
   },
 
   storeInstall: async (slug: string, spaceId: string, userConfig?: Record<string, unknown>): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/store/apps/${slug}/install`, { spaceId, userConfig })
+    return httpRequest('POST', `/api/v1/store/apps/${slug}/install`, { spaceId, userConfig })
   },
 
   storeRefresh: async (): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/store/refresh')
+    return httpRequest('POST', '/api/v1/store/refresh')
   },
 
   storeCheckUpdates: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/store/updates')
+    return httpRequest('GET', '/api/v1/store/updates')
   },
 
   storeGetRegistries: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/store/registries')
+    return httpRequest('GET', '/api/v1/store/registries')
   },
 
   storeAddRegistry: async (input: { name: string; url: string }): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/store/registries', input)
+    return httpRequest('POST', '/api/v1/store/registries', input)
   },
 
   storeRemoveRegistry: async (registryId: string): Promise<ApiResponse> => {
-    return httpRequest('DELETE', `/api/store/registries/${registryId}`)
+    return httpRequest('DELETE', `/api/v1/store/registries/${registryId}`)
   },
 
   storeToggleRegistry: async (registryId: string, enabled: boolean): Promise<ApiResponse> => {
-    return httpRequest('POST', `/api/store/registries/${registryId}/toggle`, { enabled })
+    return httpRequest('POST', `/api/v1/store/registries/${registryId}/toggle`, { enabled })
   },
 }
 

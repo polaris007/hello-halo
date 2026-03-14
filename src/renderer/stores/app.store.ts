@@ -15,6 +15,18 @@ interface GitBashInstallProgress {
   error?: string
 }
 
+// Try to restore view state from localStorage on initial load
+let persistedView: 'home' | 'space' | null = null
+let persistedCurrentSpaceId: string | null = null
+try {
+  if (typeof localStorage !== 'undefined') {
+    persistedView = localStorage.getItem('halo_app_view') as 'home' | 'space' | null
+    persistedCurrentSpaceId = localStorage.getItem('halo_current_space_id')
+  }
+} catch (e) {
+  console.warn('[AppStore] Failed to restore view state from localStorage:', e)
+}
+
 interface AppState {
   // View state
   view: AppView
@@ -51,6 +63,9 @@ interface AppState {
 
   // Initialization
   initialize: () => Promise<void>
+
+  // Internal: persist and restore view state
+  _persistView: () => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -75,6 +90,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else {
       set({ view })
     }
+    // Persist view state to localStorage
+    get()._persistView()
   },
 
   goBack: () => {
@@ -96,6 +113,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setMcpStatus: (status, timestamp) => {
     set({ mcpStatus: status, mcpStatusTimestamp: timestamp })
+  },
+
+  // Persist view state to localStorage
+  _persistView: () => {
+    try {
+      const { view } = get()
+      if (view === 'space' || view === 'home') {
+        localStorage.setItem('halo_app_view', view)
+      }
+      // Note: currentSpaceId is persisted by space.store.ts automatically
+    } catch (e) {
+      console.warn('[AppStore] Failed to persist view state:', e)
+    }
   },
 
   // Git Bash actions
@@ -267,6 +297,26 @@ export const useAppStore = create<AppState>((set, get) => ({
         const config = response.data as HaloConfig
 
         set({ config })
+
+        // Check if we should restore previous view (page refresh scenario)
+        // Only restore if not first launch and has AI source configured
+        if (!config.isFirstLaunch && hasAnyAISource(config.aiSources)) {
+          // Try to restore previous view state from localStorage
+          try {
+            const restoredView = localStorage.getItem('halo_app_view') as AppView | null
+            const restoredSpaceId = localStorage.getItem('halo_current_space_id')
+
+            if (restoredView === 'space' && restoredSpaceId) {
+              // Restore space view - SpacePage will handle loading the space
+              console.log('[Store] Restoring previous space view:', restoredSpaceId)
+              set({ view: 'space' })
+              // Note: space store will restore currentSpace from localStorage automatically
+              return
+            }
+          } catch (e) {
+            console.warn('[Store] Failed to restore view state:', e)
+          }
+        }
 
         // Determine initial view based on config
         // Show setup if first launch or no AI source configured

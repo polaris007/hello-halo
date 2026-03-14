@@ -80,16 +80,17 @@ router.post('/message', async (req, res) => {
       WHERE id = ? AND user_id = ?
     `).run(JSON.stringify(messages), Date.now(), conversationId, req.userId)
 
-    // TODO: 实现完整的 Agent 消息处理
-    // 需要迁移 src/main/services/agent/ 中的核心逻辑
+    // 注意：完整的 Agent 功能需要 Electron 主进程支持
+    // 在纯 Web 服务器模式下，我们返回一个提示信息
+    // 要使用完整的对话功能，请通过 Electron 应用运行（npm run dev 或 npm start）
 
     res.json({
       success: true,
       data: {
         messageId: userMessage.id,
         conversationId,
-        status: 'pending',
-        message: 'Agent 功能正在迁移中，完整功能即将推出'
+        status: 'saved',
+        message: '消息已保存到数据库。注意：完整的 AI 对话功能需要 Electron 主进程支持。请通过 Electron 应用运行以获得完整功能。'
       }
     })
   } catch (error: any) {

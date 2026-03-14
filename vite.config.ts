@@ -82,8 +82,38 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api/v1': {
+      '/api': {
         target: 'http://localhost:3000',
+        changeOrigin: true,
+        // Only proxy actual HTTP API requests, not module imports
+        // Module imports should be resolved by Vite's module resolution
+        bypass: (req, res, proxyOptions) => {
+          const fullUrl = req.originalUrl || req.url || ''
+
+          // Check if this looks like a module import (has file extension)
+          // Module imports should NOT be proxied to the backend
+          // Return the URL string so Vite's dev server serves it via module resolution
+          if (fullUrl.match(/\.(ts|tsx|js|jsx|css|svg|png|jpg|jpeg|gif|woff|woff2|ico|json|wasm)(\?.*)?$/)) {
+            return fullUrl
+          }
+
+          // Check if this is an API endpoint call (no file extension, looks like /api/v1/...)
+          // API calls should be proxied to the backend
+          if (fullUrl.startsWith('/api/v1') || fullUrl === '/api') {
+            // This is an API call, proxy it
+            return
+          }
+
+          // For other /api/* paths that don't match API patterns, let Vite handle them
+          if (fullUrl.startsWith('/api/')) {
+            console.warn(`[Vite Proxy] Unknown API path: ${fullUrl}, letting Vite handle it`)
+            return fullUrl
+          }
+        },
+      },
+      '/ws': {
+        target: 'ws://localhost:3000',
+        ws: true,
         changeOrigin: true,
       },
       '/health': {

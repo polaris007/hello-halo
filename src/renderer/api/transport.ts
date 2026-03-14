@@ -53,6 +53,9 @@ export async function httpRequest<T>(
       body: body ? JSON.stringify(body) : undefined
     })
 
+    // Check content type to detect non-JSON responses (e.g. HTML error pages)
+    const contentType = response.headers.get('content-type') || ''
+
     // Handle 401 - token expired or invalid
     if (response.status === 401) {
       console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token`)
@@ -62,6 +65,16 @@ export async function httpRequest<T>(
       // Return error, let caller decide how to handle (e.g. show login page)
       const errorData = await response.json().catch(() => ({}))
       return { success: false, error: errorData?.error?.message || 'Authentication required' }
+    }
+
+    // Handle non-JSON responses (e.g. HTML 404/500 pages)
+    if (!contentType.includes('application/json')) {
+      const text = await response.text().catch(() => 'Unknown response')
+      console.error(`[HTTP] ${method} ${path} - non-JSON response (${contentType}):`, text.slice(0, 200))
+      return {
+        success: false,
+        error: `Server returned non-JSON response (${response.status} ${response.statusText}). This may indicate a server configuration issue.`
+      }
     }
 
     const data = await response.json()

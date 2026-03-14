@@ -670,15 +670,84 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sendMessage: async (content, images, aiBrowserEnabled, thinkingEnabled) => {
     const conversation = get().getCurrentConversation()
     const conversationMeta = get().getCurrentConversationMeta()
-    const { currentSpaceId } = get()
+    const { currentSpaceId, spaceStates } = get()
 
-    if ((!conversation && !conversationMeta) || !currentSpaceId) {
-      console.error('[ChatStore] No conversation or space selected')
+    if (!currentSpaceId) {
+      console.error('[ChatStore] No space selected')
       return
     }
 
-    const conversationId = conversationMeta?.id || conversation?.id
-    if (!conversationId) return
+    // Get conversation ID - prefer from conversation meta (more reliable)
+    let conversationId = conversationMeta?.id || conversation?.id
+
+    // If no conversation exists, create one synchronously
+    if (!conversationId) {
+      console.log('[ChatStore] No conversation found, creating one...')
+      const spaceState = spaceStates.get(currentSpaceId)
+
+      // Check if a conversation was just created but not yet reflected in state
+      if (spaceState?.conversations && spaceState.conversations.length > 0) {
+        // Use the most recently created conversation
+        conversationId = spaceState.conversations[0].id
+        console.log('[ChatStore] Using existing conversation from spaceState:', conversationId)
+      } else {
+        // Create a new conversation
+        try {
+          const response = await api.createConversation(currentSpaceId)
+          if (response.success && response.data) {
+            const newConversation = response.data as Conversation
+
+            // Extract metadata
+            const meta: ConversationMeta = {
+              id: newConversation.id,
+              spaceId: newConversation.spaceId,
+              title: newConversation.title,
+              createdAt: newConversation.createdAt,
+              updatedAt: newConversation.updatedAt,
+              messageCount: newConversation.messages?.length || 0,
+              preview: undefined
+            }
+
+            // Update store state synchronously
+            set((state) => {
+              const newSpaceStates = new Map(state.spaceStates)
+              const existingState = newSpaceStates.get(currentSpaceId) || createEmptySpaceState()
+
+              // Add to cache
+              const newCache = new Map(state.conversationCache)
+              newCache.set(newConversation.id, newConversation)
+
+              // LRU eviction
+              if (newCache.size > CONVERSATION_CACHE_SIZE) {
+                const firstKey = newCache.keys().next().value
+                if (firstKey) newCache.delete(firstKey)
+              }
+
+              newSpaceStates.set(currentSpaceId, {
+                conversations: [meta, ...existingState.conversations],
+                currentConversationId: newConversation.id
+              })
+
+              return { spaceStates: newSpaceStates, conversationCache: newCache }
+            })
+
+            conversationId = newConversation.id
+            console.log('[ChatStore] Created new conversation:', conversationId)
+
+            // Warm up session in background
+            api.ensureSessionWarm(currentSpaceId, conversationId).catch(console.error)
+          }
+        } catch (error) {
+          console.error('[ChatStore] Failed to create conversation:', error)
+          return
+        }
+      }
+    }
+
+    if (!conversationId) {
+      console.error('[ChatStore] Failed to get or create conversation')
+      return
+    }
 
     try {
       // Initialize/reset session state for this conversation

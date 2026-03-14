@@ -27,10 +27,10 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
   const { config, setConfig, setView } = useAppStore()
 
   // Form state
-  const [provider, setProvider] = useState(config?.api.provider || 'anthropic')
-  const [apiKey, setApiKey] = useState(config?.api.apiKey || '')
-  const [apiUrl, setApiUrl] = useState(config?.api.apiUrl || 'https://api.anthropic.com')
-  const [model, setModel] = useState(config?.api.model || DEFAULT_MODEL)
+  const [provider, setProvider] = useState(config?.api?.provider || 'anthropic')
+  const [apiKey, setApiKey] = useState(config?.api?.apiKey || '')
+  const [apiUrl, setApiUrl] = useState(config?.api?.apiUrl || 'https://api.anthropic.com')
+  const [model, setModel] = useState(config?.api?.model || DEFAULT_MODEL)
   const [isValidating, setIsValidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Validation result state
@@ -40,13 +40,13 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
   } | null>(null)
   // Custom model toggle
   const [useCustomModel, setUseCustomModel] = useState(() => {
-    const currentModel = config?.api.model || DEFAULT_MODEL
+    const currentModel = config?.api?.model || DEFAULT_MODEL
     return !AVAILABLE_MODELS.some(m => m.id === currentModel)
   })
 
   // Model fetching state
   const [fetchedModels, setFetchedModels] = useState<string[]>(
-    (config?.api.availableModels as string[]) || []
+    (config?.api?.availableModels as string[]) || []
   )
   const [isFetchingModels, setIsFetchingModels] = useState(false)
 
