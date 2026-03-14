@@ -101,6 +101,8 @@ import { router as searchRoutes } from './routes/search.routes'
 import { router as notifyChannelsRoutes } from './routes/notify-channels.routes'
 import { router as systemRoutes } from './routes/system.routes'
 import { router as filesystemRoutes } from './routes/filesystem.routes'
+import { router as terminalRoutes } from './routes/terminal.routes'
+import { router as adminRoutes } from './routes/admin.routes'
 import { initializeWebSocket } from './services/websocket.service'
 import { setWebSocketService } from './services/agent/helpers'
 import * as websocketServiceModule from './services/websocket.service'
@@ -117,6 +119,8 @@ app.use('/api/v1/search', searchRoutes)
 app.use('/api/v1/notify-channels', notifyChannelsRoutes)
 app.use('/api/v1/system', systemRoutes)
 app.use('/api/v1/filesystem', filesystemRoutes)
+app.use('/api/v1/terminal', terminalRoutes)
+app.use('/api/v1/admin', adminRoutes)
 app.use('/api/v1', filesRoutes)
 
 // ========================================

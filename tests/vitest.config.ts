@@ -48,7 +48,7 @@ export default defineConfig({
     alias: {
       // Allow importing from src
       '@main': path.resolve(__dirname, '../src/main'),
-      '@renderer': path.resolve(__dirname, '../src/renderer')
+      '@renderer': path.resolve(__dirname, '../src/web')
     }
   }
 })

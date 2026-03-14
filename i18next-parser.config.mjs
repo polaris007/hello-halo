@@ -8,14 +8,14 @@
 export default {
   // Source files to scan
   input: [
-    'src/renderer/**/*.{ts,tsx}',
-    '!src/renderer/**/*.test.{ts,tsx}',
-    '!src/renderer/**/*.spec.{ts,tsx}',
-    '!src/renderer/i18n/**'
+    'src/web/**/*.{ts,tsx}',
+    '!src/web/**/*.test.{ts,tsx}',
+    '!src/web/**/*.spec.{ts,tsx}',
+    '!src/web/i18n/**'
   ],
 
   // Output locale files
-  output: 'src/renderer/i18n/locales/$LOCALE.json',
+  output: 'src/web/i18n/locales/$LOCALE.json',
 
   // Supported locales
   locales: ['en', 'zh-CN', 'zh-TW', 'ja', 'es', 'fr', 'de'],

@@ -6,21 +6,108 @@ TBD - 用户登录认证和会话管理能力，提供多种认证模式支持�
 
 ## Requirements
 
+### Requirement: 用户注册
+
+系统 SHALL 允许新用户使用邮箱和密码注册。
+
+#### Scenario: 成功注册
+- **WHEN** 新用户提交有效的邮箱和密码
+- **THEN** 系统创建新用户账户
+- **AND** 返回 JWT access token 和 refresh token
+
+#### Scenario: 重复邮箱注册
+- **WHEN** 用户尝试使用已存在的邮箱注册
+- **THEN** 系统返回 409 Conflict 错误，消息为"Email already registered"
+
+#### Scenario: 邮箱格式无效
+- **WHEN** 用户提交格式无效的邮箱
+- **THEN** 系统返回 400 Bad Request 错误和验证详情
+
+#### Scenario: 密码强度不足
+- **WHEN** 用户提交少于 8 个字符的密码
+- **THEN** 系统返回 400 Bad Request 错误，消息为"Password must be at least 8 characters"
+
 ### Requirement: 用户登录认证
 
-系统 SHALL 提供用户登录功能，用户通过用户名和密码进行身份验证。
+系统 SHALL 使用邮箱和密码认证用户并发放 JWT token。
 
 #### Scenario: 成功登录
-- **WHEN** 用户提交正确的用户名和密码
-- **THEN** 系统返回认证 Token 并建立会话
+- **WHEN** 用户提交正确的邮箱和密码
+- **THEN** 系统返回 JWT access token（有效期 1 小时）和 refresh token（有效期 7 天）
+- **AND** 返回用户资料信息
 
 #### Scenario: 登录失败
-- **WHEN** 用户提交错误的用户名或密码
-- **THEN** 系统返回 401 错误并提示"用户名或密码错误"
+- **WHEN** 用户提交错误的邮箱或密码
+- **THEN** 系统返回 401 Unauthorized 错误，消息为"Invalid credentials"
+- **AND** 不透露邮箱是否存在
 
 #### Scenario: 账户锁定
-- **WHEN** 用户连续 5 次输入错误密码
-- **THEN** 系统锁定账户 15 分钟
+- **WHEN** 用户在 15 分钟内连续 5 次登录失败
+- **THEN** 系统锁定账户 30 分钟
+- **AND** 返回 423 Locked 错误
+
+### Requirement: Token 刷新
+
+系统 SHALL 允许用户使用 refresh token 刷新 access token。
+
+#### Scenario: 成功刷新 Token
+- **WHEN** 用户发送有效的 refresh token 到 /api/v1/auth/refresh
+- **THEN** 系统返回新的 access token
+- **AND** 返回新的 refresh token（轮换机制）
+
+#### Scenario: Refresh Token 过期
+- **WHEN** 用户发送过期的 refresh token
+- **THEN** 系统返回 401 Unauthorized 错误
+- **AND** 要求用户重新登录
+
+#### Scenario: Refresh Token 已撤销
+- **WHEN** 用户发送已撤销的 refresh token（登出后）
+- **THEN** 系统返回 401 Unauthorized 错误
+
+### Requirement: 用户登出
+
+系统 SHALL 允许用户登出并使 token 失效。
+
+#### Scenario: 成功登出
+- **WHEN** 已认证用户发送登出请求
+- **THEN** 系统使 refresh token 失效
+- **AND** 将当前 access token 加入黑名单直到过期
+
+### Requirement: 密码修改
+
+系统 SHALL 允许已认证用户修改密码。
+
+#### Scenario: 成功修改密码
+- **WHEN** 已认证用户提供当前密码和新密码
+- **THEN** 系统验证当前密码
+- **AND** 更新密码哈希
+- **AND** 使所有现有的 refresh token 失效
+
+#### Scenario: 当前密码错误
+- **WHEN** 用户提供错误的当前密码
+- **THEN** 系统返回 400 Bad Request 错误，消息为"Current password is incorrect"
+
+### Requirement: JWT 认证中间件
+
+系统 SHALL 在受保护的 API 端点上验证 JWT token。
+
+#### Scenario: 有效 Token
+- **WHEN** 请求在 Authorization 头中包含有效的 JWT access token
+- **THEN** 系统从 token 中提取 user_id
+- **AND** 将用户上下文附加到请求
+- **AND** 允许访问端点
+
+#### Scenario: 缺少 Token
+- **WHEN** 请求访问受保护端点但没有 Authorization 头
+- **THEN** 系统返回 401 Unauthorized 错误
+
+#### Scenario: Token 无效
+- **WHEN** 请求包含无效或格式错误的 JWT token
+- **THEN** 系统返回 401 Unauthorized 错误
+
+#### Scenario: Token 过期
+- **WHEN** 请求包含过期的 JWT access token
+- **THEN** 系统返回 401 Unauthorized 错误，代码为"TOKEN_EXPIRED"
 
 ### Requirement: 会话管理
 
@@ -41,22 +128,6 @@ TBD - 用户登录认证和会话管理能力，提供多种认证模式支持�
 #### Scenario: 主动登出
 - **WHEN** 用户点击登出按钮
 - **THEN** 系统销毁当前会话并清除客户端 Token
-
-### Requirement: Token 机制
-
-系统 SHALL 使用 Bearer Token 进行 API 认证。
-
-#### Scenario: Token 格式
-- **WHEN** 系统生成 Token
-- **THEN** Token 为 32 字节的随机字符串，以十六进制编码
-
-#### Scenario: Token 传递
-- **WHEN** 客户端调用受保护的 API
-- **THEN** 客户端在 Authorization 头中携带 "Bearer {token}"
-
-#### Scenario: Token 无效
-- **WHEN** 请求携带无效或过期的 Token
-- **THEN** 系统返回 401 错误
 
 ### Requirement: 默认用户创建
 

@@ -21,7 +21,7 @@ RUN npm ci --ignore-scripts && npx patch-package
 # Copy config files needed for frontend build
 COPY vite.config.ts tsconfig.json tsconfig.web.json tsconfig.server.json ./
 COPY postcss.config.cjs tailwind.config.cjs ./
-COPY src/renderer ./src/renderer
+COPY src/web ./src/web
 COPY src/shared ./src/shared
 COPY public ./public
 

@@ -9,6 +9,7 @@ import { IncomingMessage } from 'http'
 import { URL } from 'url'
 import { getDatabase } from '../utils/database'
 import { getAuthConfig } from '../middleware/auth.middleware'
+import { verifyToken } from '../utils/crypto'
 
 // 客户端连接类型
 interface ClientConnection {
@@ -121,15 +122,14 @@ async function authenticateUser(token: string | null) {
     return null
   }
 
-  // normal 模式：验证会话
+  // normal 模式：验证 JWT Token
   try {
-    const db = getDatabase()
-    const session = db.prepare('SELECT * FROM sessions WHERE token = ? AND expires_at > ?').get(token, Date.now()) as any
-    if (session) {
-      return { id: session.user_id, authMode: 'normal' }
+    const decoded = verifyToken(token)
+    if (decoded && decoded.type === 'access') {
+      return { id: decoded.userId, authMode: 'normal' }
     }
   } catch (error) {
-    console.error('Session validation error:', error)
+    console.error('JWT validation error:', error)
   }
 
   return null

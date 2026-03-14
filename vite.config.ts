@@ -57,7 +57,7 @@ const buildMetaDefine = {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  root: resolve(__dirname, 'src/renderer'),
+  root: resolve(__dirname, 'src/web'),
   publicDir: resolve(__dirname, 'public'),
   define: {
     ...analyticsDefine,
@@ -65,7 +65,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src/renderer'),
+      '@': resolve(__dirname, 'src/web'),
     },
   },
   build: {
@@ -74,8 +74,8 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        index: resolve(__dirname, 'src/renderer/index.html'),
-        overlay: resolve(__dirname, 'src/renderer/overlay.html'),
+        index: resolve(__dirname, 'src/web/index.html'),
+        overlay: resolve(__dirname, 'src/web/overlay.html'),
       },
     },
   },

@@ -41,7 +41,7 @@ function loadEnv() {
 
 // Configuration
 const CONFIG = {
-  localesDir: path.join(ROOT_DIR, 'src/renderer/i18n/locales'),
+  localesDir: path.join(ROOT_DIR, 'src/web/i18n/locales'),
   sourceLocale: 'en',
   targetLocales: ['zh-CN', 'zh-TW', 'ja', 'es', 'fr', 'de'],
   batchSize: 50, // Keys per batch

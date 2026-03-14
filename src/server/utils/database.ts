@@ -7,6 +7,7 @@ import Database from 'better-sqlite3'
 import { join } from 'path'
 import { existsSync, mkdirSync, renameSync } from 'fs'
 import { homedir } from 'os'
+import { randomUUID } from 'crypto'
 
 let db: Database.Database | null = null
 
@@ -19,6 +20,26 @@ if (!existsSync(HALO_DATA_DIR)) {
 }
 
 const DB_PATH = join(HALO_DATA_DIR, 'halo.db')
+
+/**
+ * 记录用户活动日志
+ */
+export function logActivity(
+  userId: string,
+  action: string,
+  details?: Record<string, unknown>,
+  ipAddress?: string,
+  userAgent?: string
+): void {
+  const database = getDatabase()
+  const id = randomUUID()
+  const now = Math.floor(Date.now() / 1000)
+
+  database.prepare(`
+    INSERT INTO activity_logs (id, user_id, action, details, ip_address, user_agent, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, userId, action, details ? JSON.stringify(details) : null, ipAddress || null, userAgent || null, now)
+}
 
 /**
  * 获取数据库实例
@@ -52,9 +73,13 @@ export function initializeDatabase(): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      username TEXT UNIQUE,
       password_hash TEXT NOT NULL,
+      name TEXT,
+      role TEXT DEFAULT 'user',
       is_default INTEGER DEFAULT 0,
+      last_login_at INTEGER,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
@@ -184,6 +209,24 @@ export function initializeDatabase(): void {
   database.exec('CREATE INDEX IF NOT EXISTS idx_apps_space_id ON apps(space_id)')
   database.exec('CREATE INDEX IF NOT EXISTS idx_app_activities_app_id ON app_activities(app_id)')
   database.exec('CREATE INDEX IF NOT EXISTS idx_notification_channels_user_id ON notification_channels(user_id)')
+
+  // 活动日志表（用于管理员查看用户活动）
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `)
+
+  // 活动日志索引
+  database.exec('CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)')
+  database.exec('CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at)')
 }
 
 /**
@@ -260,6 +303,39 @@ export function runMigrations(): void {
   if (!spacesHasWorkingDir) {
     console.log('Running migration: adding working_dir to spaces table')
     database.exec(`ALTER TABLE spaces ADD COLUMN working_dir TEXT`)
+  }
+
+  // ========================================
+  // 迁移 users 表：添加 email, name, role 列
+  // ========================================
+  const usersTableInfo = database.pragma("table_info('users')") as any[]
+  const usersHasEmail = usersTableInfo.some(col => col.name === 'email')
+  const usersHasName = usersTableInfo.some(col => col.name === 'name')
+  const usersHasRole = usersTableInfo.some(col => col.name === 'role')
+  const usersHasLastLogin = usersTableInfo.some(col => col.name === 'last_login_at')
+
+  if (!usersHasEmail) {
+    console.log('Running migration: adding email to users table')
+    database.exec(`ALTER TABLE users ADD COLUMN email TEXT`)
+    // 将现有 username 复制到 email
+    database.exec(`UPDATE users SET email = username WHERE email IS NULL`)
+    // 创建唯一索引
+    database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)`)
+  }
+
+  if (!usersHasName) {
+    console.log('Running migration: adding name to users table')
+    database.exec(`ALTER TABLE users ADD COLUMN name TEXT`)
+  }
+
+  if (!usersHasRole) {
+    console.log('Running migration: adding role to users table')
+    database.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`)
+  }
+
+  if (!usersHasLastLogin) {
+    console.log('Running migration: adding last_login_at to users table')
+    database.exec(`ALTER TABLE users ADD COLUMN last_login_at INTEGER`)
   }
 
   // ========================================

@@ -1,95 +1,281 @@
 /**
- * 用户认证服务
- * 处理用户登录、登出、会话管理等功能
+ * Authentication Service
+ * JWT-based authentication with user management
  */
 
-import { randomBytes, createHash } from 'crypto'
+import { randomBytes } from 'crypto'
 import { hash, compare } from '@node-rs/bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 import { getDatabase } from '../utils/database'
 import { getConfig } from './config.service'
+import {
+  hashPassword,
+  verifyPassword,
+  generateAccessToken,
+  generateRefreshToken,
+  verifyToken,
+  generateUUID
+} from '../utils/crypto'
 
-// 数据目录
+// Constants
+const SALT_ROUNDS = 10
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutes
+const REFRESH_TOKEN_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+// In-memory store for refresh tokens (in production, use Redis or database)
+const refreshTokens = new Map<string, { userId: string; expiresAt: number }>()
+
+// Data directory
 const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
 
-const SALT_ROUNDS = 10
-const TOKEN_LENGTH = 32
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 天
-const MAX_LOGIN_ATTEMPTS = 5
-const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 分钟
-
 // ========================================
-// 用户管理
+// User Management
 // ========================================
 
 /**
- * 创建用户
+ * Register a new user
  */
-export async function createUser(username: string, password: string, isDefault = false) {
-  // 密码强度验证：至少 8 个字符
-  if (password.length < 8) {
-    throw new Error('密码长度至少 8 个字符')
+export async function register(params: { email: string; password: string; name?: string }) {
+  const { email, password, name } = params
+  const db = getDatabase()
+
+  // Check if email already exists
+  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
+  if (existingUser) {
+    throw new Error('Email already registered')
   }
 
-  const db = getDatabase()
-  const id = randomBytes(16).toString('hex')
+  const id = generateUUID()
   const passwordHash = await hash(password, SALT_ROUNDS)
+  const now = Math.floor(Date.now() / 1000)
 
   try {
     db.prepare(`
-      INSERT INTO users (id, username, password_hash, is_default)
-      VALUES (?, ?, ?, ?)
-    `).run(id, username, passwordHash, isDefault ? 1 : 0)
+      INSERT INTO users (id, email, username, password_hash, name, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, email, email, passwordHash, name || null, 'user', now, now)
 
-    // 创建用户目录结构：~/.halo/users/{user_id}/spaces/
+    // Create user directory structure: ~/.halo/users/{user_id}/spaces/
     const userSpacesDir = join(HALO_DATA_DIR, 'users', id, 'spaces')
     if (!existsSync(userSpacesDir)) {
       mkdirSync(userSpacesDir, { recursive: true })
     }
 
-    return { id, username, is_default: isDefault ? 1 : 0 }
-  } catch (error: any) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      throw new Error('用户名已存在')
+    // Generate tokens
+    const accessToken = generateAccessToken({ userId: id, email, role: 'user' })
+    const refreshToken = generateRefreshToken({ userId: id })
+
+    // Store refresh token
+    refreshTokens.set(refreshToken, {
+      userId: id,
+      expiresAt: Date.now() + REFRESH_TOKEN_DURATION
+    })
+
+    return {
+      user: {
+        id,
+        email,
+        name: name || null,
+        role: 'user'
+      },
+      tokens: {
+        accessToken,
+        refreshToken,
+        expiresIn: 3600 // 1 hour
+      }
     }
-    throw error
+  } catch (error: any) {
+    if (error.message === 'Email already registered') {
+      throw error
+    }
+    throw new Error('Failed to create user: ' + error.message)
   }
 }
 
 /**
- * 验证用户密码
+ * User login
  */
-export async function verifyPassword(username: string, password: string): Promise<boolean> {
+export async function login(email: string, password: string) {
+  // Check if account is locked
+  if (isAccountLocked(email)) {
+    throw new Error('Account locked')
+  }
+
   const db = getDatabase()
-  const user = db.prepare('SELECT password_hash FROM users WHERE username = ?').get(username) as any
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any
 
   if (!user) {
-    return false
+    recordLoginAttempt(email, false)
+    throw new Error('Invalid credentials')
   }
 
-  return compare(password, user.password_hash)
+  // Verify password
+  const isValid = await compare(password, user.password_hash)
+
+  if (!isValid) {
+    recordLoginAttempt(email, false)
+    if (isAccountLocked(email)) {
+      throw new Error('Account locked')
+    }
+    throw new Error('Invalid credentials')
+  }
+
+  // Record successful login
+  recordLoginAttempt(email, true)
+
+  // Update last login time
+  const now = Math.floor(Date.now() / 1000)
+  db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, user.id)
+
+  // Generate tokens
+  const accessToken = generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role
+  })
+  const refreshToken = generateRefreshToken({ userId: user.id })
+
+  // Store refresh token
+  refreshTokens.set(refreshToken, {
+    userId: user.id,
+    expiresAt: Date.now() + REFRESH_TOKEN_DURATION
+  })
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role
+    },
+    tokens: {
+      accessToken,
+      refreshToken,
+      expiresIn: 3600 // 1 hour
+    }
+  }
 }
 
 /**
- * 获取用户信息
+ * Refresh access token
  */
-export function getUserByUsername(username: string) {
+export async function refreshToken(token: string) {
+  // Verify refresh token
+  const decoded = verifyToken(token)
+  if (!decoded || decoded.type !== 'refresh') {
+    throw new Error('Invalid refresh token')
+  }
+
+  // Check if token is in our store
+  const stored = refreshTokens.get(token)
+  if (!stored || stored.expiresAt < Date.now()) {
+    refreshTokens.delete(token)
+    throw new Error('Invalid refresh token')
+  }
+
   const db = getDatabase()
-  return db.prepare('SELECT id, username, is_default, created_at FROM users WHERE username = ?').get(username)
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(stored.userId) as any
+
+  if (!user) {
+    refreshTokens.delete(token)
+    throw new Error('User not found')
+  }
+
+  // Generate new tokens
+  const accessToken = generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role
+  })
+  const newRefreshToken = generateRefreshToken({ userId: user.id })
+
+  // Revoke old refresh token and store new one
+  refreshTokens.delete(token)
+  refreshTokens.set(newRefreshToken, {
+    userId: user.id,
+    expiresAt: Date.now() + REFRESH_TOKEN_DURATION
+  })
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken,
+    expiresIn: 3600
+  }
 }
 
 /**
- * 获取用户信息（通过 ID）
+ * User logout
+ */
+export async function logout(token: string) {
+  // Remove refresh token from store
+  const decoded = verifyToken(token)
+  if (decoded) {
+    // Find and remove all refresh tokens for this user
+    for (const [key, value] of refreshTokens.entries()) {
+      if (value.userId === decoded.userId) {
+        refreshTokens.delete(key)
+      }
+    }
+  }
+}
+
+/**
+ * Change password
+ */
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const db = getDatabase()
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any
+
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  // Verify current password
+  const isValid = await compare(currentPassword, user.password_hash)
+  if (!isValid) {
+    throw new Error('Current password is incorrect')
+  }
+
+  // Hash new password
+  const newPasswordHash = await hash(newPassword, SALT_ROUNDS)
+  const now = Math.floor(Date.now() / 1000)
+
+  db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+    .run(newPasswordHash, now, userId)
+
+  // Revoke all refresh tokens for this user
+  for (const [key, value] of refreshTokens.entries()) {
+    if (value.userId === userId) {
+      refreshTokens.delete(key)
+    }
+  }
+}
+
+/**
+ * Get user by ID
  */
 export function getUserById(userId: string) {
   const db = getDatabase()
-  return db.prepare('SELECT id, username, is_default, created_at FROM users WHERE id = ?').get(userId)
+  const user = db.prepare(`
+    SELECT id, email, name, role, is_default, last_login_at, created_at, updated_at
+    FROM users WHERE id = ?
+  `).get(userId)
+  return user
 }
 
 /**
- * 检查是否存在用户
+ * Get user by email
+ */
+export function getUserByEmail(email: string) {
+  const db = getDatabase()
+  return db.prepare('SELECT id, email, name, role FROM users WHERE email = ?').get(email)
+}
+
+/**
+ * Check if any users exist
  */
 export function hasUsers(): boolean {
   const db = getDatabase()
@@ -98,151 +284,51 @@ export function hasUsers(): boolean {
 }
 
 // ========================================
-// 会话管理
+// Default User Initialization
 // ========================================
 
 /**
- * 创建会话
- */
-export function createSession(userId: string) {
-  const db = getDatabase()
-  const id = randomBytes(16).toString('hex')
-  const token = randomBytes(TOKEN_LENGTH).toString('hex')
-  const expiresAt = Date.now() + SESSION_DURATION
-
-  db.prepare(`
-    INSERT INTO sessions (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `).run(id, userId, token, expiresAt)
-
-  return { id, token, expires_at: expiresAt }
-}
-
-/**
- * 验证会话 Token
- */
-export function validateSession(token: string) {
-  const db = getDatabase()
-  const session = db.prepare(`
-    SELECT s.*, u.username
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    WHERE s.token = ? AND s.expires_at > ?
-  `).get(token, Date.now()) as any
-
-  return session || null
-}
-
-/**
- * 销毁会话
- */
-export function destroySession(token: string) {
-  const db = getDatabase()
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token)
-}
-
-/**
- * 清理过期会话
- */
-export function cleanupExpiredSessions() {
-  const db = getDatabase()
-  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now())
-}
-
-// ========================================
-// 登录/登出
-// ========================================
-
-/**
- * 用户登录
- */
-export async function login(username: string, password: string) {
-  // 检查账户是否被锁定
-  if (isAccountLocked(username)) {
-    const remainingTime = getLockoutRemainingTime(username)
-    const remainingMinutes = Math.ceil(remainingTime / 60000)
-    throw new Error(`账户已锁定，请 ${remainingMinutes} 分钟后再试`)
-  }
-
-  // 验证密码
-  const isValid = await verifyPassword(username, password)
-
-  if (!isValid) {
-    // 记录失败尝试
-    recordLoginAttempt(username, false)
-
-    // 检查是否达到锁定阈值
-    if (isAccountLocked(username)) {
-      throw new Error('账户已锁定，请 15 分钟后再试')
-    }
-
-    throw new Error('用户名或密码错误')
-  }
-
-  // 记录成功登录
-  recordLoginAttempt(username, true)
-
-  // 获取用户信息
-  const user = getUserByUsername(username)
-  if (!user) {
-    throw new Error('用户不存在')
-  }
-
-  // 创建会话
-  const session = createSession((user as any).id)
-
-  return {
-    user: {
-      id: (user as any).id,
-      username: (user as any).username
-    },
-    session: {
-      token: session.token,
-      expires_at: session.expires_at
-    }
-  }
-}
-
-/**
- * 用户登出
- */
-export function logout(token: string) {
-  destroySession(token)
-}
-
-// ========================================
-// 默认用户初始化
-// ========================================
-
-/**
- * 初始化默认用户（首次启动时调用）
- * 密码优先级：server.json auth.defaultPassword > 环境变量 HALO_DEFAULT_PASSWORD > 随机生成
+ * Initialize default admin user (called on first startup)
  */
 export async function initializeDefaultUser() {
   const config = getConfig()
-  const configPassword = config.auth.defaultPassword || process.env.HALO_DEFAULT_PASSWORD
+  const configPassword = config.auth?.defaultPassword || process.env.HALO_DEFAULT_PASSWORD
 
   if (hasUsers()) {
-    // 如果配置文件中指定了密码，更新默认管理员的密码
+    // If config specifies a password, update default admin's password
     if (configPassword) {
       const db = getDatabase()
-      const defaultUser = db.prepare('SELECT id, username FROM users WHERE is_default = 1 LIMIT 1').get() as any
+      const defaultUser = db.prepare('SELECT id, email FROM users WHERE is_default = 1 LIMIT 1').get() as any
       if (defaultUser) {
         const passwordHash = await hash(configPassword, SALT_ROUNDS)
+        const now = Math.floor(Date.now() / 1000)
         db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
-          .run(passwordHash, Math.floor(Date.now() / 1000), defaultUser.id)
-        console.log(`[Auth] Default user "${defaultUser.username}" password updated from config`)
+          .run(passwordHash, now, defaultUser.id)
+        console.log(`[Auth] Default user "${defaultUser.email}" password updated from config`)
       }
     }
     return null
   }
 
   const defaultPassword = configPassword || randomBytes(8).toString('hex')
-  const user = await createUser('admin', defaultPassword, true)
+  const id = generateUUID()
+  const now = Math.floor(Date.now() / 1000)
+
+  const db = getDatabase()
+  db.prepare(`
+    INSERT INTO users (id, email, username, password_hash, name, role, is_default, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, 'admin@halo.local', 'admin', await hash(defaultPassword, SALT_ROUNDS), 'Admin', 'admin', 1, now, now)
+
+  // Create user directory
+  const userSpacesDir = join(HALO_DATA_DIR, 'users', id, 'spaces')
+  if (!existsSync(userSpacesDir)) {
+    mkdirSync(userSpacesDir, { recursive: true })
+  }
 
   console.log('========================================')
-  console.log('Default user created:')
-  console.log(`  Username: admin`)
+  console.log('Default admin user created:')
+  console.log(`  Email: admin@halo.local`)
   if (configPassword) {
     console.log(`  Password: (from config)`)
   } else {
@@ -250,74 +336,64 @@ export async function initializeDefaultUser() {
   }
   console.log('========================================')
 
-  return { username: 'admin', password: defaultPassword }
+  return { email: 'admin@halo.local', password: defaultPassword }
 }
 
 // ========================================
-// 账户锁定机制
+// Account Lockout Mechanism
 // ========================================
 
 /**
- * 记录登录失败尝试
+ * Record login attempt
  */
-export function recordLoginAttempt(username: string, success: boolean) {
+export function recordLoginAttempt(email: string, success: boolean) {
   const db = getDatabase()
   const timestamp = Date.now()
 
   if (success) {
-    // 成功登录，清除失败记录
-    db.prepare('DELETE FROM login_attempts WHERE username = ?').run(username)
+    // Clear failed attempts on success
+    db.prepare('DELETE FROM login_attempts WHERE username = ?').run(email)
   } else {
-    // 记录失败尝试
+    // Record failed attempt
     db.prepare(`
       INSERT INTO login_attempts (username, attempt_time)
       VALUES (?, ?)
-    `).run(username, timestamp)
+    `).run(email, timestamp)
   }
 }
 
 /**
- * 检查账户是否被锁定
+ * Check if account is locked
  */
-export function isAccountLocked(username: string): boolean {
+export function isAccountLocked(email: string): boolean {
   const db = getDatabase()
   const cutoffTime = Date.now() - LOCKOUT_DURATION
 
-  // 获取最近的失败尝试次数
   const result = db.prepare(`
     SELECT COUNT(*) as count FROM login_attempts
     WHERE username = ? AND attempt_time > ?
-  `).get(username, cutoffTime) as any
+  `).get(email, cutoffTime) as any
 
   return result.count >= MAX_LOGIN_ATTEMPTS
 }
 
 /**
- * 获取账户锁定剩余时间（毫秒）
- */
-export function getLockoutRemainingTime(username: string): number {
-  const db = getDatabase()
-  const cutoffTime = Date.now() - LOCKOUT_DURATION
-
-  // 获取最早的失败尝试时间
-  const result = db.prepare(`
-    SELECT MIN(attempt_time) as first_attempt FROM login_attempts
-    WHERE username = ? AND attempt_time > ?
-  `).get(username, cutoffTime) as any
-
-  if (!result.first_attempt) {
-    return 0
-  }
-
-  const lockoutExpires = result.first_attempt + LOCKOUT_DURATION
-  return Math.max(0, lockoutExpires - Date.now())
-}
-
-/**
- * 清理过期的登录尝试记录
+ * Clean up expired login attempts
  */
 export function cleanupExpiredLoginAttempts() {
   const db = getDatabase()
   const cutoffTime = Date.now() - LOCKOUT_DURATION
   db.prepare('DELETE FROM login_attempts WHERE attempt_time < ?').run(cutoffTime)
+}
+
+/**
+ * Clean up expired refresh tokens
+ */
+export function cleanupExpiredRefreshTokens() {
+  const now = Date.now()
+  for (const [key, value] of refreshTokens.entries()) {
+    if (value.expiresAt < now) {
+      refreshTokens.delete(key)
+    }
+  }
 }
