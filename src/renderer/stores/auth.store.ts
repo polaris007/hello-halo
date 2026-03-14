@@ -40,9 +40,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (configResult.success && configResult.data) {
         set({ authMode: configResult.data.mode || 'normal' })
 
-        // 如果认证被禁用，标记为已认证
+        // 如果认证被禁用，标记为已认证并连接 WebSocket
         if (configResult.data.mode === 'disabled') {
           set({ isAuthenticated: true, isLoading: false })
+          api.connectWebSocket('disabled')
           return
         }
       }
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           })
 
           // 连接到 WebSocket
-          api.connectWebSocket()
+          api.connectWebSocket(get().authMode || undefined)
           return
         }
       }

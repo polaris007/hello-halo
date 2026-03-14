@@ -188,7 +188,9 @@ export default function App() {
   useEffect(() => {
     if (api.isRemoteMode()) {
       console.log('[App] Remote mode detected, connecting WebSocket...')
-      api.connectWebSocket()
+      // Get auth mode from auth store if available
+      const authMode = (window as any).__HALO_AUTH_MODE__
+      api.connectWebSocket(authMode)
     }
   }, [])
 

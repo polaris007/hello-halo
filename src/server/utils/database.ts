@@ -222,6 +222,13 @@ export function runMigrations(): void {
     `)
   }
 
+  // 添加 starred 列
+  const conversationsHasStarred = conversationsTableInfo.some(col => col.name === 'starred')
+  if (!conversationsHasStarred) {
+    console.log('Running migration: adding starred to conversations table')
+    database.exec(`ALTER TABLE conversations ADD COLUMN starred INTEGER DEFAULT 0`)
+  }
+
   // ========================================
   // 迁移 configs 表
   // ========================================

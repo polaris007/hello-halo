@@ -89,17 +89,17 @@ export function initializeWebSocket(server: Server) {
  * 验证用户 Token
  */
 async function authenticateUser(token: string | null) {
-  if (!token) {
-    return null
-  }
-
   const authConfig = getAuthConfig()
 
-  // disabled 模式
+  // disabled 模式：无需 token
   if (authConfig.mode === 'disabled') {
     const db = getDatabase()
     const user = db.prepare('SELECT * FROM users WHERE is_default = 1 LIMIT 1').get() as any
     return user ? { id: user.id, authMode: 'disabled' } : null
+  }
+
+  if (!token) {
+    return null
   }
 
   // simple 模式

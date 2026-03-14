@@ -65,8 +65,8 @@ export const api = {
     return httpRequest('GET', '/api/v1/auth/config')
   },
 
-  connectWebSocket: () => {
-    connectWebSocket()
+  connectWebSocket: (authMode?: string) => {
+    connectWebSocket(authMode)
   },
 
   disconnectWebSocket: () => {

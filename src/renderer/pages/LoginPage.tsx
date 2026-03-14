@@ -49,8 +49,8 @@ export function LoginPage() {
       const result = await api.login(username, password)
 
       if (result.success && result.data) {
-        // 连接到 WebSocket
-        api.connectWebSocket()
+        // 连接到 WebSocket (normal mode with token)
+        api.connectWebSocket('normal')
 
         // 重新初始化应用
         const { initialize } = useAppStore.getState()

@@ -101,17 +101,23 @@ let wsConnection: WebSocket | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
-export function connectWebSocket(): void {
+export function connectWebSocket(authMode?: string): void {
   if (wsConnection?.readyState === WebSocket.OPEN) return
 
   const token = getAuthToken()
-  if (!token) {
+
+  // Build WebSocket URL with optional token
+  let wsUrl = `${getServerUrl().replace('http', 'ws')}/ws`
+  if (token) {
+    wsUrl += `?token=${encodeURIComponent(token)}`
+    console.log('[WS] Connecting to:', wsUrl.replace(token, '***'))
+  } else if (authMode === 'disabled') {
+    // disabled mode: connect without token
+    console.log('[WS] Connecting without token (disabled mode)')
+  } else {
     console.warn('[WS] No auth token, cannot connect')
     return
   }
-
-  const wsUrl = `${getServerUrl().replace('http', 'ws')}/ws`
-  console.log('[WS] Connecting to:', wsUrl)
 
   wsConnection = new WebSocket(wsUrl)
 

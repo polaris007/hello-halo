@@ -86,6 +86,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 import { router as authRoutes } from './routes/auth.routes'
 import { router as spacesRoutes } from './routes/spaces.routes'
+import { router as conversationsRoutes } from './routes/conversations.routes'
 import { router as configsRoutes } from './routes/configs.routes'
 import { router as filesRoutes } from './routes/files.routes'
 import { router as aiSourcesRoutes } from './routes/ai-sources.routes'
@@ -100,6 +101,7 @@ import { initializeWebSocket } from './services/websocket.service'
 
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/spaces', spacesRoutes)
+app.use('/api/v1/spaces', conversationsRoutes)
 app.use('/api/v1/configs', configsRoutes)
 app.use('/api/v1/ai-sources', aiSourcesRoutes)
 app.use('/api/v1/agent', agentRoutes)
