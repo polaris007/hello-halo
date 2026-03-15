@@ -70,6 +70,50 @@ TBD - HTTP REST API 和 WebSocket 实时通信能力，提供前端静态文件�
 - **WHEN** 用户上传超过 100MB 的文件
 - **THEN** 系统返回 413 错误
 
+### Requirement: 服务器日志配置
+
+系统 SHALL 提供灵活的服务器日志配置选项。
+
+#### Scenario: 日志目录配置
+- **WHEN** server 启动时
+- **THEN** 系统使用环境变量 `HALO_LOG_DIR` 的值作为日志目录（如果设置）
+- **WHEN** 环境变量 `HALO_LOG_DIR` 未设置
+- **THEN** 系统使用 `<应用启动目录>/logs/` 作为默认日志目录
+
+#### Scenario: 日志级别配置
+- **WHEN** 设置了环境变量 `HALO_LOG_LEVEL=DEBUG`
+- **THEN** server 记录所有级别的日志（DEBUG、INFO、WARN、ERROR）
+- **WHEN** 设置了环境变量 `HALO_LOG_LEVEL=INFO`
+- **THEN** server 记录 INFO、WARN、ERROR 级别的日志
+- **WHEN** 设置了环境变量 `HALO_LOG_LEVEL=WARN`
+- **THEN** server 记录 WARN、ERROR 级别的日志
+- **WHEN** 设置了环境变量 `HALO_LOG_LEVEL=ERROR`
+- **THEN** server 仅记录 ERROR 级别的日志
+
+#### Scenario: 控制台输出配置
+- **WHEN** 设置了环境变量 `HALO_LOG_CONSOLE=false`
+- **THEN** server 不输出日志到控制台
+- **AND** 日志仅写入文件
+- **WHEN** 设置了环境变量 `HALO_LOG_CONSOLE=true`
+- **THEN** server 同时输出日志到控制台和文件
+
+#### Scenario: 客户端日志接收端点
+- **WHEN** client 发送日志到 server
+- **THEN** 系统提供 POST `/api/v1/logs/client` 端点接收客户端日志
+- **AND** server 将接收到的客户端日志写入 `<日志目录>/client-YYYY-MM-DD.log` 文件
+
+#### Scenario: 日志轮转配置
+- **WHEN** 设置了环境变量 `HALO_LOG_ROTATION_DAYS=30`
+- **THEN** 系统保留最近 30 天的日志文件
+- **WHEN** 环境变量 `HALO_LOG_ROTATION_DAYS` 未设置
+- **THEN** 系统默认保留最近 7 天的日志文件
+
+#### Scenario: 日志文件大小配置
+- **WHEN** 设置了环境变量 `HALO_LOG_MAX_SIZE_MB=500`
+- **THEN** 当单个日志文件大小超过 500MB 时自动轮转
+- **WHEN** 环境变量 `HALO_LOG_MAX_SIZE_MB` 未设置
+- **THEN** 当单个日志文件大小超过 100MB 时自动轮转
+
 ### Requirement: 服务启动配置
 
 系统 SHALL 支持灵活的启动配置，包括日志相关配置。

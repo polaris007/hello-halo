@@ -152,8 +152,8 @@ function sanitizeAiRequest(request: any): any {
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase()
 
-      // 检查是否为敏感字段
-      if (sensitiveFields.some(sensitive => lowerKey.includes(sensitive))) {
+      // 检查是否为敏感字段（使用小写匹配）
+      if (sensitiveFields.some(sensitive => lowerKey === sensitive.toLowerCase() || lowerKey.includes(sensitive.toLowerCase()))) {
         if (typeof value === 'string' && value.length > 0) {
           obj[key] = '[REDACTED]'
         }
@@ -480,5 +480,9 @@ export default {
   logAiRequest,
   logAiResponse,
   logAiStreamChunk,
-  createAiLoggerWrapper
+  createAiLoggerWrapper,
+  cleanupOldAiLogs
 }
+
+// 导出辅助函数用于测试
+export { cleanupOldAiLogs, truncateContent, sanitizeAiRequest, shouldLogAiDetails, getAiLogMaxSize }

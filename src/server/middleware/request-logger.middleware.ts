@@ -216,3 +216,6 @@ export function createRequestLoggerMiddleware() {
 // 默认导出的中间件
 export const requestLoggerMiddleware = createRequestLoggerMiddleware()
 export default requestLoggerMiddleware
+
+// 导出辅助函数用于测试
+export { sanitizeHeaders, truncateContent, shouldExcludeEndpoint, shouldLogApiDetails, getClientIp, getApiLogFilePath }

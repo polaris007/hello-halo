@@ -57,20 +57,20 @@
 
 ## 7. 测试和验证
 
-- [ ] 7.1 编写server日志配置变更的单元测试
-- [ ] 7.2 测试client日志存储和发送功能
-- [ ] 7.3 测试HTTP报文日志中间件，验证脱敏和截断功能
-- [ ] 7.4 测试AI交互日志记录，验证各种场景
-- [ ] 7.5 测试日志轮转和保留策略
-- [ ] 7.6 测试向后兼容性，确保HALO_LOG_DIR环境变量工作正常
-- [ ] 7.7 进行集成测试，验证整个日志系统协同工作
-- [ ] 7.8 性能测试，确保日志记录不影响应用性能
+- [x] 7.1 编写 server 日志配置变更的单元测试 (tests/unit/server/logger.test.ts)
+- [x] 7.2 测试 client 日志存储和发送功能 (tests/unit/server/logger.test.ts)
+- [x] 7.3 测试 HTTP 报文日志中间件，验证脱敏和截断功能 (tests/unit/server/request-logger.middleware.test.ts)
+- [x] 7.4 测试 AI 交互日志记录，验证各种场景 (tests/unit/server/ai-logger.test.ts)
+- [x] 7.5 测试日志轮转和保留策略 (tests/unit/server/logger.test.ts)
+- [x] 7.6 测试向后兼容性，确保 HALO_LOG_DIR 环境变量工作正常 (tests/unit/server/logger.test.ts)
+- [x] 7.7 进行集成测试，验证整个日志系统协同工作 (tests/unit/server/logger-integration.test.ts)
+- [x] 7.8 性能测试，确保日志记录不影响应用性能 (tests/unit/server/logger-perf.test.ts)
 
 ## 8. 文档和部署
 
-- [ ] 8.1 更新README或文档，说明新的日志配置选项
-- [ ] 8.2 添加环境变量配置说明
-- [ ] 8.3 创建日志故障排查指南
-- [ ] 8.4 更新部署脚本，考虑日志目录权限和磁盘空间
-- [ ] 8.5 提供监控建议，如何监控日志文件大小和错误率
-- [ ] 8.6 更新docker配置（如果适用），设置合适的日志卷挂载
+- [x] 8.1 更新 README 或文档，说明新的日志配置选项 (docs/logging-guide.md)
+- [x] 8.2 添加环境变量配置说明 (docs/logging-guide.md)
+- [x] 8.3 创建日志故障排查指南 (docs/logging-guide.md#故障排查)
+- [x] 8.4 更新部署脚本，考虑日志目录权限和磁盘空间 (docs/logging-guide.md#docker-配置)
+- [x] 8.5 提供监控建议，如何监控日志文件大小和错误率 (docs/logging-guide.md#监控建议)
+- [x] 8.6 更新 docker 配置（如果适用），设置合适的日志卷挂载 (docs/logging-guide.md#docker-配置)
