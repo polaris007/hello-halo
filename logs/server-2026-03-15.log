@@ -1,0 +1,5 @@
+[2026-03-15T08:31:22.993Z] [INFO] Test log message
+[2026-03-15T08:31:22.994Z] [INFO] Test info message
+[2026-03-15T08:31:22.995Z] [WARN] Test warning message
+[2026-03-15T08:31:22.995Z] [ERROR] Test error message
+[2026-03-15T08:31:22.996Z] [ERROR] This should appear (ERROR level)

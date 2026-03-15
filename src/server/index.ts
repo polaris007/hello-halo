@@ -84,6 +84,10 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
+// HTTP request/response logging middleware
+import { requestLoggerMiddleware } from './middleware/request-logger.middleware.js'
+app.use(requestLoggerMiddleware)
+
 // ========================================
 // API ROUTES
 // ========================================
@@ -103,6 +107,7 @@ import { router as systemRoutes } from './routes/system.routes'
 import { router as filesystemRoutes } from './routes/filesystem.routes'
 import { router as terminalRoutes } from './routes/terminal.routes'
 import { router as adminRoutes } from './routes/admin.routes'
+import { router as logsRoutes } from './routes/logs.routes'
 import { initializeWebSocket } from './services/websocket.service'
 import { setWebSocketService } from './services/agent/helpers'
 import * as websocketServiceModule from './services/websocket.service'
@@ -121,6 +126,7 @@ app.use('/api/v1/system', systemRoutes)
 app.use('/api/v1/filesystem', filesystemRoutes)
 app.use('/api/v1/terminal', terminalRoutes)
 app.use('/api/v1/admin', adminRoutes)
+app.use('/api/v1/logs', logsRoutes)
 app.use('/api/v1', filesRoutes)
 
 // ========================================

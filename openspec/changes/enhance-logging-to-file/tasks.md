@@ -1,0 +1,76 @@
+## 1. 修改Server日志配置
+
+- [x] 1.1 修改src/server/utils/logger.ts，将默认日志目录从~/.halo/logs改为process.cwd() + '/logs'
+- [x] 1.2 添加HALO_LOG_DIR环境变量支持，覆盖默认日志目录
+- [x] 1.3 添加HALO_LOG_LEVEL环境变量支持，控制日志级别（DEBUG/INFO/WARN/ERROR）
+- [x] 1.4 添加HALO_LOG_CONSOLE环境变量支持，控制是否输出到控制台
+- [x] 1.5 实现按天轮转日志文件，文件命名格式为server-YYYY-MM-DD.log
+- [x] 1.6 实现日志文件保留策略，默认保留7天，可通过HALO_LOG_RETENTION_DAYS配置
+- [x] 1.7 添加日志文件大小监控，超过100MB自动轮转，可通过HALO_LOG_MAX_SIZE_MB配置
+
+## 2. 增强Client日志持久化
+
+- [x] 2.1 修改src/web/utils/logger.ts，添加localStorage或IndexedDB存储支持
+- [x] 2.2 实现client日志定期清理机制，防止存储空间溢出
+- [x] 2.3 添加client日志发送到server的功能，每10秒或积累100条时批量发送
+- [x] 2.4 在client端添加日志发送失败的重试机制
+- [x] 2.5 在client端添加离线模式支持，日志先存储在本地，上线后发送
+
+## 3. 实现Client日志接收API
+
+- [x] 3.1 创建POST /api/v1/logs/client端点，接收client日志
+- [x] 3.2 在server端验证client日志请求的合法性
+- [x] 3.3 将接收到的client日志写入<日志目录>/client-YYYY-MM-DD.log文件
+- [x] 3.4 添加client日志的按天轮转和保留策略
+- [x] 3.5 实现client日志的批量处理，提高性能
+
+## 4. 添加HTTP报文日志中间件
+
+- [x] 4.1 创建src/server/middleware/request-logger.middleware.ts中间件
+- [x] 4.2 记录HTTP请求的详细信息：时间戳、方法、URL、头、体、客户端IP
+- [x] 4.3 记录HTTP响应的详细信息：时间戳、状态码、头、体、处理时长
+- [x] 4.4 实现敏感信息自动脱敏（Authorization、Cookie、X-API-Key等）
+- [x] 4.5 添加请求体/响应体大小限制，超过1MB时截断记录
+- [x] 4.6 添加配置选项HALO_LOG_API_DETAIL控制是否记录详细报文
+- [x] 4.7 排除特定端点（如/health、/ready）的详细日志记录
+- [x] 4.8 将API日志写入<日志目录>/api-YYYY-MM-DD.log文件
+
+## 5. 添加AI交互日志记录
+
+- [x] 5.1 识别AI交互代码位置（Claude Agent SDK调用处）
+- [x] 5.2 创建AI日志记录模块，包装AI调用
+- [x] 5.3 记录AI请求信息：时间戳、模型、prompt、参数、消息历史
+- [x] 5.4 记录AI响应信息：时间戳、响应内容、时长、token数量
+- [x] 5.5 支持AI流式响应的日志记录
+- [x] 5.6 实现AI错误日志记录
+- [x] 5.7 添加敏感信息检测和脱敏（API密钥、密码等）
+- [x] 5.8 添加大内容截断机制，超过10KB时截断记录
+- [x] 5.9 添加配置选项HALO_LOG_AI_DETAIL和HALO_LOG_AI_MAX_SIZE
+- [x] 5.10 将AI日志写入<日志目录>/ai-YYYY-MM-DD.log文件
+
+## 6. 向后兼容性处理
+
+- [x] 6.1 提供环境变量HALO_LOG_DIR=~/.halo/logs支持旧日志位置
+- [x] 6.2 更新文档说明日志位置变更和迁移指南
+- [x] 6.3 在server启动时打印日志目录信息，便于用户确认
+- [x] 6.4 提供配置示例和最佳实践文档
+
+## 7. 测试和验证
+
+- [ ] 7.1 编写server日志配置变更的单元测试
+- [ ] 7.2 测试client日志存储和发送功能
+- [ ] 7.3 测试HTTP报文日志中间件，验证脱敏和截断功能
+- [ ] 7.4 测试AI交互日志记录，验证各种场景
+- [ ] 7.5 测试日志轮转和保留策略
+- [ ] 7.6 测试向后兼容性，确保HALO_LOG_DIR环境变量工作正常
+- [ ] 7.7 进行集成测试，验证整个日志系统协同工作
+- [ ] 7.8 性能测试，确保日志记录不影响应用性能
+
+## 8. 文档和部署
+
+- [ ] 8.1 更新README或文档，说明新的日志配置选项
+- [ ] 8.2 添加环境变量配置说明
+- [ ] 8.3 创建日志故障排查指南
+- [ ] 8.4 更新部署脚本，考虑日志目录权限和磁盘空间
+- [ ] 8.5 提供监控建议，如何监控日志文件大小和错误率
+- [ ] 8.6 更新docker配置（如果适用），设置合适的日志卷挂载

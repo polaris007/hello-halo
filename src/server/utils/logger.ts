@@ -2,20 +2,152 @@
  * Server Logger Utility
  *
  * Provides structured logging to file with timestamps.
- * Logs are written to {appDir}/logs/server.log
+ * Logs are written to {cwd}/logs/server.log by default,
+ * configurable via HALO_LOG_DIR environment variable.
  */
 
-import { appendFileSync, mkdirSync, existsSync } from 'fs'
-import { join } from 'path'
+import { appendFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, statSync, renameSync } from 'fs'
+import { join, parse } from 'path'
 
 // Log levels
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 
-// Logger configuration
+// Logger configuration (legacy, some values still used)
 const LOG_CONFIG = {
   maxFileSize: 10 * 1024 * 1024, // 10MB
-  maxFiles: 5,
-  consoleOutput: true
+  maxFiles: 5
+}
+
+// Log level mapping
+const LOG_LEVELS: Record<LogLevel, number> = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3
+}
+
+// Get current log level from environment variable
+function getLogLevel(): LogLevel {
+  const level = process.env.HALO_LOG_LEVEL?.toUpperCase() as LogLevel
+  if (level && LOG_LEVELS[level] !== undefined) {
+    return level
+  }
+  // Default to INFO
+  return 'INFO'
+}
+
+// Get console output setting from environment variable
+function getConsoleOutput(): boolean {
+  if (process.env.HALO_LOG_CONSOLE !== undefined) {
+    const value = process.env.HALO_LOG_CONSOLE.toLowerCase()
+    return value === 'true' || value === '1' || value === 'yes'
+  }
+  // Default to true
+  return true
+}
+
+// Get log retention days from environment variable
+function getLogRetentionDays(): number {
+  if (process.env.HALO_LOG_RETENTION_DAYS) {
+    const days = parseInt(process.env.HALO_LOG_RETENTION_DAYS, 10)
+    if (!isNaN(days) && days > 0) {
+      return days
+    }
+  }
+  // Default to 7 days
+  return 7
+}
+
+// Get maximum log file size from environment variable (in MB)
+function getMaxLogFileSizeMB(): number {
+  if (process.env.HALO_LOG_MAX_SIZE_MB) {
+    const size = parseInt(process.env.HALO_LOG_MAX_SIZE_MB, 10)
+    if (!isNaN(size) && size > 0) {
+      return size
+    }
+  }
+  // Default to 100 MB
+  return 100
+}
+
+// Get maximum log file size in bytes
+function getMaxLogFileSizeBytes(): number {
+  return getMaxLogFileSizeMB() * 1024 * 1024
+}
+
+// Clean up old log files
+function cleanupOldLogFiles(): void {
+  try {
+    const logDir = getLogDir()
+    if (!existsSync(logDir)) {
+      return
+    }
+
+    const retentionDays = getLogRetentionDays()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
+
+    const files = readdirSync(logDir)
+    for (const file of files) {
+      // Check if file matches server log pattern
+      if (file.startsWith('server-') && file.endsWith('.log')) {
+        try {
+          // Extract date from filename: server-YYYY-MM-DD.log
+          const dateStr = file.substring(7, 17) // Get YYYY-MM-DD part
+          const fileDate = new Date(dateStr)
+
+          // Delete if older than retention period
+          if (fileDate < cutoffDate) {
+            const filePath = join(logDir, file)
+            unlinkSync(filePath)
+            originalConsole.log(`[Logger] Deleted old log file: ${file}`)
+          }
+        } catch (error) {
+          // Skip files with invalid date format
+          continue
+        }
+      }
+    }
+  } catch (error) {
+    // Don't throw, just log error
+    originalConsole.error('[Logger] Error cleaning up old log files:', error)
+  }
+}
+
+// Check if current log file exceeds size limit and rotate if needed
+function checkAndRotateBySize(): void {
+  try {
+    const currentPath = getLogFilePath()
+    if (!existsSync(currentPath)) {
+      return
+    }
+
+    const stats = statSync(currentPath)
+    const maxSize = getMaxLogFileSizeBytes()
+
+    if (stats.size >= maxSize) {
+      // File is too large, rotate it
+      const now = new Date()
+      const timestamp = now.toISOString().replace(/[:.]/g, '-')
+      const newPath = currentPath.replace(/\.log$/, `-${timestamp}.log`)
+
+      // Rename current file
+      renameSync(currentPath, newPath)
+
+      // Reset current log file path to force creation of new file
+      currentLogFilePath = null
+      originalConsole.log(`[Logger] Rotated log file due to size limit: ${newPath}`)
+    }
+  } catch (error) {
+    // Don't throw, just log error
+    originalConsole.error('[Logger] Error checking log file size:', error)
+  }
+}
+
+// Check if a message at given level should be logged
+function shouldLog(level: LogLevel): boolean {
+  const currentLevel = getLogLevel()
+  return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel]
 }
 
 // Default log directory (can be changed at runtime)
@@ -32,7 +164,7 @@ export function setLogDirectory(dir: string): void {
     mkdirSync(dir, { recursive: true })
   }
   // Reset log file path so it will be recalculated
-  logFilePath = null
+  currentLogFilePath = null
 }
 
 /**
@@ -42,14 +174,16 @@ export function getLogDirectory(): string {
   if (customLogDir) {
     return customLogDir
   }
-  // Default: use HALO_DATA_DIR env var or fallback to ~/.halo
-  const baseDir = process.env.HALO_DATA_DIR
-    ? process.env.HALO_DATA_DIR
-    : join(process.env.HOME || process.env.USERPROFILE || '.', '.halo')
-  return join(baseDir, 'logs')
+  // Use HALO_LOG_DIR environment variable if set
+  if (process.env.HALO_LOG_DIR) {
+    return process.env.HALO_LOG_DIR
+  }
+  // Default: use process.cwd() + '/logs' (application startup directory)
+  return join(process.cwd(), 'logs')
 }
 
-let logFilePath: string | null = null
+let currentLogFilePath: string | null = null
+let currentLogDate: string | null = null
 
 /**
  * Get log directory path
@@ -59,16 +193,36 @@ function getLogDir(): string {
 }
 
 /**
- * Get log file path
+ * Get current date in YYYY-MM-DD format
+ */
+function getCurrentDate(): string {
+  const now = new Date()
+  return now.toISOString().split('T')[0]
+}
+
+/**
+ * Get log file path with date-based rotation
  */
 function getLogFilePath(): string {
-  if (logFilePath) return logFilePath
-  const logDir = getLogDir()
-  if (!existsSync(logDir)) {
-    mkdirSync(logDir, { recursive: true })
+  const currentDate = getCurrentDate()
+
+  // Check if we need to update the log file path (new day or first time)
+  if (!currentLogFilePath || currentLogDate !== currentDate) {
+    const logDir = getLogDir()
+    if (!existsSync(logDir)) {
+      mkdirSync(logDir, { recursive: true })
+    }
+
+    // Clean up old log files when starting a new day
+    if (currentLogDate && currentLogDate !== currentDate) {
+      cleanupOldLogFiles()
+    }
+
+    currentLogDate = currentDate
+    currentLogFilePath = join(logDir, `server-${currentDate}.log`)
   }
-  logFilePath = join(logDir, 'server.log')
-  return logFilePath
+
+  return currentLogFilePath
 }
 
 /**
@@ -139,6 +293,9 @@ let originalConsole = {
  */
 function writeToFile(formattedMessage: string): void {
   try {
+    // Check if we need to rotate by size before writing
+    checkAndRotateBySize()
+
     const logPath = getLogFilePath()
     appendFileSync(logPath, formattedMessage + '\n', 'utf-8')
   } catch (error) {
@@ -152,6 +309,11 @@ function writeToFile(formattedMessage: string): void {
  * Log message at specified level
  */
 function log(level: LogLevel, message: string, ...args: unknown[]): void {
+  // Check if this log level should be recorded
+  if (!shouldLog(level)) {
+    return
+  }
+
   const formattedMessage = formatLogMessage(level, message, ...args)
 
   // Write to file
@@ -159,7 +321,7 @@ function log(level: LogLevel, message: string, ...args: unknown[]): void {
 
   // Also output to console if enabled
   // Must use original console methods to avoid infinite recursion
-  if (LOG_CONFIG.consoleOutput) {
+  if (getConsoleOutput()) {
     const consoleMethod = level === 'ERROR' ? originalConsole.error :
                           level === 'WARN' ? originalConsole.warn :
                           level === 'DEBUG' ? originalConsole.debug : originalConsole.log
@@ -177,7 +339,7 @@ export const logger = {
   error: (message: string, ...args: unknown[]) => log('ERROR', message, ...args),
 
   /**
-   * Get log file path for debugging
+   * Get current log file path for debugging
    */
   getLogFilePath: () => getLogFilePath(),
 
@@ -233,7 +395,10 @@ export function overrideConsole(): void {
 
   // Log startup message using original console to avoid recursion during init
   originalConsole.log('=== Server Logger Initialized ===')
-  originalConsole.log('Log file:', getLogFilePath())
+  originalConsole.log('Log directory:', getLogDirectory())
+  originalConsole.log('Current log file:', getLogFilePath())
+  originalConsole.log('Log level:', getLogLevel())
+  originalConsole.log('Console output:', getConsoleOutput() ? 'enabled' : 'disabled')
 }
 
 export default logger

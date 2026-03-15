@@ -157,6 +157,61 @@ https://github.com/user-attachments/assets/2d4d2f3e-d27c-44b0-8f1d-9059c8372003
 [![中文](https://img.shields.io/badge/点击播放-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
 [![English](https://img.shields.io/badge/Watch_Video-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
 
+## Logging Configuration
+
+Halo provides comprehensive logging capabilities that can be configured using environment variables. Logs are stored in the application directory by default.
+
+### Log Types
+- **Server Logs**: General server operations and errors (`server-YYYY-MM-DD.log`)
+- **Client Logs**: Browser/client-side logs (`client/client-YYYY-MM-DD.log`)
+- **API Logs**: HTTP request/response logs (`api-YYYY-MM-DD.log`)
+- **AI Logs**: AI model interactions and responses (`ai-YYYY-MM-DD.log`)
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HALO_LOG_DIR` | Directory where log files are stored | `./logs` (relative to app directory) |
+| `HALO_LOG_LEVEL` | Minimum log level to record | `INFO` (DEBUG/INFO/WARN/ERROR) |
+| `HALO_LOG_CONSOLE` | Whether to output logs to console | `true` |
+| `HALO_LOG_RETENTION_DAYS` | Number of days to keep log files | `7` |
+| `HALO_LOG_MAX_SIZE_MB` | Maximum size of log files before rotation | `100` |
+| `HALO_LOG_API_DETAIL` | Whether to log detailed HTTP request/response | `true` |
+| `HALO_LOG_AI_DETAIL` | Whether to log detailed AI interactions | `true` |
+
+### Log File Rotation
+- **Daily Rotation**: New log files are created each day
+- **Size-based Rotation**: Log files rotate when they exceed the configured size limit
+- **Retention Policy**: Old log files are automatically deleted after the retention period
+
+### Sensitive Information Protection
+- **Automatic Redaction**: Sensitive headers (Authorization, Cookie, API keys) are automatically redacted
+- **Request/Response Truncation**: Large request/response bodies are truncated (1MB limit)
+- **AI Token Redaction**: API keys and access tokens in AI requests are redacted
+
+### Example Configuration
+```bash
+# Store logs in a custom directory
+export HALO_LOG_DIR="/var/log/halo"
+
+# Only log errors and warnings
+export HALO_LOG_LEVEL="WARN"
+
+# Disable console output
+export HALO_LOG_CONSOLE="false"
+
+# Keep logs for 30 days
+export HALO_LOG_RETENTION_DAYS="30"
+
+# Rotate logs at 50MB
+export HALO_LOG_MAX_SIZE_MB="50"
+
+# Disable detailed API logging for performance
+export HALO_LOG_API_DETAIL="false"
+
+# Enable detailed AI logging
+export HALO_LOG_AI_DETAIL="true"
+```
 
 ## Installation
 

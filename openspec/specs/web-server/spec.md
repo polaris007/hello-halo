@@ -72,7 +72,7 @@ TBD - HTTP REST API 和 WebSocket 实时通信能力，提供前端静态文件�
 
 ### Requirement: 服务启动配置
 
-系统 SHALL 支持灵活的启动配置。
+系统 SHALL 支持灵活的启动配置，包括日志相关配置。
 
 #### Scenario: 端口配置
 - **WHEN** 用户指定端口号
@@ -84,11 +84,15 @@ TBD - HTTP REST API 和 WebSocket 实时通信能力，提供前端静态文件�
 
 #### Scenario: 配置文件
 - **WHEN** 存在配置文件 ~/.halo/server.json
-- **THEN** 系统从配置文件读取配置
+- **THEN** 系统从配置文件读取配置，包括日志配置
 
 #### Scenario: 环境变量
 - **WHEN** 设置环境变量 HALO_PORT
 - **THEN** 系统使用环境变量覆盖配置
+- **WHEN** 设置环境变量 HALO_LOG_DIR
+- **THEN** 系统使用环境变量指定的目录作为日志目录
+- **WHEN** 设置环境变量 HALO_LOG_LEVEL
+- **THEN** 系统使用环境变量指定的级别作为日志级别
 
 ### Requirement: 健康检查
 

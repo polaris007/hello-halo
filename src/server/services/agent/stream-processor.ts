@@ -32,6 +32,7 @@ import {
   extractResultUsage
 } from './message-utils'
 import { broadcastMcpStatus } from './mcp-manager'
+import { logAiRequest, logAiResponse, logAiStreamChunk } from '../../utils/ai-logger.js'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -193,6 +194,27 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   console.log(`[Agent][${conversationId}]   - v2Session.stream exists: ${!!v2Session?.stream}`)
   console.log(`[Agent][${conversationId}] --------------------------------------------`)
 
+  // Generate request ID for AI logging
+  const aiRequestId = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
+  // Stream chunk counter for AI logging
+  let streamChunkCounter = 0
+
+  // Log AI request
+  try {
+    logAiRequest({
+      model: displayModel,
+      spaceId,
+      conversationId,
+      requestId: aiRequestId,
+      requestContent: typeof messageContent === 'string'
+        ? { type: 'text', content: messageContent }
+        : { type: 'multimodal', content: messageContent }
+    })
+  } catch (logError) {
+    console.error(`[Agent][${conversationId}] Failed to log AI request:`, logError)
+  }
+
   // Send message to V2 session and stream response
   // For multi-modal messages, we need to send as SDKUserMessage
   try {
@@ -212,6 +234,24 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
     console.log(`[Agent][${conversationId}] Message sent successfully`)
   } catch (sendError) {
     console.error(`[Agent][${conversationId}] Failed to send message:`, sendError)
+
+    // Log AI response error
+    try {
+      const errorMessage = sendError instanceof Error ? sendError.message : String(sendError)
+      logAiResponse({
+        requestId: aiRequestId,
+        model: displayModel,
+        spaceId,
+        conversationId,
+        responseContent: { error: errorMessage },
+        duration: Date.now() - t1,
+        status: 'error',
+        error: errorMessage
+      })
+    } catch (logError) {
+      console.error(`[Agent][${conversationId}] Failed to log AI error response:`, logError)
+    }
+
     throw sendError
   }
 
@@ -310,6 +350,22 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             delta,
             content: blockState.content  // Also send full content for fallback
           })
+
+          // Log AI stream chunk
+          try {
+            streamChunkCounter++
+            logAiStreamChunk({
+              requestId: aiRequestId,
+              model: displayModel,
+              spaceId,
+              conversationId,
+              chunkContent: { delta },
+              chunkType: 'thinking_delta',
+              chunkIndex: streamChunkCounter
+            })
+          } catch (error) {
+            console.error(`[Agent][${conversationId}] Failed to log AI stream chunk:`, error)
+          }
         }
       }
 
@@ -325,6 +381,25 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           isComplete: false,
           isStreaming: true
         })
+
+        // Log AI stream chunk (throttled to avoid too many logs)
+        try {
+          streamChunkCounter++
+          // Only log every 10th chunk to avoid excessive logging
+          if (streamChunkCounter % 10 === 1) {
+            logAiStreamChunk({
+              requestId: aiRequestId,
+              model: displayModel,
+              spaceId,
+              conversationId,
+              chunkContent: { delta },
+              chunkType: 'text_delta',
+              chunkIndex: streamChunkCounter
+            })
+          }
+        } catch (error) {
+          console.error(`[Agent][${conversationId}] Failed to log AI stream chunk:`, error)
+        }
       }
 
       // ========== Tool use block streaming ==========
@@ -378,6 +453,22 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             delta: partialJson,
             isToolInput: true  // Flag: this is tool input JSON, not thinking text
           })
+
+          // Log AI stream chunk for tool input JSON delta
+          try {
+            streamChunkCounter++
+            logAiStreamChunk({
+              requestId: aiRequestId,
+              model: displayModel,
+              spaceId,
+              conversationId,
+              chunkContent: { partialJson },
+              chunkType: 'input_json_delta',
+              chunkIndex: streamChunkCounter
+            })
+          } catch (error) {
+            console.error(`[Agent][${conversationId}] Failed to log AI stream chunk:`, error)
+          }
         }
       }
 
@@ -719,6 +810,38 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
     hasErrorThought,
     errorThought,
     reachedMaxTurns: hadMaxTurnsReached
+  }
+
+  // Log AI response
+  try {
+    const status = hasErrorThought ? 'error' : 'success'
+    const errorMsg = hasErrorThought ? errorThought?.content : undefined
+
+    logAiResponse({
+      requestId: aiRequestId,
+      model: displayModel,
+      spaceId,
+      conversationId,
+      responseContent: {
+        finalContent,
+        thoughts: sessionState.thoughts,
+        tokenUsage,
+        isInterrupted,
+        wasAborted,
+        hasErrorThought,
+        reachedMaxTurns: hadMaxTurnsReached
+      },
+      tokenUsage: tokenUsage ? {
+        input: tokenUsage.inputTokens || 0,
+        output: tokenUsage.outputTokens || 0,
+        total: (tokenUsage.inputTokens || 0) + (tokenUsage.outputTokens || 0)
+      } : undefined,
+      duration: Date.now() - t1,
+      status,
+      error: errorMsg
+    })
+  } catch (logError) {
+    console.error(`[Agent][${conversationId}] Failed to log AI response:`, logError)
   }
 
   // Notify caller for storage handling
