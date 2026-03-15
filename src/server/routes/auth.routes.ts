@@ -6,6 +6,7 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth.middleware'
 import * as authService from '../services/auth.service'
+import { getConfig } from '../services/config.service'
 import { logActivity } from '../utils/database'
 
 const router = Router()
@@ -231,6 +232,19 @@ router.get('/me', authMiddleware, async (req, res) => {
       error: { code: 'SERVER_ERROR', message: error.message }
     })
   }
+})
+
+/**
+ * GET /api/v1/auth/config - Get auth configuration (public endpoint)
+ */
+router.get('/config', (_req, res) => {
+  // 最简单的测试版本
+  res.json({
+    success: true,
+    data: {
+      mode: 'normal'
+    }
+  })
 })
 
 export { router }

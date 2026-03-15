@@ -397,3 +397,13 @@ export function cleanupExpiredRefreshTokens() {
     }
   }
 }
+
+/**
+ * Clean up all expired sessions and tokens
+ * Called on server startup
+ */
+export function cleanupExpiredSessions() {
+  cleanupExpiredLoginAttempts()
+  cleanupExpiredRefreshTokens()
+  console.log('[Auth] Cleaned up expired sessions and tokens')
+}

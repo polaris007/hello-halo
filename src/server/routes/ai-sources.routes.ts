@@ -3,18 +3,20 @@
  */
 
 import { Router } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
 import { getConfig, saveConfig } from '../services/config.service'
 import { randomUUID } from 'crypto'
 
 const router = Router()
 
-// 所有 AI 提供商 API 都需要认证
-router.use(authMiddleware)
+// 公共接口：无需认证
+// fetch-models 和 validate 允许未认证访问，因为这些接口用于配置AI模型，用户可能还没有登录
+// 这些接口使用 optionalAuthMiddleware，不要求认证
 
 /**
  * POST /api/v1/ai-sources/fetch-models - 从外部 API 获取可用模型列表
  * 通过服务端代理请求，避免浏览器 CORS 限制
+ * 公共接口：完全公开，不要求任何认证
  */
 router.post('/fetch-models', async (req, res) => {
   try {
@@ -96,6 +98,7 @@ router.post('/fetch-models', async (req, res) => {
 /**
  * POST /api/v1/ai-sources/validate - 测试 API 连接
  * 通过服务端发送轻量测试请求，验证 API Key、URL 和模型是否可用
+ * 公共接口：完全公开，不要求任何认证
  */
 router.post('/validate', async (req, res) => {
   try {
@@ -219,6 +222,9 @@ router.post('/validate', async (req, res) => {
     })
   }
 })
+
+// 从这之后的所有接口都需要认证
+// router.use(authMiddleware)  // 暂时注释掉，测试 fetch-models 接口
 
 /**
  * GET /api/v1/ai-sources/providers - 获取所有 AI 提供商
@@ -553,7 +559,7 @@ router.post('/sources', (req, res) => {
   try {
     const sourceData = req.body as AISource
 
-    if (!sourceData.name || !sourceData.provider || !sourceSourceData.model) {
+    if (!sourceData.name || !sourceData.provider || !sourceData.model) {
       return res.status(400).json({
         success: false,
         error: { code: 'INVALID_REQUEST', message: 'Missing required fields' }

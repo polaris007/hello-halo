@@ -22,6 +22,15 @@ const LOG_CONFIG = {
   consoleOutput: true
 }
 
+// Store original console methods for internal use
+const originalConsole = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+  debug: console.debug
+}
+
 // In-memory log storage (cache)
 const logEntries: LogEntry[] = []
 
@@ -106,11 +115,12 @@ function log(level: LogLevel, message: string, ...args: unknown[]): void {
   addLogEntry(level, message, args)
 
   // Output to console if enabled
+  // Must use original console methods to avoid infinite recursion
   if (LOG_CONFIG.consoleOutput) {
     const formattedMessage = formatLogMessage(level, message, args)
-    const consoleMethod = level === 'ERROR' ? console.error :
-                          level === 'WARN' ? console.warn :
-                          level === 'DEBUG' ? console.debug : console.log
+    const consoleMethod = level === 'ERROR' ? originalConsole.error :
+                          level === 'WARN' ? originalConsole.warn :
+                          level === 'DEBUG' ? originalConsole.debug : originalConsole.log
     consoleMethod(formattedMessage)
   }
 }
@@ -168,11 +178,15 @@ export const logger = {
  * Call this at application startup
  */
 export function overrideConsole(): void {
-  const originalLog = console.log
-  const originalInfo = console.info
-  const originalWarn = console.warn
-  const originalError = console.error
-  const originalDebug = console.debug
+  // Save original console methods before overriding
+  // originalConsole is already declared at the top, just update it
+  Object.assign(originalConsole, {
+    log: console.log,
+    info: console.info,
+    warn: console.warn,
+    error: console.error,
+    debug: console.debug
+  })
 
   console.log = (...args: unknown[]) => {
     const message = args.shift() as string
@@ -199,8 +213,8 @@ export function overrideConsole(): void {
     logger.debug(message, ...args)
   }
 
-  // Log startup message
-  logger.info('=== Client Logger Initialized ===')
+  // Log startup message using original console to avoid recursion during init
+  originalConsole.log('=== Client Logger Initialized ===')
 }
 
 export default logger

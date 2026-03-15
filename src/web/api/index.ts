@@ -39,10 +39,10 @@ export const api = {
   isAuthenticated: () => !!getAuthToken(),
 
   // Username/password login
-  login: async (username: string, password: string): Promise<ApiResponse<{ session: { token: string }; user: { id: string; username: string } }>> => {
-    const result = await httpRequest<any>('POST', '/api/v1/auth/login', { username, password })
-    if (result.success && result.data?.session?.token) {
-      setAuthToken(result.data.session.token)
+  login: async (username: string, password: string): Promise<ApiResponse<{ tokens: { accessToken: string }; user: { id: string; email: string } }>> => {
+    const result = await httpRequest<any>('POST', '/api/v1/auth/login', { email: username, password })
+    if (result.success && result.data?.tokens?.accessToken) {
+      setAuthToken(result.data.tokens.accessToken)
       connectWebSocket()
     }
     return result

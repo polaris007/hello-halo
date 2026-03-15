@@ -125,6 +125,15 @@ function formatLogMessage(level: LogLevel, message: string, ...args: unknown[]):
   return `[${timestamp}] [${level}] ${formattedMessage}`
 }
 
+// Store original console methods for internal use
+let originalConsole = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+  debug: console.debug
+}
+
 /**
  * Write log to file
  */
@@ -133,8 +142,9 @@ function writeToFile(formattedMessage: string): void {
     const logPath = getLogFilePath()
     appendFileSync(logPath, formattedMessage + '\n', 'utf-8')
   } catch (error) {
-    // Fallback to console if file writing fails
-    console.error('[Logger] Failed to write to log file:', error)
+    // Fallback to original console.error if file writing fails
+    // Must use original to avoid infinite recursion
+    originalConsole.error('[Logger] Failed to write to log file:', error)
   }
 }
 
@@ -148,10 +158,11 @@ function log(level: LogLevel, message: string, ...args: unknown[]): void {
   writeToFile(formattedMessage)
 
   // Also output to console if enabled
+  // Must use original console methods to avoid infinite recursion
   if (LOG_CONFIG.consoleOutput) {
-    const consoleMethod = level === 'ERROR' ? console.error :
-                          level === 'WARN' ? console.warn :
-                          level === 'DEBUG' ? console.debug : console.log
+    const consoleMethod = level === 'ERROR' ? originalConsole.error :
+                          level === 'WARN' ? originalConsole.warn :
+                          level === 'DEBUG' ? originalConsole.debug : originalConsole.log
     consoleMethod(formattedMessage)
   }
 }
@@ -186,11 +197,14 @@ export const logger = {
  * Call this at application startup
  */
 export function overrideConsole(): void {
-  const originalLog = console.log
-  const originalInfo = console.info
-  const originalWarn = console.warn
-  const originalError = console.error
-  const originalDebug = console.debug
+  // Save original console methods before overriding
+  originalConsole = {
+    log: console.log,
+    info: console.info,
+    warn: console.warn,
+    error: console.error,
+    debug: console.debug
+  }
 
   console.log = (...args: unknown[]) => {
     const message = args.shift() as string
@@ -217,9 +231,9 @@ export function overrideConsole(): void {
     logger.debug(message, ...args)
   }
 
-  // Log startup message
-  logger.info('=== Server Logger Initialized ===')
-  logger.info('Log file: %s', getLogFilePath())
+  // Log startup message using original console to avoid recursion during init
+  originalConsole.log('=== Server Logger Initialized ===')
+  originalConsole.log('Log file:', getLogFilePath())
 }
 
 export default logger

@@ -10,7 +10,8 @@ interface AuthState {
   isAuthenticated: boolean
   user: {
     id: string
-    username: string
+    email: string
+    name?: string
   } | null
   isLoading: boolean
   error: string | null
@@ -18,7 +19,7 @@ interface AuthState {
 
   // Actions
   initialize: () => Promise<void>
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   checkAuth: () => Promise<boolean>
   clearError: () => void
@@ -55,7 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (userResult.success && userResult.data) {
           set({
             isAuthenticated: true,
-            user: { id: userResult.data.id, username: userResult.data.username },
+            user: { id: userResult.data.id, email: userResult.data.email, name: userResult.data.name },
             isLoading: false
           })
 
@@ -77,16 +78,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  login: async (username: string, password: string) => {
+  login: async (email: string, password: string) => {
     set({ isLoading: true, error: null })
 
     try {
-      const result = await api.login(username, password)
+      const result = await api.login(email, password)
 
       if (result.success && result.data) {
         set({
           isAuthenticated: true,
-          user: { id: result.data.user.id, username: result.data.user.username },
+          user: { id: result.data.user.id, email: result.data.user.email, name: result.data.user.name },
           isLoading: false
         })
         return { success: true }
