@@ -6,11 +6,71 @@ import { Router } from 'express'
 import { getDatabase } from '../utils/database'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { randomUUID } from 'crypto'
+import type { AISourcesConfig } from '../../shared/types/ai-sources'
+import { createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
+import { getLLMConfig } from '../services/llm-config.service'
+import type { AISource } from '../../shared/types/ai-sources'
 
 const router = Router()
 
 // 所有配置 API 都需要认证
 router.use(authMiddleware)
+
+/**
+ * Merge file config with database config for aiSources
+ */
+function mergeAISourcesWithFileConfig(dbConfig: AISourcesConfig): AISourcesConfig {
+  const llmConfig = getLLMConfig()
+  const mergedSources: AISource[] = []
+
+  for (const dbSource of dbConfig.sources) {
+    if (dbSource.authType === 'api-key') {
+      // Find corresponding file source
+      const fileSource = llmConfig.sources.find(s => s.id === dbSource.id)
+      if (fileSource) {
+        // Merge file data into db source
+        mergedSources.push({
+          ...dbSource,
+          apiKey: fileSource.apiKey,
+          apiUrl: fileSource.apiUrl,
+          model: fileSource.model,
+          availableModels: fileSource.availableModels,
+          apiType: fileSource.apiType
+        })
+      } else {
+        // File source not found, use db source as-is
+        mergedSources.push(dbSource)
+      }
+    } else {
+      // OAuth source, use db source as-is
+      mergedSources.push(dbSource)
+    }
+  }
+
+  // Add any API-Key sources from file that are not in database
+  for (const fileSource of llmConfig.sources) {
+    if (!dbConfig.sources.some(s => s.id === fileSource.id)) {
+      mergedSources.push({
+        id: fileSource.id,
+        name: fileSource.name,
+        provider: fileSource.provider,
+        authType: 'api-key',
+        apiUrl: fileSource.apiUrl,
+        apiKey: fileSource.apiKey,
+        apiType: fileSource.apiType,
+        model: fileSource.model,
+        availableModels: fileSource.availableModels,
+        createdAt: fileSource.createdAt,
+        updatedAt: fileSource.updatedAt
+      })
+    }
+  }
+
+  return {
+    ...dbConfig,
+    sources: mergedSources
+  }
+}
 
 /**
  * GET /api/v1/configs - 获取当前用户的所有配置
@@ -27,7 +87,17 @@ router.get('/', (req, res) => {
     // 转换为键值对格式
     const configMap: Record<string, any> = {}
     for (const config of configs as any[]) {
-      configMap[config.key] = config.value
+      try {
+        const parsed = JSON.parse(config.value)
+        // Merge aiSources with file config
+        if (config.key === 'aiSources' && parsed?.version === 2) {
+          configMap[config.key] = mergeAISourcesWithFileConfig(parsed as AISourcesConfig)
+        } else {
+          configMap[config.key] = parsed
+        }
+      } catch {
+        configMap[config.key] = config.value
+      }
     }
 
     res.json({

@@ -3,7 +3,7 @@ schema: spec-driven
 # Project context - shown to AI when creating artifacts
 context: |
   ## 项目概述
-  Halo 是一个 AI 编程助手应用，提供 Claude Code SDK 集成、空间管理、对话功能、MCP 支持等核心能力。
+  Halo 是一个 AI 编程助手应用，提供 Claude Agent SDK 集成、空间管理、对话功能、MCP 支持等核心能力。
 
   ## 技术栈
   - 前端：React 18 + TypeScript + Vite + Tailwind CSS + Zustand
@@ -36,6 +36,12 @@ context: |
 
   ## 核心约束
   - **必须基于 Claude Agent SDK（@anthropic-ai/claude-agent-sdk）实现**：所有 AI 交互功能必须通过 Claude Agent SDK 驱动。SDK 运行于纯 Node.js 环境（>= 18），通过 child_process.spawn() 启动内置 cli.js 子进程，不依赖 Electron 或其他特殊运行时。
+  - **必须支持 Docker 镜像部署**：应用将来会打包到 Linux Docker 镜像中，作为一个服务部署。代码实现必须考虑：
+    - 文件路径使用跨平台兼容方式（使用 path 模块，避免硬编码 Windows 路径）
+    - 不依赖图形界面或桌面环境
+    - 支持环境变量配置（如端口、数据目录、密钥等）
+    - 支持容器化场景下的日志输出（stdout/stderr）
+    - 考虑容器重启后的数据持久化（数据目录应支持挂载卷）
 
   ## 当前架构变更
   项目正在从 Electron 桌面应用改造为 B/S 架构的 Web 应用。

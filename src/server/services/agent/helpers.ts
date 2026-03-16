@@ -9,6 +9,7 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
 import { getDatabase } from '../../utils/database'
+import { getLLMConfig, getCurrentLLMSourceFromConfig } from '../llm-config.service'
 
 // ============================================
 // Working Directory Management
@@ -103,29 +104,67 @@ async function getConfig(): Promise<any> {
 export function clearConfigCache(): void {
   configCache = null
   configCacheTime = 0
+  // Also clear LLM config cache to pick up file changes
+  try {
+    const { clearLLMConfigCache } = require('../llm-config.service')
+    clearLLMConfigCache()
+  } catch (error) {
+    console.warn('[Agent] Failed to clear LLM config cache:', error)
+  }
 }
 
 /**
  * Get API credentials from config
- * Server-side version - reads from database (synced with frontend)
+ * Priority order:
+ * 1. llm-config.json file (for API-key sources)
+ * 2. Database config (for OAuth sources)
+ * 3. Environment variables
  */
 export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
-  // If config is not provided, load it
+  // Step 1: Try to get from llm-config.json file first (API-key sources)
+  try {
+    const llmConfig = getLLMConfig()
+    if (llmConfig.currentId) {
+      const currentSource = getCurrentLLMSourceFromConfig()
+      if (currentSource) {
+        console.log('[Agent] getApiCredentials - loaded from llm-config.json:', {
+          id: currentSource.id,
+          name: currentSource.name,
+          provider: currentSource.provider,
+          model: currentSource.model
+        })
+
+        return {
+          baseUrl: currentSource.apiUrl,
+          apiKey: currentSource.apiKey,
+          model: currentSource.model,
+          displayModel: currentSource.name || currentSource.model,
+          provider: currentSource.provider === 'anthropic' ? 'anthropic' : 'openai',
+          apiType: currentSource.apiType,
+          forceStream: false,
+          filterContent: false
+        }
+      }
+    }
+  } catch (error: any) {
+    console.warn('[Agent] Failed to load from llm-config.json:', error.message)
+  }
+
+  // Step 2: Fall back to database config (for OAuth sources)
   const cfg = config || await getConfig()
 
-  console.log('[Agent] getApiCredentials - config loaded:', {
+  console.log('[Agent] getApiCredentials - config loaded from database:', {
     hasAiSources: !!cfg.aiSources,
     version: cfg.aiSources?.version,
     sourcesCount: cfg.aiSources?.sources?.length,
     currentId: cfg.aiSources?.currentId
   })
 
-  // Try to get from config first
   const aiSources = cfg.aiSources
   if (aiSources?.version === 2 && aiSources.sources?.length > 0) {
     const currentSource = aiSources.sources.find((s: any) => s.id === aiSources.currentId) || aiSources.sources[0]
 
-    console.log('[Agent] getApiCredentials - currentSource:', {
+    console.log('[Agent] getApiCredentials - currentSource from database:', {
       id: currentSource?.id,
       name: currentSource?.name,
       provider: currentSource?.provider,
@@ -167,7 +206,7 @@ export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
     }
   }
 
-  // Fallback to environment variables
+  // Step 3: Fallback to environment variables
   const baseUrl = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'
   const apiKey = process.env.ANTHROPIC_API_KEY
   const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'

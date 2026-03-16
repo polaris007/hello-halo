@@ -12,6 +12,15 @@ import { tmpdir } from 'os'
 // 测试日志目录
 const TEST_LOG_DIR = join(tmpdir(), 'halo-test-logs', crypto.randomUUID())
 
+// 获取本地时间的日期字符串 (YYYY-MM-DD)
+function getLocalDateString(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 describe('Server Logger', () => {
   // 清理测试目录
   if (existsSync(TEST_LOG_DIR)) {
@@ -56,7 +65,7 @@ describe('Server Logger', () => {
   })
 
   describe('日志轮转', () => {
-    it('应该按天轮转日志文件', async () => {
+    it('应该按天轮转日志文件（使用本地时间）', async () => {
       const testDir = join(TEST_LOG_DIR, 'rotation')
       mkdirSync(testDir, { recursive: true })
       process.env.HALO_LOG_DIR = testDir
@@ -67,7 +76,7 @@ describe('Server Logger', () => {
       logger.info('Test message')
 
       const logFilePath = logger.getLogFilePath()
-      const currentDate = new Date().toISOString().split('T')[0]
+      const currentDate = getLocalDateString()
 
       expect(logFilePath).toContain(`server-${currentDate}.log`)
       expect(existsSync(logFilePath)).toBe(true)
@@ -110,6 +119,50 @@ describe('Server Logger', () => {
       const logFilePath = logger.getLogFilePath()
       expect(logFilePath).toContain(customDir)
       expect(existsSync(logFilePath)).toBe(true)
+    })
+  })
+
+  describe('时间戳格式', () => {
+    it('应该使用本地系统时间格式（YYYY-MM-DDTHH:mm:ss.SSS）', async () => {
+      const testDir = join(TEST_LOG_DIR, 'timestamp')
+      mkdirSync(testDir, { recursive: true })
+      process.env.HALO_LOG_DIR = testDir
+      process.env.HALO_LOG_CONSOLE = 'false'
+
+      const { logger } = await import('../../../src/server/utils/logger.js')
+
+      logger.info('Timestamp test')
+
+      const logFilePath = logger.getLogFilePath()
+      const logContent = readFileSync(logFilePath, 'utf-8')
+
+      // 验证时间戳格式：[YYYY-MM-DDTHH:mm:ss.SSS] [INFO]
+      const timestampRegex = /\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\] \[INFO\] Timestamp test/
+      expect(logContent).toMatch(timestampRegex)
+
+      // 验证时间戳包含本地日期
+      const localDate = getLocalDateString()
+      expect(logContent).toContain(localDate)
+    })
+
+    it('时间戳不应该包含 UTC 时区标识（Z）', async () => {
+      const testDir = join(TEST_LOG_DIR, 'no-utc')
+      mkdirSync(testDir, { recursive: true })
+      process.env.HALO_LOG_DIR = testDir
+      process.env.HALO_LOG_CONSOLE = 'false'
+
+      const { logger } = await import('../../../src/server/utils/logger.js')
+
+      logger.info('No UTC test')
+
+      const logFilePath = logger.getLogFilePath()
+      const logContent = readFileSync(logFilePath, 'utf-8')
+
+      // 验证时间戳不包含 Z（UTC 标识）
+      const timestampLine = logContent.split('\n').find(line => line.includes('[INFO] No UTC test'))
+      expect(timestampLine).toBeDefined()
+      // 时间戳格式应该是 [YYYY-MM-DDTHH:mm:ss.SSS] 而不是 [YYYY-MM-DDTHH:mm:ss.SSSZ]
+      expect(timestampLine).not.toMatch(/\.\d{3}Z\]/)
     })
   })
 })

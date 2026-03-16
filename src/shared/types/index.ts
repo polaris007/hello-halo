@@ -57,6 +57,22 @@ export * from './artifact'
 // Notification channel types (shared between main process and renderer)
 export * from './notification-channels'
 
+// LLM Config File types (for llm-config.json)
+export type {
+  LLMConfigSource,
+  LLMConfigFile
+} from './llm-config'
+
+export {
+  LLM_CONFIG_VERSION,
+  LLM_CONFIG_FILENAME,
+  createEmptyLLMConfigFile,
+  validateLLMConfigSource,
+  validateLLMConfigFile,
+  getCurrentLLMSource,
+  getLLMSourceById
+} from './llm-config'
+
 // File changes types (shared between main process agent and renderer diff)
 export type { FileChangesSummary, ThoughtLike } from '../file-changes'
 export { countChangedLines, calculateDiffStats, extractFileChangesSummaryFromThoughts } from '../file-changes'

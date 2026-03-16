@@ -151,6 +151,19 @@ export const api = {
     return httpRequest('DELETE', `/api/v1/ai-sources/sources/${sourceId}`)
   },
 
+  // ===== AI Sources File Config =====
+  aiSourcesGetFileConfig: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/ai-sources/file-config')
+  },
+
+  aiSourcesGetFileConfigFull: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/ai-sources/file-config/full')
+  },
+
+  aiSourcesMigrate: async (checkOnly?: boolean): Promise<ApiResponse> => {
+    return httpRequest('POST', '/api/v1/ai-sources/migrate', { checkOnly })
+  },
+
   // ===== Space =====
   getHaloSpace: async (): Promise<ApiResponse> => {
     return httpRequest('GET', '/api/v1/spaces/halo')

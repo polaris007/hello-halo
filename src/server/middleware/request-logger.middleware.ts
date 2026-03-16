@@ -14,10 +14,27 @@ function getApiLogDir(): string {
   return logDir
 }
 
-// 获取当前日期的API日志文件路径
+// 格式化本地时间戳
+function formatLocalTimestamp(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  const ms = String(now.getMilliseconds()).padStart(3, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`
+}
+
+// 获取当前日期的API日志文件路径（使用本地时间）
 function getApiLogFilePath(): string {
   const logDir = getApiLogDir()
-  const currentDate = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const currentDate = `${year}-${month}-${day}`
 
   // 确保目录存在
   if (!existsSync(logDir)) {
@@ -125,7 +142,7 @@ function getClientIp(req: Request): string {
          'unknown'
 }
 
-// 记录API日志
+// 记录API日志（结构化文本格式）
 function logApiRequestResponse(
   req: Request,
   res: Response,
@@ -143,26 +160,30 @@ function logApiRequestResponse(
       return
     }
 
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
     const clientIp = getClientIp(req)
+    const sanitizedHeaders = sanitizeHeaders(req.headers)
+    const truncatedRequestBody = req.body ? truncateContent(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : ''
+    const truncatedResponseBody = truncateContent(responseBody)
 
-    // 构建日志条目
-    const logEntry = {
-      timestamp,
-      type: 'http_request_response',
-      clientIp,
-      method: req.method,
-      url: req.url,
-      headers: sanitizeHeaders(req.headers),
-      requestBody: req.body ? truncateContent(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : '',
-      statusCode: res.statusCode,
-      responseBody: truncateContent(responseBody),
-      duration: `${duration}ms`
+    // 构建日志行
+    const logLines: string[] = []
+
+    // 主日志行：[timestamp] [INFO] HTTP 请求: {method} {url} - {statusCode} - {duration}ms - {clientIp}
+    logLines.push(`[${timestamp}] [INFO] HTTP 请求: ${req.method} ${req.url} - ${res.statusCode} - ${duration}ms - ${clientIp}`)
+
+    // 详细信息在单独行记录
+    logLines.push(`[${timestamp}] [INFO]   请求头: ${JSON.stringify(sanitizedHeaders)}`)
+    if (truncatedRequestBody) {
+      logLines.push(`[${timestamp}] [INFO]   请求体: ${truncatedRequestBody}`)
+    }
+    if (truncatedResponseBody) {
+      logLines.push(`[${timestamp}] [INFO]   响应体: ${truncatedResponseBody}`)
     }
 
     // 写入日志文件
     const logFilePath = getApiLogFilePath()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 

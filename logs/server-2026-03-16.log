@@ -1,0 +1,36 @@
+[2026-03-16T13:01:02.093Z] [INFO] [Config] Loaded from G:\Workplace\hello-halo\server.json
+[2026-03-16T13:01:02.411Z] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-16T13:01:02.438Z] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-16T13:01:02.439Z] [INFO] Data directory: C:\Users\Administrator\.halo
+[2026-03-16T13:01:02.440Z] [INFO] Auth mode: normal
+[2026-03-16T13:01:02.441Z] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-16T13:01:02.474Z] [INFO] [Auth] Default user "admin" password updated from config
+[2026-03-16T13:01:21.012Z] [INFO] 
+Shutting down gracefully...
+[2026-03-16T13:01:21.015Z] [INFO] Server closed
+[2026-03-16T13:01:32.607Z] [INFO] [Config] Loaded from G:\Workplace\hello-halo\server.json
+[2026-03-16T13:01:32.616Z] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-16T13:01:32.631Z] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-16T13:01:32.632Z] [INFO] Data directory: C:\Users\Administrator\.halo
+[2026-03-16T13:01:32.632Z] [INFO] Auth mode: normal
+[2026-03-16T13:01:32.633Z] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-16T13:01:32.670Z] [INFO] [Auth] Default user "admin" password updated from config
+[2026-03-16T13:03:25.275Z] [INFO] Unknown message type: auth
+[2026-03-16T13:03:56.261Z] [INFO] [AI Sources] Fetching models from: https://aigw-gzgy2.cucloud.cn:8443/v1/models
+[2026-03-16T13:03:56.717Z] [INFO] [AI Sources] Found 5 models
+[2026-03-16T13:05:44.765Z] [INFO] [Agent] Session warmed: 5dc72b56-6228-43c1-bbc9-d104a8a0f7fa, c717dffb-3e3d-4c5e-8888-ee5d2431d6c8
+[2026-03-16T13:05:53.854Z] [INFO] [Agent] sendMessage: conv=c717dffb-3e3d-4c5e-8888-ee5d2431d6c8
+[2026-03-16T13:05:53.855Z] [INFO] [Agent] getWorkingDir called with spaceId: 5dc72b56-6228-43c1-bbc9-d104a8a0f7fa
+[2026-03-16T13:05:53.858Z] [INFO] [Agent] Resolved working dir: C:\Users\Administrator\.halo\spaces\5dc72b56-6228-43c1-bbc9-d104a8a0f7fa
+[2026-03-16T13:05:53.860Z] [INFO] [Agent] getApiCredentials - config loaded: {"hasAiSources":false}
+[2026-03-16T13:05:53.861Z] [ERROR] [Agent][c717dffb-3e3d-4c5e-8888-ee5d2431d6c8] Error: {}
+[2026-03-16T13:05:53.862Z] [INFO] [Agent] sendToRenderer: channel=agent:error, conversationId=c717dffb-3e3d-4c5e-8888-ee5d2431d6c8, hasWebSocket=true
+[2026-03-16T13:05:53.863Z] [INFO] [Agent][c717dffb-3e3d-4c5e-8888-ee5d2431d6c8] Session unregistered, active: 0
+[2026-03-16T13:05:53.864Z] [INFO] [Agent][c717dffb-3e3d-4c5e-8888-ee5d2431d6c8] Active session state cleaned up. V2 sessions: 0
+[2026-03-16T13:06:10.597Z] [INFO] [Agent] Session warmed: 5dc72b56-6228-43c1-bbc9-d104a8a0f7fa, c717dffb-3e3d-4c5e-8888-ee5d2431d6c8
+[2026-03-16T13:06:20.925Z] [INFO] [Agent] Session warmed: 5dc72b56-6228-43c1-bbc9-d104a8a0f7fa, c717dffb-3e3d-4c5e-8888-ee5d2431d6c8
+[2026-03-16T13:06:22.121Z] [INFO] [Agent] Session warmed: 5dc72b56-6228-43c1-bbc9-d104a8a0f7fa, c717dffb-3e3d-4c5e-8888-ee5d2431d6c8
+[2026-03-16T13:15:36.680Z] [INFO] Unknown message type: auth
+[2026-03-16T13:25:52.541Z] [INFO] 
+Shutting down gracefully...
+[2026-03-16T13:25:52.547Z] [INFO] Server closed

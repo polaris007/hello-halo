@@ -1,10 +1,4 @@
-# Structured File Logging
-
-## Purpose
-
-提供结构化文件日志记录能力，支持server和client分别记录到不同的日志文件，并按日期轮转。所有日志时间戳使用本地系统时间。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 结构化文件日志记录
 系统 SHALL 提供结构化文件日志记录能力，支持server和client分别记录到不同的日志文件，并按日期轮转。所有日志时间戳 SHALL 使用本地系统时间。

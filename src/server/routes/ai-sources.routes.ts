@@ -505,13 +505,28 @@ router.get('/models', (req, res) => {
 })
 
 // ============================================================================
-// V2 AI Sources API - 操作数据库存储的 aiSources 配置
+// V2 AI Sources API - 混合存储：API-Key 源在文件中，OAuth 源在数据库中
 // ============================================================================
 
 import { getDatabase } from '../utils/database'
 import { clearConfigCache } from '../services/agent/helpers'
 import type { AISource, AISourcesConfig } from '../../shared/types/ai-sources'
 import { createSource, addSource, updateSource, deleteSource, setCurrentSource, setCurrentModel, createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
+import {
+  LLMConfigSource,
+  createEmptyLLMConfigFile,
+  validateLLMConfigSource
+} from '../../shared/types/llm-config'
+import {
+  getLLMConfig,
+  saveLLMConfig,
+  addLLMSource,
+  updateLLMSource,
+  deleteLLMSource,
+  setCurrentLLMSource,
+  getCurrentLLMSourceFromConfig,
+  clearLLMConfigCache
+} from '../services/llm-config.service'
 
 const AI_SOURCES_KEY = 'aiSources'
 
@@ -553,7 +568,66 @@ function saveUserAISources(userId: string, config: AISourcesConfig): void {
 }
 
 /**
+ * Merge file config with database config
+ * For API-Key sources, enriches database metadata with file-stored sensitive data
+ */
+function mergeAISourcesWithFileConfig(dbConfig: AISourcesConfig): AISourcesConfig {
+  const llmConfig = getLLMConfig()
+  const mergedSources: AISource[] = []
+
+  for (const dbSource of dbConfig.sources) {
+    if (dbSource.authType === 'api-key') {
+      // Find corresponding file source
+      const fileSource = llmConfig.sources.find(s => s.id === dbSource.id)
+      if (fileSource) {
+        // Merge file data into db source
+        mergedSources.push({
+          ...dbSource,
+          apiKey: fileSource.apiKey,
+          apiUrl: fileSource.apiUrl,
+          model: fileSource.model,
+          availableModels: fileSource.availableModels,
+          apiType: fileSource.apiType
+        })
+      } else {
+        // File source not found, use db source as-is
+        mergedSources.push(dbSource)
+      }
+    } else {
+      // OAuth source, use db source as-is
+      mergedSources.push(dbSource)
+    }
+  }
+
+  // Add any API-Key sources from file that are not in database
+  for (const fileSource of llmConfig.sources) {
+    if (!dbConfig.sources.some(s => s.id === fileSource.id)) {
+      mergedSources.push({
+        id: fileSource.id,
+        name: fileSource.name,
+        provider: fileSource.provider,
+        authType: 'api-key',
+        apiUrl: fileSource.apiUrl,
+        apiKey: fileSource.apiKey,
+        apiType: fileSource.apiType,
+        model: fileSource.model,
+        availableModels: fileSource.availableModels,
+        createdAt: fileSource.createdAt,
+        updatedAt: fileSource.updatedAt
+      })
+    }
+  }
+
+  return {
+    ...dbConfig,
+    sources: mergedSources
+  }
+}
+
+/**
  * POST /api/v1/ai-sources/sources - 添加 AI Source (v2)
+ * API-Key sources are stored in llm-config.json file
+ * OAuth sources are stored in database
  */
 router.post('/sources', (req, res) => {
   try {
@@ -566,7 +640,7 @@ router.post('/sources', (req, res) => {
       })
     }
 
-    const config = getUserAISources(req.userId!)
+    // Create source object
     const newSource = createSource({
       name: sourceData.name,
       provider: sourceData.provider,
@@ -581,13 +655,59 @@ router.post('/sources', (req, res) => {
       availableModels: sourceData.availableModels || []
     })
 
-    const newConfig = addSource(config, newSource)
-    saveUserAISources(req.userId!, newConfig)
+    // Store based on auth type
+    if (sourceData.authType === 'api-key') {
+      // Store in file
+      const llmSource: LLMConfigSource = {
+        id: newSource.id,
+        name: newSource.name,
+        provider: newSource.provider,
+        apiUrl: newSource.apiUrl,
+        apiKey: newSource.apiKey || '',
+        apiType: newSource.apiType,
+        model: newSource.model,
+        availableModels: newSource.availableModels,
+        createdAt: newSource.createdAt,
+        updatedAt: newSource.updatedAt
+      }
 
-    res.json({
-      success: true,
-      data: newConfig
-    })
+      const result = addLLMSource(llmSource)
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'SAVE_FAILED', message: result.error }
+        })
+      }
+
+      // Also add to database for metadata (without sensitive data)
+      const dbConfig = getUserAISources(req.userId!)
+      const dbSource = createSource({
+        name: newSource.name,
+        provider: newSource.provider,
+        authType: 'api-key',
+        apiUrl: newSource.apiUrl,
+        apiKey: '', // Don't store in database
+        model: newSource.model,
+        availableModels: newSource.availableModels
+      })
+      const newDbConfig = addSource(dbConfig, dbSource)
+      saveUserAISources(req.userId!, newDbConfig)
+
+      res.json({
+        success: true,
+        data: newDbConfig
+      })
+    } else {
+      // OAuth source - store in database only
+      const config = getUserAISources(req.userId!)
+      const newConfig = addSource(config, newSource)
+      saveUserAISources(req.userId!, newConfig)
+
+      res.json({
+        success: true,
+        data: newConfig
+      })
+    }
   } catch (error: any) {
     res.status(500).json({
       success: false,
@@ -598,20 +718,63 @@ router.post('/sources', (req, res) => {
 
 /**
  * PUT /api/v1/ai-sources/sources/:id - 更新 AI Source (v2)
+ * API-Key sources are stored in llm-config.json file
+ * OAuth sources are stored in database
  */
 router.put('/sources/:id', (req, res) => {
   try {
     const sourceId = req.params.id
     const updates = req.body as Partial<AISource>
 
-    const config = getUserAISources(req.userId!)
-    const newConfig = updateSource(config, sourceId, updates)
-    saveUserAISources(req.userId!, newConfig)
+    // First check if this is an API-Key source in file
+    const llmConfig = getLLMConfig()
+    const llmSource = llmConfig.sources.find(s => s.id === sourceId)
 
-    res.json({
-      success: true,
-      data: newConfig
-    })
+    if (llmSource) {
+      // Update in file
+      const llmUpdates: Partial<LLMConfigSource> = {}
+      if (updates.name !== undefined) llmUpdates.name = updates.name
+      if (updates.apiUrl !== undefined) llmUpdates.apiUrl = updates.apiUrl
+      if (updates.apiKey !== undefined) llmUpdates.apiKey = updates.apiKey
+      if (updates.model !== undefined) llmUpdates.model = updates.model
+      if (updates.availableModels !== undefined) llmUpdates.availableModels = updates.availableModels
+      if (updates.apiType !== undefined) llmUpdates.apiType = updates.apiType
+
+      const result = updateLLMSource(sourceId, llmUpdates)
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'UPDATE_FAILED', message: result.error }
+        })
+      }
+
+      // Also update database metadata (without sensitive data)
+      const dbConfig = getUserAISources(req.userId!)
+      const dbUpdates: Partial<AISource> = {}
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.apiUrl !== undefined) dbUpdates.apiUrl = updates.apiUrl
+      if (updates.model !== undefined) dbUpdates.model = updates.model
+      if (updates.availableModels !== undefined) dbUpdates.availableModels = updates.availableModels
+      if (updates.apiType !== undefined) dbUpdates.apiType = updates.apiType
+
+      const newDbConfig = updateSource(dbConfig, sourceId, dbUpdates)
+      saveUserAISources(req.userId!, newDbConfig)
+
+      res.json({
+        success: true,
+        data: newDbConfig
+      })
+    } else {
+      // OAuth source or not found in file - update in database
+      const config = getUserAISources(req.userId!)
+      const newConfig = updateSource(config, sourceId, updates)
+      saveUserAISources(req.userId!, newConfig)
+
+      res.json({
+        success: true,
+        data: newConfig
+      })
+    }
   } catch (error: any) {
     res.status(500).json({
       success: false,
@@ -622,19 +785,47 @@ router.put('/sources/:id', (req, res) => {
 
 /**
  * DELETE /api/v1/ai-sources/sources/:id - 删除 AI Source (v2)
+ * API-Key sources are stored in llm-config.json file
+ * OAuth sources are stored in database
  */
 router.delete('/sources/:id', (req, res) => {
   try {
     const sourceId = req.params.id
 
-    const config = getUserAISources(req.userId!)
-    const newConfig = deleteSource(config, sourceId)
-    saveUserAISources(req.userId!, newConfig)
+    // First check if this is an API-Key source in file
+    const llmConfig = getLLMConfig()
+    const llmSource = llmConfig.sources.find(s => s.id === sourceId)
 
-    res.json({
-      success: true,
-      data: newConfig
-    })
+    if (llmSource) {
+      // Delete from file
+      const result = deleteLLMSource(sourceId)
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'DELETE_FAILED', message: result.error }
+        })
+      }
+
+      // Also delete from database metadata
+      const dbConfig = getUserAISources(req.userId!)
+      const newDbConfig = deleteSource(dbConfig, sourceId)
+      saveUserAISources(req.userId!, newDbConfig)
+
+      res.json({
+        success: true,
+        data: newDbConfig
+      })
+    } else {
+      // OAuth source or not found in file - delete from database
+      const config = getUserAISources(req.userId!)
+      const newConfig = deleteSource(config, sourceId)
+      saveUserAISources(req.userId!, newConfig)
+
+      res.json({
+        success: true,
+        data: newConfig
+      })
+    }
   } catch (error: any) {
     res.status(500).json({
       success: false,
@@ -645,6 +836,7 @@ router.delete('/sources/:id', (req, res) => {
 
 /**
  * POST /api/v1/ai-sources/switch-source - 切换当前 AI Source (v2)
+ * Updates currentId in both file (for API-Key) and database (for OAuth)
  */
 router.post('/switch-source', (req, res) => {
   try {
@@ -657,6 +849,22 @@ router.post('/switch-source', (req, res) => {
       })
     }
 
+    // Check if source exists in file
+    const llmConfig = getLLMConfig()
+    const llmSource = llmConfig.sources.find(s => s.id === sourceId)
+
+    if (llmSource) {
+      // Set as current in file
+      const result = setCurrentLLMSource(sourceId)
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'SWITCH_FAILED', message: result.error }
+        })
+      }
+    }
+
+    // Also update database
     const config = getUserAISources(req.userId!)
     const newConfig = setCurrentSource(config, sourceId)
     saveUserAISources(req.userId!, newConfig)
@@ -694,6 +902,124 @@ router.post('/set-model', (req, res) => {
     res.json({
       success: true,
       data: newConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * GET /api/v1/ai-sources/file-config - 获取文件配置 (llm-config.json)
+ * Returns the LLM config file content for API-key sources
+ */
+router.get('/file-config', (req, res) => {
+  try {
+    const config = getLLMConfig()
+
+    // Return config without exposing API keys in the response
+    // (API keys are still stored in the file, just not returned to frontend)
+    const safeConfig = {
+      version: config.version,
+      currentId: config.currentId,
+      sources: config.sources.map(s => ({
+        id: s.id,
+        name: s.name,
+        provider: s.provider,
+        apiUrl: s.apiUrl,
+        model: s.model,
+        availableModels: s.availableModels,
+        apiType: s.apiType,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        // Note: apiKey is NOT included in the response for security
+        hasApiKey: !!s.apiKey
+      }))
+    }
+
+    res.json({
+      success: true,
+      data: safeConfig
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * GET /api/v1/ai-sources/file-config/full - 获取完整文件配置 (包括 API Key)
+ * Returns the full LLM config file content including API keys
+ * Use with caution - only for editing operations
+ */
+router.get('/file-config/full', (req, res) => {
+  try {
+    const config = getLLMConfig()
+
+    res.json({
+      success: true,
+      data: config
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/ai-sources/migrate - 迁移数据库配置到文件
+ * Migrates API-Key sources from database to llm-config.json file
+ */
+router.post('/migrate', async (req, res) => {
+  try {
+    const { checkOnly } = req.body
+
+    // Get database sources
+    const dbConfig = getUserAISources(req.userId!)
+    const dbSources = dbConfig.sources
+
+    // Import migration functions
+    const { needsMigration, migrateFromDatabase } = await import('../services/llm-config.service')
+
+    if (!needsMigration(dbSources)) {
+      return res.json({
+        success: true,
+        data: {
+          migrated: false,
+          migratedCount: 0,
+          message: 'No migration needed'
+        }
+      })
+    }
+
+    if (checkOnly) {
+      return res.json({
+        success: true,
+        data: {
+          migrated: false,
+          migratedCount: 0,
+          migrationNeeded: true,
+          message: 'Migration is needed'
+        }
+      })
+    }
+
+    // Perform migration
+    const result = migrateFromDatabase(dbSources, dbConfig.currentId)
+
+    res.json({
+      success: result.success,
+      data: {
+        migrated: true,
+        migratedCount: result.migratedCount,
+        errors: result.errors
+      }
     })
   } catch (error: any) {
     res.status(500).json({

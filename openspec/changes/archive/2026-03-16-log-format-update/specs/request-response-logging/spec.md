@@ -1,10 +1,4 @@
-# Request Response Logging
-
-## Purpose
-
-记录所有HTTP API请求和响应的详细报文内容，用于调试和监控。日志使用结构化文本格式，时间戳使用本地系统时间。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 报文内容日志记录
 系统 SHALL 记录所有HTTP API请求和响应的详细报文内容，用于调试和监控。日志 SHALL 使用结构化文本格式，时间戳使用本地系统时间。
