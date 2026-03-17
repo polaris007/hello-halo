@@ -9,14 +9,10 @@
 
 **WebSocket 维护成本**：
 - 需要处理连接断开重连、心跳检测、认证状态同步等边缘情况
-- 当前 WebSocket 服务 (`websocket.service.ts`) 和 `transport.ts` 中的连接管理代码（约 200 行）需要持续维护
+- WebSocket 服务 (`websocket.service.ts`) 和 `transport.ts` 中的连接管理代码需要持续维护
 - 服务器需要维护连接池，增加内存开销
 
-**多标签页/多设备限制**：
-- SSE 方案下每个标签页独立连接，天然隔离
-- WebSocket 需要额外的广播逻辑才能支持多标签页同步
-
-**项目决策**：团队已决定使用 SSE（Server-Sent Events）替代 WebSocket，将消息响应改为流式返回，简化架构并消除上述问题。
+**项目决策**：使用 SSE（Server-Sent Events）替代 WebSocket，将消息响应改为流式返回，简化架构并消除上述问题。
 
 ## What Changes
 
@@ -31,24 +27,18 @@
    - 移除 WebSocket 对话相关的订阅逻辑
    - 使用 `fetch` + `ReadableStream` 消费 SSE 流（不支持 `EventSource`，因为需要 POST 请求）
    - 实时展示 thinking、tool_use、text 等内容块
-   - 保留 WebSocket 用于非对话场景（如实时通知、文件变更广播）
 
-### 其他变更
+3. **保留 WebSocket 用于非 Agent 事件**
+   - WebSocket 服务**保留**，但仅用于非 Agent 场景：
+     - 文件变更通知（`file:change` 事件）
+     - 全局广播（`broadcastToAll`）
+   - Agent 对话相关订阅逻辑（`subscribeToConversation`、`unsubscribeFromConversation`）**移除**
+   - Agent 事件路由（`agent:event` 消息类型）**移除**
 
-3. **Automation App 兼容性**
-   - `stream-processor.ts` 同时被主对话 agent 和 automation app runtime 使用
-   - SSE 模式下 `sseWriter` 可选，automation app 可继续使用 `sendToRenderer` 通过 WebSocket 推送
-   - 详见 design.md Decision 2
-
-4. **移除 WebSocket 对话依赖**（后续任务）
-   - 当前 WebSocket 服务 (`websocket.service.ts`) 暂时保留
-   - 待 SSE 稳定后再移除相关代码
-
-5. **回滚支持**
-   - 实现环境变量 `HALO_USE_SSE=true/false` 开关（默认 `true`）
-   - 开关为 `false` 时，API 返回原有 JSON 格式，事件继续通过 WebSocket 推送
-   - 通过条件判断选择传输方式，避免同时维护两套完整代码
-   - 回滚开关为临时方案，待 SSE 稳定后移除（预计 1-2 个版本后）
+4. **双向通信场景的处理方案**
+   - **工具审批（Tool Approval）**：SSE 流暂停等待，用户审批后通过独立 HTTP 端点继续
+   - **AskUserQuestion**：SSE 流暂停等待，用户回答后通过独立 HTTP 端点继续
+   - 详见 design.md 中的 Decision 7 和 Decision 8
 
 ## Capabilities
 
@@ -64,14 +54,20 @@
 
 ### 受影响的代码
 
+**后端**：
 - `src/server/routes/agent.routes.ts` - 路由处理器需要返回 SSE 流
-- `src/server/services/agent/stream-processor.ts` - 新增 `sseWriter` 参数，支持 SSE 事件写入
-- `src/server/services/agent/send-message.ts` - 传递 `sseWriter` 给 `processStream`
-- `src/server/services/agent/helpers.ts` - `sendToRenderer` 函数需支持 SSE 模式
+- `src/server/services/agent/stream-processor.ts` - 使用 SSE Writer 替代 `sendToRenderer`
+- `src/server/services/agent/send-message.ts` - 传递 SSE Writer 给 `processStream`
+- `src/server/services/agent/helpers.ts` - 删除 `sendToRenderer` 函数，保留 WebSocket 服务注册（用于非 Agent 事件）
 - `src/server/utils/sse-writer.ts` - **新增** SSE 写入器工具类
+- `src/server/services/websocket.service.ts` - **保留** 但移除 `broadcastAgentEvent` 函数
+
+**前端**：
 - `src/web/api/sse.ts` - **新增** SSE 消费工具函数
-- `src/web/api/transport.ts` - 保留 WebSocket 用于非对话场景，对话部分改用 SSE
+- `src/web/api/transport.ts` - 移除 Agent 相关订阅逻辑，保留 WebSocket 连接（用于文件变更等事件）
+- `src/web/api/index.ts` - 更新 `sendMessage` 调用方式
 - `src/web/stores/chat.store.ts` - 消息发送和事件处理逻辑
+- `src/web/App.tsx` 或初始化组件 - 移除 Agent WebSocket 事件监听器
 
 ### API 变更
 
@@ -128,12 +124,46 @@ Event stream:
 
 1. **多标签页实时同步**
    - 风险：每个 SSE 连接独立，打开第二个标签页无法看到第一个标签页的实时更新
-   - 缓解：新标签页通过 `GET /api/v1/agent/session/:id` 恢复当前状态；若需要实时同步可作为后续需求
+   - 缓解：
+     - 第二个标签页通过 `GET /api/v1/agent/session/:id` 可恢复当前 thoughts 状态
+     - 但无法实时接收后续事件（符合 SSE 单连接设计）
+     - 用户刷新或切换后，可通过对话历史查看完整消息
 
 2. **连接中断**
    - 风险：SSE 连接中断后，AI 可能仍在处理，但前端无法接收结果
-   - 缓解：后端检测连接断开时通过 AbortController 取消 Agent 执行；前端显示"连接中断"提示，用户可重试
+   - 缓解：
+     - 后端检测连接断开时通过 AbortController 取消 Agent 执行
+     - 已流式生成的部分内容已在数据库中实时更新（增量持久化）
+     - 前端显示"连接中断"提示，用户可重试
 
-3. **回滚开关复杂度**
-   - 风险：回滚开关增加了代码复杂度和测试工作量
-   - 缓解：开关为临时方案，SSE 稳定后立即移除；通过清晰的代码隔离降低复杂度
+3. **并发请求**
+   - 风险：同一 conversationId 同时存在多个 SSE 连接（如用户快速刷新页面）
+   - 缓解：新连接启动时，取消该 conversationId 的前一个活跃连接，确保只有一个活跃 SSE 流
+
+4. **工具审批和 AskUserQuestion 等待状态**
+   - 风险：SSE 是单向通信，无法直接处理需要用户输入的场景
+   - 缓解：
+     - SSE 流保持打开，发送 `waiting-for-input` 事件通知前端
+     - 用户操作后通过独立 HTTP 端点（`/approve`、`/reject`、`/answer-question`）提交
+     - 后端继续处理，事件继续通过同一个 SSE 流推送
+     - 详见 design.md Decision 7 和 Decision 8
+
+5. **认证错误在 SSE headers 之后**
+   - 风险：如果在发送 SSE headers 之后才发现认证问题（如 token 过期中间检查），无法返回 JSON 错误
+   - 缓解：
+     - 认证验证在发送 SSE headers 之前完成
+     - 如果验证失败，返回标准 HTTP 错误响应（401 JSON），不建立 SSE 流
+
+6. **反向代理兼容性**
+   - 风险：某些反向代理（Nginx、CDN）可能缓冲 SSE 响应
+   - 缓解：
+     - 设置正确的响应头：`Cache-Control: no-cache`、`X-Accel-Buffering: no`
+     - 本地开发模式不经过代理，不受影响
+     - 文档中说明部署配置要求
+
+7. **SSE 重连与部分内容恢复**
+   - 风险：连接中断后重连，如何恢复已生成的部分内容
+   - 缓解：
+     - 后端在流式生成过程中实时更新数据库中的 assistant message
+     - 前端重连后通过 `GET /api/v1/conversations/:id` 获取最新消息内容
+     - 如果 AI 仍在处理中，用户可发送"continue"消息继续

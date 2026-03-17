@@ -32,10 +32,13 @@
 | `tool-call` | `agent:tool-call` | 工具调用开始 |
 | `tool-result` | `agent:tool-result` | 工具执行结果 |
 | `compact` | `agent:compact` | 上下文压缩通知 |
+| `ask-question` | `agent:ask-question` | AI 向用户提问 |
+| `waiting-for-input` | `agent:waiting-for-input` | 等待用户输入（审批/回答） |
 | `complete` | `agent:complete` | 流处理完成 |
 | `error` | `agent:error` | 错误信息 |
 
 - **AND** data 始终包含 `spaceId` 和 `conversationId` 字段
+- **AND** 前端应使用 `event` 字段判断事件类型，`data.type` 用于调试和日志
 
 #### Scenario: 消息文本流式推送
 - **WHEN** Agent 生成文本内容（text_delta）
@@ -148,9 +151,7 @@
     "preTokens": 50000
   }
   ```
-- **AND** `trigger` 字段说明压缩触发方式：
-  - `auto` - SDK 自动触发压缩
-  - `manual` - 用户手动触发压缩
+- **AND** `trigger` 字段值为 `auto`（SDK 自动触发压缩）
 - **AND** `preTokens` 表示压缩前的 token 数量
 
 #### Scenario: 流完成推送
@@ -170,6 +171,55 @@
   ```
 - **AND** SSE 连接关闭
 
+#### Scenario: AI 提问推送
+- **WHEN** Agent 调用 AskUserQuestion 工具向用户提问
+- **THEN** 系统推送 `event: ask-question` 事件
+- **AND** 数据包含：
+  ```json
+  {
+    "type": "agent:ask-question",
+    "spaceId": "space-xxx",
+    "conversationId": "conv-xxx",
+    "id": "question-xxx",
+    "questions": [
+      {
+        "key": "framework",
+        "question": "使用哪个前端框架？",
+        "header": "Framework",
+        "options": [
+          { "label": "React", "description": "组件化框架" },
+          { "label": "Vue", "description": "渐进式框架" }
+        ]
+      }
+    ]
+  }
+  ```
+- **AND** 随后推送 `event: waiting-for-input` 事件（见下方）
+
+#### Scenario: 等待用户输入推送
+- **WHEN** Agent 需要等待用户输入（工具审批或回答问题）
+- **THEN** 系统推送 `event: waiting-for-input` 事件
+- **AND** 数据包含：
+  ```json
+  {
+    "type": "agent:waiting-for-input",
+    "spaceId": "space-xxx",
+    "conversationId": "conv-xxx",
+    "inputType": "<input-type>",
+    "message": "等待用户操作"
+  }
+  ```
+- **AND** `inputType` 与场景对应关系：
+
+| inputType | 触发场景 | 额外字段 |
+|-----------|---------|---------|
+| `tool-approval` | 工具需要审批 | `toolCallId`, `toolName` |
+| `ask-question` | AI 提问 | `questionId` |
+
+- **AND** SSE 流保持打开，等待用户操作
+- **WHEN** 用户通过独立 HTTP 端点提交操作后
+- **THEN** SSE 流继续推送后续事件
+
 #### Scenario: 错误推送
 - **WHEN** Agent 处理过程中发生错误
 - **THEN** 系统推送 `event: error` 事件
@@ -188,12 +238,13 @@
 
 | errorType | 触发条件 | 前端提示建议 |
 |-----------|---------|-------------|
-| `rate_limit` | API 返回速率限制错误（errorCode 包含 rate/limit） | "请求过于频繁，请稍后重试" |
-| `auth_failure` | API Key 无效或过期（errorCode 包含 auth/api_key） | "认证失败，请检查 API Key" |
+| `rate_limit` | errorCode 包含 `rate` 或 `limit` | "请求过于频繁，请稍后重试" |
+| `auth_failure` | errorCode 包含 `auth`、`api_key` 或 `invalid_key` | "认证失败，请检查 API Key" |
 | `interrupted` | 用户取消或网络中断 | "响应已中断" 或 "已停止" |
 | `max_turns` | 达到 SDK maxTurns 限制 | "已达最大轮次限制，可发送消息继续" |
-| `unknown` | 其他未知错误 | 显示原始错误信息 |
+| `unknown` | 其他未知错误 | 显示原始 `error` 字段内容 |
 
+- **AND** 若无 errorCode，errorType 根据其他条件判断
 - **AND** SSE 连接关闭
 
 ### Requirement: SSE 连接管理
@@ -221,9 +272,15 @@
 #### Scenario: SSE 流映射管理
 - **WHEN** 新 SSE 流开始
 - **THEN** 系统创建新的 AbortController
+- **AND** 若该 conversationId 已有活跃连接，先取消旧连接
 - **AND** 将 `conversationId -> AbortController` 映射存入 `activeSSEStreams`
 - **WHEN** SSE 流结束（完成、错误、取消、断开）
 - **THEN** 系统从 `activeSSEStreams` 中删除对应条目
+
+#### Scenario: 连接超时清理
+- **WHEN** SSE 连接持续时间超过 30 分钟
+- **THEN** 系统自动取消该连接
+- **AND** 从 `activeSSEStreams` 中删除对应条目
 
 ### Requirement: 前端 SSE 消费
 前端 SHALL 使用 fetch + ReadableStream 消费 SSE 流式响应。
@@ -240,6 +297,7 @@
 - **THEN** 解析 `event:` 行获取事件名称
 - **AND** 解析 `data:` 行获取 JSON 数据
 - **AND** 事件以双换行 `\n\n` 分隔
+- **AND** 多行 data 字段直接拼接（无分隔符）
 - **AND** 根据事件名称更新 UI 状态
 
 #### Scenario: 更新消息内容
@@ -266,9 +324,8 @@
 #### Scenario: 处理上下文压缩
 - **WHEN** 前端收到 `event: compact` 事件
 - **THEN** 显示上下文压缩通知（可选）
-- **AND** 若 `trigger: auto`，显示"上下文已自动压缩"
-- **AND** 若 `trigger: manual`，显示"上下文已手动压缩"
-- **AND** 可选显示压缩前后的 token 数量变化
+- **AND** 显示"上下文已自动压缩"
+- **AND** 可选显示压缩前的 token 数量
 
 #### Scenario: 处理错误
 - **WHEN** 前端收到 `event: error` 事件
@@ -296,4 +353,141 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 
 #### Scenario: 流式块日志记录
 - **WHEN** SSE 流推送事件时
-- **THEN** 系统可选地记录 `ai_stream_chunk` 日志（采样或关键事件）
+- **THEN** 系统每 10 个 text_delta 事件记录一次 `ai_stream_chunk` 日志
+- **AND** 所有 thinking_delta、input_json_delta 事件记录 `ai_stream_chunk` 日志
+
+### Requirement: 增量持久化
+系统 SHALL 在 SSE 流式生成过程中实时持久化部分内容，确保连接中断时用户不会丢失已生成的内容。
+
+#### Scenario: 部分内容持久化
+- **WHEN** SSE 流正在推送文本内容
+- **THEN** 系统每 2 秒更新一次数据库中的 assistant message
+- **AND** 更新内容包括当前累计的 `content` 和 `thoughts`
+- **AND** 消息标记为 `isPartial: true`
+
+#### Scenario: 完成时持久化
+- **WHEN** SSE 流完成（收到 complete 事件或 error 事件)
+- **THEN** 系统更新数据库中的 assistant message
+- **AND** 消息标记为 `isPartial: false`
+- **AND** 包含完整的 tokenUsage
+
+#### Scenario: 连接中断后的内容恢复
+- **WHEN** 用户重新打开对话或发送新消息
+- **AND** 该对话有 `isPartial: true` 的 assistant message
+- **THEN** 前端显示之前已生成的部分内容
+- **AND** 用户可选择发送 "continue" 继续
+
+### Requirement: 双向通信场景处理
+系统 SHALL 正确处理需要用户输入的场景，包括工具审批和 AI 提问。
+
+#### Scenario: 工具审批流程
+- **WHEN** Agent 调用需要审批的工具（如 Bash、 Edit、 Write）
+- **THEN** SSE 流推送 `event: tool-call` 事件，包含 `requiresApproval: true`
+- **AND** SSE 流推送 `event: waiting-for-input` 事件， `inputType: "tool-approval"`
+- **AND** SSE 流保持打开，等待用户操作
+- **WHEN** 用户调用 `POST /api/v1/agent/approve`
+- **THEN** 系统继续 Agent 执行
+- **AND** SSE 流继续推送后续事件
+- **WHEN** 用户调用 `POST /api/v1/agent/reject`
+    **THEN** 系统取消该工具调用
+- **AND** SSE 流继续推送后续事件（或完成）
+
+#### Scenario: AskUserQuestion 流程
+- **WHEN** Agent 调用 AskUserQuestion 工具
+- **THEN** SSE 流推送 `event: ask-question` 事件，包含问题列表
+- **AND** SSE 流推送 `event: waiting-for-input` 事件， `inputType: "ask-question"`
+- **AND** SSE 流保持打开,等待用户回答
+- **WHEN** 用户调用 `POST /api/v1/agent/answer-question`
+    **THEN** 系统继续 Agent 执行
+    **AND** SSE 流继续推送后续事件
+
+#### Scenario: 用户取消等待状态
+- **WHEN** 用户点击"停止"按钮取消等待中的输入请求
+- **THEN** 系统调用 `abortController.abort()`
+- **AND** SSE 流推送 `event: error` 事件，`errorType: "interrupted"`
+- **AND** SSE 连接关闭
+
+### Requirement: WebSocket 保留功能
+系统 SHALL 保留 WebSocket 用于非 Agent 场景的事件推送。
+
+#### Scenario: 文件变更通知
+- **WHEN** 文件系统发生变更
+- **THEN** 系统通过 WebSocket 推送 `file:change` 事件
+- **AND** 事件包含 `action`（create/update/delete）和 `path`
+
+#### Scenario: 全局广播
+- **WHEN** 系统需要广播全局通知
+- **THEN** 系统通过 WebSocket 的 `broadcastToAll` 推送事件
+
+#### Scenario: Agent 事件不再通过 WebSocket
+- **WHEN** Agent 产生事件（message、 thought、 tool-call 等）
+- **THEN** 系统通过 SSE 流推送
+- **AND** 不通过 WebSocket 推送
+
+### Requirement: 增量持久化
+系统 SHALL 在 SSE 流式生成过程中实时持久化部分内容，确保连接中断时用户不会丢失已生成的内容。
+
+#### Scenario: 部分内容持久化
+- **WHEN** SSE 流正在推送文本内容
+- **THEN** 系统每 2 秒更新一次数据库中的 assistant message
+- **AND** 更新内容包括当前累计的 `content` 和 `thoughts`
+- **AND** 消息标记为 `isPartial: true`
+
+#### Scenario: 完成时持久化
+- **WHEN** SSE 流完成（收到 complete 事件或 error 事件）
+- **THEN** 系统更新数据库中的 assistant message
+- **AND** 消息标记为 `isPartial: false`
+- **AND** 包含完整的 tokenUsage
+
+#### Scenario: 连接中断后的内容恢复
+- **WHEN** 用户重新打开对话或发送新消息
+- **AND** 该对话有 `isPartial: true` 的 assistant message
+- **THEN** 前端显示之前已生成的部分内容
+- **AND** 用户可选择发送 "continue" 继续
+
+### Requirement: 双向通信场景处理
+系统 SHALL 正确处理需要用户输入的场景，包括工具审批和 AI 提问。
+
+#### Scenario: 工具审批流程
+- **WHEN** Agent 调用需要审批的工具（如 Bash、Edit、Write）
+- **THEN** SSE 流推送 `event: tool-call` 事件，包含 `requiresApproval: true`
+- **AND** SSE 流推送 `event: waiting-for-input` 事件，`inputType: "tool-approval"`
+- **AND** SSE 流保持打开，等待用户操作
+- **WHEN** 用户调用 `POST /api/v1/agent/approve`
+- **THEN** 系统继续 Agent 执行
+- **AND** SSE 流继续推送后续事件
+- **WHEN** 用户调用 `POST /api/v1/agent/reject`
+- **THEN** 系统取消该工具调用
+- **AND** SSE 流继续推送后续事件（或完成）
+
+#### Scenario: AskUserQuestion 流程
+- **WHEN** Agent 调用 AskUserQuestion 工具
+- **THEN** SSE 流推送 `event: ask-question` 事件，包含问题列表
+- **AND** SSE 流推送 `event: waiting-for-input` 事件，`inputType: "ask-question"`
+- **AND** SSE 流保持打开，等待用户回答
+- **WHEN** 用户调用 `POST /api/v1/agent/answer-question`
+- **THEN** 系统继续 Agent 执行
+- **AND** SSE 流继续推送后续事件
+
+#### Scenario: 用户取消等待状态
+- **WHEN** 用户点击"停止"按钮取消等待中的输入请求
+- **THEN** 系统调用 `abortController.abort()`
+- **AND** SSE 流推送 `event: error` 事件，`errorType: "interrupted"`
+- **AND** SSE 连接关闭
+
+### Requirement: WebSocket 保留功能
+系统 SHALL 保留 WebSocket 用于非 Agent 场景的事件推送。
+
+#### Scenario: 文件变更通知
+- **WHEN** 文件系统发生变更
+- **THEN** 系统通过 WebSocket 推送 `file:change` 事件
+- **AND** 事件包含 `action`（create/update/delete）和 `path`
+
+#### Scenario: 全局广播
+- **WHEN** 系统需要广播全局通知
+- **THEN** 系统通过 WebSocket 的 `broadcastToAll` 推送事件
+
+#### Scenario: Agent 事件不再通过 WebSocket
+- **WHEN** Agent 产生事件（message、thought、tool-call 等）
+- **THEN** 系统通过 SSE 流推送
+- **AND** 不通过 WebSocket 推送

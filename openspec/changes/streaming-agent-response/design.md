@@ -6,7 +6,7 @@ Agent 消息 API 的数据流：
 ```
 前端 POST /api/v1/agent/message
     ↓
-后端 agent.routes.ts:85 调用 sendMessage()
+后端 agent.routes.ts 调用 sendMessage()
     ↓
 后端立即返回 JSON { success: true, data: { messageId, status: "processing" } }
     ↓
@@ -17,10 +17,6 @@ sendToRenderer() 调用 websocketService.broadcastAgentEvent()
 WebSocket 推送给已订阅的前端客户端
 ```
 
-**现有机制**：
-- 前端 `transport.ts` 已实现 `pendingSubscriptions` 队列，在 WebSocket 认证成功后自动处理待订阅请求
-- 该机制可解决订阅时序问题，但仍需要维护两套通信机制
-
 **改进动机**：
 1. **架构简化**：HTTP 请求与响应分离增加了调试和维护复杂度
 2. **错误处理统一**：HTTP 错误（401、500）与 WebSocket 推送的 `agent:error` 需要分别处理
@@ -30,7 +26,7 @@ WebSocket 推送给已订阅的前端客户端
 
 - 必须使用 SSE（项目已决定替代 WebSocket）
 - 必须复用现有的 `stream-processor.ts` 逻辑
-- API 签名变更需要兼容现有前端调用
+- API 请求参数不变，仅响应格式变更
 
 ## Goals / Non-Goals
 
@@ -39,11 +35,11 @@ WebSocket 推送给已订阅的前端客户端
 2. 前端能够实时接收 thinking、tool_use、text 等事件
 3. 保持 AI 日志记录功能正常工作
 4. 确保错误能通过 SSE 流正确传递给前端
+5. 完全移除 WebSocket 对话相关代码
 
 **Non-Goals:**
 1. 对话列表功能（独立 change）
-2. 移除 WebSocket 代码（后续任务）
-3. 多设备同步（未来需求）
+2. 多设备实时同步（未来需求）
 
 ## Decisions
 
@@ -84,30 +80,19 @@ event: complete
 data: {"type":"agent:complete","spaceId":"...","conversationId":"...","tokenUsage":{...}}
 
 event: error
-data: {"type":"agent:error","spaceId":"...","conversationId":"...","error":"...","errorType":"..."}
+data: {"type":"agent:error","spaceId":"...","conversationId":"...","error":"...","errorType":"...","errorCode":"..."}
 ```
 
 ### Decision 2: stream-processor.ts 改造
 
-**选择**: 引入可选的 SSE Writer，与 `sendToRenderer()` 共存
-
-**理由**:
-- `stream-processor.ts` 已有完整的事件处理逻辑
-- `stream-processor.ts` 同时被主对话 agent (`send-message.ts`) 和 automation app runtime (`execute.ts`) 使用
-- 最小化代码改动，保持向后兼容
-
-**SSE vs WebSocket 的关键区别**：
-- `sendToRenderer` 通过 WebSocket 广播，可通知**所有订阅该 conversationId 的客户端**
-- SSE 只能向**发起请求的单个客户端**推送
-- 对于主对话场景，SSE 已足够（每个标签页独立连接）
-- 对于 automation app，继续使用 `sendToRenderer` 通过 WebSocket 推送（因为无 HTTP 请求上下文）
+**选择**: 使用 SSE Writer 直接替代 `sendToRenderer()`
 
 **改造方式**:
 ```typescript
-// ProcessStreamParams 新增可选参数
+// ProcessStreamParams 新增参数
 interface ProcessStreamParams {
   // ... existing fields
-  sseWriter?: SseWriter  // 可选：SSE 写入器。若不提供，则使用 sendToRenderer
+  sseWriter: SseWriter  // SSE 写入器（必填）
 }
 
 // SseWriter 接口
@@ -116,30 +101,21 @@ interface SseWriter {
   end(): void
 }
 
-// processStream 内部的条件逻辑
+// processStream 内部
 function processStream(params: ProcessStreamParams) {
   const { sseWriter, spaceId, conversationId, ... } = params
 
   // 统一的事件发送函数
   const emitEvent = (eventName: string, data: any) => {
-    if (sseWriter) {
-      // SSE 模式：直接写入 HTTP 响应流
-      sseWriter.writeEvent(eventName, data)
-    } else {
-      // WebSocket 模式：广播给所有订阅者
-      sendToRenderer(eventName, spaceId, conversationId, data)
-    }
+    // SSE event-name 去掉 "agent:" 前缀
+    const sseEventName = eventName.replace('agent:', '')
+    sseWriter.writeEvent(sseEventName, { ...data, spaceId, conversationId })
   }
 
   // 使用 emitEvent 替代所有 sendToRenderer 调用
   emitEvent('agent:message', { type: 'message', content: '...', isStreaming: true })
 }
 ```
-
-**Automation App 兼容性**：
-- Automation app 调用 `processStream` 时不传递 `sseWriter`
-- 事件继续通过 `sendToRenderer` -> WebSocket 推送给前端
-- 无需修改 automation app 代码
 
 ### Decision 3: 前端消费方式
 
@@ -186,7 +162,6 @@ async function sendMessage(
 
   // 非 200 响应表示请求级别的错误（认证失败、参数错误等）
   if (!response.ok) {
-    // 尝试解析错误信息
     try {
       const errorData = await response.json()
       onError(new Error(errorData.error?.message || `HTTP ${response.status}`))
@@ -227,6 +202,7 @@ async function sendMessage(
  * 1. 事件以双换行 "\n\n" 分隔
  * 2. data 字段可以跨多行，每行以 "data:" 开头
  * 3. event 字段可选，默认为 "message"
+ * 4. 多行 data 用换行符连接（HTML SSE 规范）
  */
 function parseSSE(buffer: string): { parsed: SSEEvent[]; remaining: string } {
   const parsed: SSEEvent[] = []
@@ -240,8 +216,7 @@ function parseSSE(buffer: string): { parsed: SSEEvent[]; remaining: string } {
       continue
     }
 
-    // 检查是否是完整的事件（需要找到结束的双换行）
-    // 从当前位置向后查找空行
+    // 从当前位置向后查找空行（事件结束标记）
     let eventEndIndex = i
     while (eventEndIndex < lines.length && lines[eventEndIndex] !== '') {
       eventEndIndex++
@@ -262,14 +237,19 @@ function parseSSE(buffer: string): { parsed: SSEEvent[]; remaining: string } {
       if (line.startsWith('event:')) {
         eventType = line.substring(6).trim()
       } else if (line.startsWith('data:')) {
-        dataLines.push(line.substring(5).trim())
+        // SSE 规范：data: 后可选一个空格，只去掉这一个空格
+        // 不能用 trim()，否则会去掉数据内容本身的空格
+        let dataContent = line.substring(5)
+        if (dataContent.startsWith(' ')) {
+          dataContent = dataContent.substring(1)
+        }
+        dataLines.push(dataContent)
       }
-      // 忽略其他 SSE 字段（id:, retry: 等）
     }
 
-    // 合并多行 data
+    // 合并多行 data（SSE 规范：用换行符连接）
     if (dataLines.length > 0) {
-      const dataStr = dataLines.join('')
+      const dataStr = dataLines.join('\n')
       try {
         parsed.push({
           event: eventType,
@@ -277,7 +257,6 @@ function parseSSE(buffer: string): { parsed: SSEEvent[]; remaining: string } {
         })
       } catch (e) {
         console.error('Failed to parse SSE data JSON:', dataStr, e)
-        // 不丢弃事件，返回原始字符串供调试
         parsed.push({
           event: eventType,
           data: { raw: dataStr, parseError: true }
@@ -307,36 +286,289 @@ export type { SSEEvent, SendMessageParams }
 - 保持 HTTP 响应状态码为 200（SSE 规范）
 - 错误内容在事件体中传递
 
-**错误类型映射**（与 `stream-processor.ts` 代码对应）：
+**错误类型映射**：
 
-| errorType | 触发条件 | 代码位置 |
-|-----------|---------|---------|
-| `rate_limit` | API 返回速率限制错误 | `parseSDKMessage` 解析 error thought，`thought.errorCode` 包含具体错误码 |
-| `auth_failure` | API Key 无效或过期 | 同上 |
-| `interrupted` | 用户取消或网络中断 | `getInterruptedErrorMessage()` 在 `wasAborted` 或 `isInterrupted` 时发送 |
-| `max_turns` | 达到 SDK maxTurns 限制 | `hadMaxTurnsReached` 为 true 时发送 |
+| errorType | 触发条件 |
+|-----------|---------|
+| `rate_limit` | API 返回速率限制错误（errorCode 包含 `rate` 或 `limit`） |
+| `auth_failure` | API Key 无效或过期（errorCode 包含 `auth`、`api_key` 或 `invalid_key`） |
+| `interrupted` | 用户取消或网络中断 |
+| `max_turns` | 达到 SDK maxTurns 限制 |
+| `unknown` | 其他未知错误 |
 
-**实现注意**：
-当前 `stream-processor.ts:884-888` 只发送 `errorType: 'interrupted'`，需要在实现时补充其他类型的判断逻辑：
-
+**实现**:
 ```typescript
-// 发送错误事件时的类型判断
-const getErrorType = (): string => {
+const getErrorType = (
+  wasAborted: boolean,
+  hadMaxTurnsReached: boolean,
+  hasErrorThought: boolean,
+  errorThought?: Thought,
+  isInterrupted?: boolean
+): string => {
   if (wasAborted) return 'interrupted'
   if (hadMaxTurnsReached) return 'max_turns'
-  if (hasErrorThought) {
-    // 根据 error thought 的 errorCode 判断
-    const code = errorThought?.errorCode?.toLowerCase() || ''
+  if (hasErrorThought && errorThought?.errorCode) {
+    const code = errorThought.errorCode.toLowerCase()
     if (code.includes('rate') || code.includes('limit')) return 'rate_limit'
     if (code.includes('auth') || code.includes('api_key') || code.includes('invalid_key')) return 'auth_failure'
-    return 'unknown'
   }
   if (isInterrupted) return 'interrupted'
   return 'unknown'
 }
 ```
 
+### Decision 5: AbortController 管理
+
+**选择**: 维护全局 `activeSSEStreams` 映射，使用 `try-finally` 模式确保资源释放
+
+**实现**:
+```typescript
+// 在 agent routes 中维护
+const activeSSEStreams = new Map<string, AbortController>()
+
+// POST /api/v1/agent/message 处理
+router.post('/message', async (req, res) => {
+  const { conversationId } = req.body
+
+  // 1. 取消该 conversationId 的旧连接（如果有）
+  const existingController = activeSSEStreams.get(conversationId)
+  if (existingController) {
+    existingController.abort()
+    activeSSEStreams.delete(conversationId)
+  }
+
+  // 2. 创建新的 AbortController
+  const abortController = new AbortController()
+  activeSSEStreams.set(conversationId, abortController)
+
+  try {
+    // 3. 设置 SSE headers
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+
+    // 4. 监听连接断开
+    req.on('close', () => {
+      abortController.abort()
+    })
+
+    // 5. 创建 SSE Writer 并执行 Agent
+    const sseWriter = createSseWriter(res)
+    await sendMessage({
+      conversationId,
+      sseWriter,
+      abortController,
+      // ... other params
+    })
+
+  } catch (error) {
+    // 错误处理
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message })
+    }
+  } finally {
+    // 6. 确保所有路径都清理资源
+    activeSSEStreams.delete(conversationId)
+    abortController.abort() // 确保任务被取消
+  }
+})
+
+// POST /api/v1/agent/stop 调用
+router.post('/stop', async (req, res) => {
+  const { conversationId } = req.body
+  const controller = activeSSEStreams.get(conversationId)
+  if (controller) {
+    controller.abort()
+    // 注意：不要在这里删除，让 finally 块处理
+  }
+  res.json({ success: true })
+})
+```
+
+**资源释放保证清单**:
+
+| 场景 | 清理机制 | 说明 |
+|-----|---------|------|
+| 正常完成 | `finally` 块 | `activeSSEStreams.delete()` + `abort()` |
+| 错误终止 | `finally` 块 | 同上 |
+| 用户取消 | `finally` 块（`abort()` 触发错误） | 同上 |
+| 客户端断开 | `req.on('close')` + `finally` | abort 先触发，finally 后清理 |
+| 超时清理 | 超时定时器 + `finally` | 见 Decision 11 |
+| 新连接替换 | 新连接启动时主动取消 | 先 abort + delete 旧条目 |
+
+### Decision 6: SSE 连接断开检测
+
+**选择**: 使用 `req.on('close')` 事件
+
+**实现**:
+```typescript
+// agent.routes.ts
+req.on('close', () => {
+  const controller = activeSSEStreams.get(conversationId)
+  if (controller) {
+    controller.abort()
+    activeSSEStreams.delete(conversationId)
+    console.log(`[Agent] Client disconnected, aborting: ${conversationId}`)
+  }
+})
+```
+
+### Decision 7: 工具审批（Tool Approval）处理
+
+**问题**: SSE 是单向通信，如何处理需要用户审批的工具调用？
+
+**选择**: SSE 流保持打开，发送等待事件，用户通过独立 HTTP 端点提交审批结果
+
+**流程**:
+```
+1. Agent 调用需要审批的工具（如 Bash、Edit）
+2. SSE 流发送 event: tool-call，包含 requiresApproval: true
+3. SSE 流发送 event: waiting-for-input，type: "tool-approval"
+4. SSE 流暂停（不关闭），等待用户操作
+5. 用户点击"批准"或"拒绝"
+6. 前端调用 POST /api/v1/agent/approve 或 /reject
+7. 后端收到请求后，继续 Agent 执行
+8. SSE 流继续推送后续事件
+```
+
+**新事件格式**:
+```typescript
+// event: waiting-for-input
+{
+  "type": "waiting-for-input",
+  "inputType": "tool-approval",
+  "toolCallId": "tool-xxx",
+  "toolName": "Bash",
+  "message": "等待审批工具调用"
+}
+```
+
+**实现要点**:
+1. `session-manager.ts` 中维护 `pendingApproval` 状态
+2. `stream-processor.ts` 检测到 `requiresApproval` 时发送 `waiting-for-input` 事件
+3. `/approve` 和 `/reject` 端点修改为继续当前 SSE 流而非启动新流程
+4. 前端 `chat.store.ts` 设置 `pendingToolApproval` 状态，显示审批 UI
+
+### Decision 8: AskUserQuestion 工具处理
+
+**问题**: AskUserQuestion 工具需要用户回答问题，如何处理？
+
+**选择**: 与工具审批类似的机制，SSE 流保持打开等待用户回答
+
+**流程**:
+```
+1. Agent 调用 AskUserQuestion 工具
+2. SSE 流发送 event: ask-question，包含问题列表
+3. SSE 流发送 event: waiting-for-input，type: "ask-question"
+4. SSE 流暂停（不关闭），等待用户回答
+5. 用户填写答案并提交
+6. 前端调用 POST /api/v1/agent/answer-question
+7. 后端收到答案后，继续 Agent 执行
+8. SSE 流继续推送后续事件
+```
+
+**新事件格式**:
+```typescript
+// event: ask-question
+{
+  "type": "ask-question",
+  "id": "question-xxx",
+  "questions": [
+    {
+      "key": "framework",
+      "question": "使用哪个前端框架？",
+      "header": "Framework",
+      "options": [
+        { "label": "React", "description": "组件化框架" },
+        { "label": "Vue", "description": "渐进式框架" }
+      ]
+    }
+  ]
+}
+
+// event: waiting-for-input
+{
+  "type": "waiting-for-input",
+  "inputType": "ask-question",
+  "questionId": "question-xxx",
+  "message": "等待用户回答问题"
+}
+```
+
+**实现要点**:
+1. 复用现有的 `handleAskQuestion` 和 `answerQuestion` 逻辑
+2. 修改 `/answer-question` 端点以支持 SSE 流继续
+3. 前端 `chat.store.ts` 设置 `pendingQuestion` 状态
+
+### Decision 9: 增量持久化
+
+**问题**: SSE 连接中断时，已生成的部分内容如何保留？
+
+**选择**: 在流式生成过程中实时更新数据库中的 assistant message
+
+**实现**:
+```typescript
+// stream-processor.ts 中定期更新数据库
+const PERSIST_INTERVAL_MS = 2000 // 每 2 秒持久化一次
+let lastPersistTime = Date.now()
+
+// 在 text delta 处理中
+if (Date.now() - lastPersistTime > PERSIST_INTERVAL_MS) {
+  await updateAssistantMessage(conversationId, {
+    content: currentStreamingText,
+    thoughts: sessionState.thoughts,
+    isPartial: true // 标记为部分内容
+  })
+  lastPersistTime = Date.now()
+}
+```
+
+**注意事项**:
+1. 持久化频率不宜过高，避免数据库压力
+2. `isPartial` 标记帮助前端区分部分内容和完整内容
+3. 流完成时设置 `isPartial: false`
+4. 用户重试时，可看到之前的部分内容
+
+### Decision 10: WebSocket 保留范围
+
+**选择**: WebSocket 服务保留，但仅用于非 Agent 场景
+
+**保留的功能**:
+| 功能 | 消息类型 | 说明 |
+|------|---------|------|
+| 文件变更通知 | `file:change` | 监控文件系统变化 |
+| 全局广播 | `broadcastToAll` | 系统级通知 |
+
+**移除的功能**:
+| 功能 | 消息类型 | 原因 |
+|------|---------|------|
+| Agent 事件推送 | `agent:event` | 改用 SSE |
+| 对话订阅 | `subscribe`/`unsubscribe` | 不再需要 |
+
+**代码修改**:
+```typescript
+// websocket.service.ts - 保留
+export function sendFileChangeEvent(userId: string, action: string, path: string) { ... }
+export function broadcastToAll(event: any) { ... }
+
+// websocket.service.ts - 删除
+export function broadcastAgentEvent(eventType: string, data: any) { ... }
+// conversationSubscriptions 相关逻辑
+
+// transport.ts - 保留
+export function onEvent(channel: string, callback: (data: unknown) => void): () => void { ... }
+
+// transport.ts - 删除
+export function subscribeToConversation(conversationId: string): void { ... }
+export function unsubscribeFromConversation(conversationId: string): void { ... }
+// Agent 事件监听相关代码
+```
+
 ## Architecture
+
+### SSE 消息流架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -367,13 +599,73 @@ const getErrorType = (): string => {
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+### 双向通信场景架构（工具审批/AskUserQuestion）
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           前端                                   │
+│  ┌─────────────────┐     ┌─────────────────┐                    │
+│  │  SSE Stream     │     │ HTTP POST       │                    │
+│  │  (消费事件)     │     │ (提交操作)      │                    │
+│  └────────┬────────┘     └────────┬────────┘                    │
+│           │                       │                              │
+│           │ 1. waiting-for-input │ 2. POST /approve             │
+│           │    event received    │    or /answer-question        │
+│           ▼                       ▼                              │
+└───────────────────────────────────────────────────────────────────┘
+            │                           │
+            ▼                           ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                           后端                                    │
+│  ┌─────────────────────────────────────────────────────────┐     │
+│  │                 SSE Connection (保持打开)                  │     │
+│  │                                                          │     │
+│  │  3. 收到 HTTP POST 后继续 Agent 执行                      │     │
+│  │  4. 后续事件继续通过 SSE 流推送                           │     │
+│  └─────────────────────────────────────────────────────────┘     │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### WebSocket 保留功能架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           前端                                   │
+│  ┌─────────────────┐                                            │
+│  │  transport.ts   │                                            │
+│  │  onEvent()      │◀──── WebSocket 连接（保留）                │
+│  └─────────────────┘                                            │
+│           │                                                      │
+│           │ 仅用于：file:change、broadcastToAll                  │
+│           ▼                                                      │
+└───────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                           后端                                    │
+│  ┌─────────────────┐                                            │
+│  │ websocket.      │                                            │
+│  │ service.ts      │                                            │
+│  │ (保留)          │                                            │
+│  └─────────────────┘                                            │
+│                                                                  │
+│  保留功能：                                                       │
+│  - sendFileChangeEvent()                                         │
+│  - broadcastToAll()                                              │
+│                                                                  │
+│  移除功能：                                                       │
+│  - broadcastAgentEvent() ❌                                       │
+│  - conversationSubscriptions ❌                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
 ## Risks / Trade-offs
 
 ### Risk 1: 连接中断导致状态不一致
 - **风险**: SSE 连接中断后，AI 可能仍在处理，但前端无法接收结果
 - **缓解**:
   - 后端检测连接断开时通过 AbortController 取消 Agent 执行
-  - 前端重连后可通过 `GET /api/v1/agent/session/:id` 恢复状态
+  - 前端显示"连接中断"提示，用户可重试
 
 ### Risk 2: 认证 Token 过期
 - **风险**: 长时间 SSE 连接期间 token 过期
@@ -387,116 +679,23 @@ const getErrorType = (): string => {
 - **风险**: 异常情况下（如进程崩溃、未触发的 `req.on('close')`），`activeSSEStreams` Map 可能残留条目
 - **缓解**:
   - 在流结束时（complete、error）主动清理映射
-  - 添加定时检查机制，清理超时的 AbortController（如连接超过 10 分钟）
-  - 监控 Map 大小，超过阈值时告警
-
-### Trade-off: 放弃 WebSocket 双向通信（对话场景）
-- **代价**: 无法主动推送非对话类事件（如文件变更通知）
-- **接受**:
-  - 当前需求聚焦对话功能
-  - WebSocket 保留用于非对话场景（如 automation app 事件推送）
-  - 文件变更通知可作为后续独立需求
+  - 新连接启动时，清理该 conversationId 的旧连接
+  - 添加超时检查：如果连接超过 30 分钟，自动清理
 
 ## Migration Plan
 
 ### Phase 1: 实现 SSE 流式响应
 1. 创建 `src/server/utils/sse-writer.ts` 工具类
-2. 修改 `stream-processor.ts`，添加 `sseWriter` 可选参数和 `emitEvent` 统一发送函数
+2. 修改 `stream-processor.ts`，使用 SSE Writer 替代 `sendToRenderer`
 3. 修改 `agent.routes.ts` 返回 SSE 流
+4. 实现 `activeSSEStreams` 映射管理
 
 ### Phase 2: 前端适配
 1. 创建 `src/web/api/sse.ts` SSE 消费工具
 2. 修改 `chat.store.ts` 使用 fetch + ReadableStream
-3. 保留 `transport.ts` 中的 WebSocket 用于非对话场景
 
-### Phase 3: 测试与清理
-1. 添加单元测试和 E2E 测试
-2. 验证 AI 日志记录正常
-3. SSE 稳定后移除回滚开关（预计 1-2 个版本后）
-
-### 回滚策略
-
-**环境变量**: `HALO_USE_SSE=true/false`（默认 `true`）
-
-**实现方式**:
-```typescript
-// agent.routes.ts
-router.post('/message', async (req, res) => {
-  const useSSE = process.env.HALO_USE_SSE !== 'false'
-
-  if (useSSE) {
-    // SSE 模式
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
-
-    const sseWriter = createSseWriter(res)
-    // ... 传递给 sendMessage
-  } else {
-    // 传统 JSON 响应模式（回滚时使用）
-    res.json({ success: true, data: { messageId, status: 'processing' } })
-    // sendMessage 内部继续使用 sendToRenderer -> WebSocket
-  }
-})
-```
-
-**回滚步骤**:
-1. 设置环境变量 `HALO_USE_SSE=false`
-2. 重启服务器
-3. 前端自动降级（检测到非 SSE 响应后切换到 WebSocket 模式）
-
-**注意**: 回滚开关为临时方案，不维护两套完整前端代码。前端需要能同时处理两种响应模式。
-
-## Open Questions
-
-~~1. **AbortController 处理**: 当前通过 WebSocket 取消，SSE 下如何处理？~~
-   - **已决定**: 保留 `POST /api/v1/agent/stop` 端点，通过 conversationId 取消
-   - 实现方式: 后端维护 `activeSSEStreams: Map<string, AbortController>` 映射
-   - `/stop` 端点调用对应 AbortController 的 `abort()` 方法
-
-~~2. **多标签页同步**: 用户在多个标签页打开同一对话，如何同步？~~
-   - **已决定**: 每个 SSE 连接独立，通过数据库共享消息状态
-   - 新标签页可通过 `GET /api/v1/agent/session/:id` 恢复当前状态
-   - 不支持实时多标签页同步（后续可考虑 WebSocket 广播作为补充）
-
-## Decisions (续)
-
-### Decision 5: AbortController 管理
-
-**选择**: 维护全局 `activeSSEStreams` 映射
-
-**实现**:
-```typescript
-// 在 agent service 中维护
-const activeSSEStreams = new Map<string, AbortController>()
-
-// POST /api/v1/agent/message 启动时注册
-activeSSEStreams.set(conversationId, abortController)
-
-// 流结束时清理
-activeSSEStreams.delete(conversationId)
-
-// POST /api/v1/agent/stop 调用
-const controller = activeSSEStreams.get(conversationId)
-if (controller) {
-  controller.abort()
-  // 发送 SSE error 事件后关闭连接
-}
-```
-
-### Decision 6: SSE 连接断开检测
-
-**选择**: 使用 `req.on('close')` 事件
-
-**实现**:
-```typescript
-// agent.routes.ts
-req.on('close', () => {
-  const controller = activeSSEStreams.get(conversationId)
-  if (controller) {
-    controller.abort()
-    activeSSEStreams.delete(conversationId)
-    console.log(`[Agent] Client disconnected, aborting: ${conversationId}`)
-  }
-})
-```
+### Phase 3: 清理
+1. 删除 `src/server/services/agent/helpers.ts` 中的 `sendToRenderer` 函数
+2. 删除 `src/server/services/websocket.service.ts`
+3. 删除 `src/web/api/transport.ts` 中 WebSocket 相关代码
+4. 添加单元测试和 E2E 测试
