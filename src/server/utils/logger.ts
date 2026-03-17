@@ -2,12 +2,13 @@
  * Server Logger Utility
  *
  * Provides structured logging to file with timestamps.
- * Logs are written to {cwd}/logs/server.log by default,
+ * Logs are written to {data-dir}/logs/server.log by default,
  * configurable via HALO_LOG_DIR environment variable.
  */
 
 import { appendFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, statSync, renameSync } from 'fs'
 import { join, parse } from 'path'
+import { getConfig } from '../services/config.service'
 
 // Log levels
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
@@ -178,8 +179,14 @@ export function getLogDirectory(): string {
   if (process.env.HALO_LOG_DIR) {
     return process.env.HALO_LOG_DIR
   }
-  // Default: use process.cwd() + '/logs' (application startup directory)
-  return join(process.cwd(), 'logs')
+  // Default: use {data-dir}/logs
+  try {
+    const config = getConfig()
+    return join(config.data.basePath, 'logs')
+  } catch {
+    // Fallback to cwd/logs if config not yet initialized
+    return join(process.cwd(), 'logs')
+  }
 }
 
 let currentLogFilePath: string | null = null

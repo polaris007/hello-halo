@@ -25,9 +25,10 @@ context: |
   - 提交前运行 npm run i18n 自动提取和翻译
 
   ## 数据存储
-  - 应用数据目录：~/.halo/
-  - 数据库文件：~/.halo/halo.db
-  - 空间目录：~/.halo/spaces/（改造后：~/.halo/users/{user_id}/spaces/）
+  - 应用数据目录：{cwd}/data/（可通过 HALO_DATA_DIR 或 --data-dir 配置）
+  - 数据库文件：{data-dir}/halo.db
+  - 空间目录：{data-dir}/users/{user_id}/spaces/
+  - 日志目录：{data-dir}/logs/（可通过 HALO_LOG_DIR 覆盖）
 
   ## API 设计
   - HTTP API 前缀：/api/v1/

@@ -23,17 +23,15 @@ import {
   getEnabledMcpServers
 } from './helpers'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
+import { getConfig } from '../config.service'
 
 // ============================================
 // User Data Path (Server-side replacement for app.getPath('userData'))
 // ============================================
 
 function getUserDataPath(): string {
-  const homeDir = process.env.HOME || process.env.USERPROFILE
-  if (!homeDir) {
-    throw new Error('Unable to determine user home directory. HOME or USERPROFILE environment variable must be set.')
-  }
-  return path.join(homeDir, '.halo')
+  const config = getConfig()
+  return config.data.basePath
 }
 
 // ============================================

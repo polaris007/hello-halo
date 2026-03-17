@@ -91,7 +91,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
     }
 
     // Get enabled MCP servers from config
-    const config = await getConfig()
+    const config = await getMcpConfig()
     const enabledMcpServers = getEnabledMcpServers(config.mcpServers || {})
     if (!enabledMcpServers || Object.keys(enabledMcpServers).length === 0) {
       return { success: true, servers: [], error: 'No MCP servers configured' }
@@ -219,17 +219,19 @@ export function isMcpTestInProgress(): boolean {
   return mcpTestInProgress
 }
 
-// Helper function to get config
-async function getConfig(): Promise<any> {
+// Helper function to get MCP config from file
+async function getMcpConfig(): Promise<any> {
   try {
     const { join } = await import('path')
     const { readFileSync, existsSync } = await import('fs')
-    const configPath = join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.halo', 'config.json')
+    const { getConfig: getAppConfig } = await import('../config.service')
+    const appConfig = getAppConfig()
+    const configPath = join(appConfig.data.basePath, 'config.json')
     if (existsSync(configPath)) {
       return JSON.parse(readFileSync(configPath, 'utf-8'))
     }
   } catch (error) {
-    console.error('[Agent] Failed to read config:', error)
+    console.error('[Agent] Failed to read MCP config:', error)
   }
   return {}
 }

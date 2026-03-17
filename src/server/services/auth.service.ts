@@ -7,7 +7,6 @@ import { randomBytes } from 'crypto'
 import { hash, compare } from '@node-rs/bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { homedir } from 'os'
 import { getDatabase } from '../utils/database'
 import { getConfig } from './config.service'
 import {
@@ -27,9 +26,6 @@ const REFRESH_TOKEN_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 // In-memory store for refresh tokens (in production, use Redis or database)
 const refreshTokens = new Map<string, { userId: string; expiresAt: number }>()
-
-// Data directory
-const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
 
 // ========================================
 // User Management
@@ -58,8 +54,9 @@ export async function register(params: { email: string; password: string; name?:
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, email, email, passwordHash, name || null, 'user', now, now)
 
-    // Create user directory structure: ~/.halo/users/{user_id}/spaces/
-    const userSpacesDir = join(HALO_DATA_DIR, 'users', id, 'spaces')
+    // Create user directory structure: {data-dir}/users/{user_id}/spaces/
+    const config = getConfig()
+    const userSpacesDir = join(config.data.basePath, 'users', id, 'spaces')
     if (!existsSync(userSpacesDir)) {
       mkdirSync(userSpacesDir, { recursive: true })
     }
@@ -320,8 +317,8 @@ export async function initializeDefaultUser() {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, 'admin@halo.local', 'admin', await hash(defaultPassword, SALT_ROUNDS), 'Admin', 'admin', 1, now, now)
 
-  // Create user directory
-  const userSpacesDir = join(HALO_DATA_DIR, 'users', id, 'spaces')
+  // Create user directory: {data-dir}/users/{user_id}/spaces/
+  const userSpacesDir = join(config.data.basePath, 'users', id, 'spaces')
   if (!existsSync(userSpacesDir)) {
     mkdirSync(userSpacesDir, { recursive: true })
   }

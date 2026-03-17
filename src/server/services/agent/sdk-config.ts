@@ -16,6 +16,7 @@ import { inferOpenAIWireApi } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
 import { sendToRenderer } from './helpers'
+import { getConfig } from '../config.service'
 
 // ============================================
 // Configuration
@@ -138,14 +139,11 @@ export async function resolveCredentialsForSdk(
 /**
  * Get the user data directory path.
  * Server-side replacement for Electron's app.getPath('userData').
- * Uses process.env.HOME or process.env.USERPROFILE with /.halo suffix.
+ * Uses config service to get the configured data directory.
  */
 function getUserDataPath(): string {
-  const homeDir = process.env.HOME || process.env.USERPROFILE
-  if (!homeDir) {
-    throw new Error('Unable to determine user home directory. HOME or USERPROFILE environment variable must be set.')
-  }
-  return path.join(homeDir, '.halo')
+  const config = getConfig()
+  return config.data.basePath
 }
 
 // ============================================

@@ -10,6 +10,7 @@ import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
 import { getDatabase } from '../../utils/database'
 import { getLLMConfig, getCurrentLLMSourceFromConfig } from '../llm-config.service'
+import { getConfig } from '../config.service'
 
 // ============================================
 // Working Directory Management
@@ -17,11 +18,11 @@ import { getLLMConfig, getCurrentLLMSourceFromConfig } from '../llm-config.servi
 
 /**
  * Get the base data directory for Halo
- * In server mode, this is ~/.halo/
+ * Uses config service to get the configured data directory
  */
 export function getHaloDataDir(): string {
-  const homeDir = process.env.HOME || process.env.USERPROFILE || process.cwd()
-  return join(homeDir, '.halo')
+  const config = getConfig()
+  return config.data.basePath
 }
 
 /**

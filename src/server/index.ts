@@ -3,17 +3,44 @@
  * The main entry point for the B/S architecture web server
  */
 
-// Initialize logger first (before other imports to capture all logs)
-import { overrideConsole } from './utils/logger.js'
-overrideConsole()
+// ========================================
+// CLI ARGUMENT PARSING (must be first)
+// ========================================
+
+import { parseArgs } from 'util'
+
+const { values } = parseArgs({
+  options: {
+    'data-dir': {
+      type: 'string',
+      short: 'd'
+    },
+    'config': {
+      type: 'string',
+      short: 'c'
+    }
+  },
+  strict: false
+})
+
+// Set environment variables from CLI arguments (highest priority)
+if (values['data-dir'] && typeof values['data-dir'] === 'string') {
+  process.env.HALO_DATA_DIR = values['data-dir']
+}
+if (values['config'] && typeof values['config'] === 'string') {
+  process.env.HALO_CONFIG_PATH = values['config']
+}
+
+// ========================================
+// IMPORTS
+// ========================================
 
 import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
-import { homedir } from 'os'
+import { existsSync } from 'fs'
 
 // ========================================
 // CONFIGURATION
@@ -22,16 +49,6 @@ import { homedir } from 'os'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// Data directory
-const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
-const HALO_PORT = parseInt(process.env.HALO_PORT || '3000', 10)
-const HALO_HOST = process.env.HALO_HOST || '127.0.0.1'
-
-// Ensure data directory exists
-if (!existsSync(HALO_DATA_DIR)) {
-  mkdirSync(HALO_DATA_DIR, { recursive: true })
-}
-
 // ========================================
 // DATABASE INITIALIZATION
 // ========================================
@@ -39,11 +56,34 @@ if (!existsSync(HALO_DATA_DIR)) {
 import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from './utils/database'
 import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service'
 import { loadAuthConfig } from './middleware/auth.middleware'
-import { loadConfig, applyEnvOverrides, getConfig } from './services/config.service'
+import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource, checkLegacyDataDir } from './services/config.service'
 
-// Load configuration
+// Load configuration first (before logger initialization)
 loadConfig()
 applyEnvOverrides()
+
+// ========================================
+// LOGGER INITIALIZATION
+// ========================================
+
+// Initialize logger after config is loaded so it uses correct data directory
+import { overrideConsole, setLogDirectory, getLogDirectory } from './utils/logger.js'
+
+// Set log directory to data directory before initializing
+const resolvedDataDir = resolveDataDir()
+const expectedLogDir = join(resolvedDataDir, 'logs')
+setLogDirectory(expectedLogDir)
+
+// Now override console to use logger
+overrideConsole()
+
+// Check for legacy data directory and prompt for migration
+checkLegacyDataDir()
+
+// Get resolved data directory
+const HALO_DATA_DIR = resolveDataDir()
+const HALO_PORT = parseInt(process.env.HALO_PORT || '3000', 10)
+const HALO_HOST = process.env.HALO_HOST || '127.0.0.1'
 
 // Initialize database
 initializeDatabase()
@@ -229,7 +269,7 @@ setWebSocketService(websocketServiceModule)
 
 server.listen(HALO_PORT, HALO_HOST, () => {
   console.log(`Halo server running at http://${HALO_HOST}:${HALO_PORT}`)
-  console.log(`Data directory: ${HALO_DATA_DIR}`)
+  console.log(`Data directory: ${HALO_DATA_DIR} (from ${getDataDirSource()})`)
   console.log(`Auth mode: ${process.env.HALO_AUTH_MODE || 'normal'}`)
   console.log(`WebSocket available at ws://${HALO_HOST}:${HALO_PORT}/ws`)
 })

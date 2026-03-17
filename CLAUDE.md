@@ -1,3 +1,5 @@
+**使用中文进行交流。** 所有对话、注释、文档均使用中文。
+
 **No hardcoded text.** Use `t('English text')`.
 
 ```tsx

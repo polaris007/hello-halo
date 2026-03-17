@@ -6,20 +6,18 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { existsSync, mkdirSync, renameSync } from 'fs'
-import { homedir } from 'os'
 import { randomUUID } from 'crypto'
+import { getConfig, resolveDataDir } from '../services/config.service.js'
 
 let db: Database.Database | null = null
 
-// 数据目录
-const HALO_DATA_DIR = process.env.HALO_DATA_DIR || join(homedir(), '.halo')
-
-// 确保数据目录存在
-if (!existsSync(HALO_DATA_DIR)) {
-  mkdirSync(HALO_DATA_DIR, { recursive: true })
+/**
+ * 获取数据库文件路径
+ */
+function getDbPath(): string {
+  const dataDir = resolveDataDir()
+  return join(dataDir, 'halo.db')
 }
-
-const DB_PATH = join(HALO_DATA_DIR, 'halo.db')
 
 /**
  * 记录用户活动日志
@@ -46,7 +44,8 @@ export function logActivity(
  */
 export function getDatabase(): Database.Database {
   if (!db) {
-    db = new Database(DB_PATH)
+    const dbPath = getDbPath()
+    db = new Database(dbPath)
     db.pragma('journal_mode = WAL')
     db.pragma('foreign_keys = ON')
   }
@@ -340,14 +339,16 @@ export function runMigrations(): void {
 
   // ========================================
   // 迁移空间目录到用户隔离结构
-  // 将 ~/.halo/spaces/{id} 迁移到 ~/.halo/users/{user_id}/spaces/{id}
+  // 将 {data-dir}/spaces/{id} 迁移到 {data-dir}/users/{user_id}/spaces/{id}
   // ========================================
+  const config = getConfig()
+  const dataDir = config.data.basePath
   const allSpaces = database.prepare('SELECT id, user_id, path FROM spaces').all() as any[]
   for (const space of allSpaces) {
-    const expectedPath = join(HALO_DATA_DIR, 'users', space.user_id, 'spaces', space.id)
+    const expectedPath = join(dataDir, 'users', space.user_id, 'spaces', space.id)
     if (space.path !== expectedPath) {
       // 确保用户目录存在
-      const userSpacesDir = join(HALO_DATA_DIR, 'users', space.user_id, 'spaces')
+      const userSpacesDir = join(dataDir, 'users', space.user_id, 'spaces')
       if (!existsSync(userSpacesDir)) {
         mkdirSync(userSpacesDir, { recursive: true })
       }

@@ -1,0 +1,23 @@
+[2026-03-17T13:05:12.456] [INFO] 
+[2026-03-17T13:05:12.457] [INFO] ========================================
+[2026-03-17T13:05:12.459] [INFO] [Migration] Legacy data directory detected!
+[2026-03-17T13:05:12.460] [INFO] [Migration] Found existing data at: C:\Users\chinalife\.halo
+[2026-03-17T13:05:12.461] [INFO] [Migration] To migrate your data to the new location, run:
+[2026-03-17T13:05:12.461] [INFO]   node scripts/migrate-data-dir.js
+[2026-03-17T13:05:12.462] [INFO] 
+[2026-03-17T13:05:12.463] [INFO] [Migration] Or use the old data directory by setting:
+[2026-03-17T13:05:12.464] [INFO]   HALO_DATA_DIR=C:\Users\chinalife\.halo
+[2026-03-17T13:05:12.465] [INFO] ========================================
+[2026-03-17T13:05:12.466] [INFO] 
+[2026-03-17T13:05:12.492] [INFO] Running migration: adding starred to conversations table
+[2026-03-17T13:05:12.493] [INFO] Running migration: adding working_dir to spaces table
+[2026-03-17T13:05:12.496] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-17T13:05:12.532] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-17T13:05:12.533] [INFO] Data directory: D:\workplace\hello-halo\data (from default (cwd/data))
+[2026-03-17T13:05:12.534] [INFO] Auth mode: normal
+[2026-03-17T13:05:12.535] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-17T13:05:12.590] [INFO] ========================================
+[2026-03-17T13:05:12.592] [INFO] Default admin user created:
+[2026-03-17T13:05:12.593] [INFO]   Email: admin@halo.local
+[2026-03-17T13:05:12.593] [INFO]   Password: (from config)
+[2026-03-17T13:05:12.594] [INFO] ========================================
