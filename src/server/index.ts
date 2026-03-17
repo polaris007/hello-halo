@@ -58,24 +58,27 @@ import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.s
 import { loadAuthConfig } from './middleware/auth.middleware'
 import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource, checkLegacyDataDir } from './services/config.service'
 
-// Load configuration first (before logger initialization)
-loadConfig()
-applyEnvOverrides()
-
 // ========================================
-// LOGGER INITIALIZATION
+// LOGGER INITIALIZATION (must be first to capture all logs)
 // ========================================
 
-// Initialize logger after config is loaded so it uses correct data directory
+// Initialize logger first to capture all logs
 import { overrideConsole, setLogDirectory, getLogDirectory } from './utils/logger.js'
 
-// Set log directory to data directory before initializing
-const resolvedDataDir = resolveDataDir()
-const expectedLogDir = join(resolvedDataDir, 'logs')
+// Set log directory to root logs directory before initializing
+const expectedLogDir = join(process.cwd(), 'logs')
 setLogDirectory(expectedLogDir)
 
 // Now override console to use logger
 overrideConsole()
+
+// ========================================
+// CONFIGURATION
+// ========================================
+
+// Load configuration
+loadConfig()
+applyEnvOverrides()
 
 // Check for legacy data directory and prompt for migration
 checkLegacyDataDir()
