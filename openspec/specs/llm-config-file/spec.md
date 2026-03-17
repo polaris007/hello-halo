@@ -1,4 +1,10 @@
-## ADDED Requirements
+# LLM Config File
+
+## Purpose
+
+自定义 API 大模型配置文件存储，将 `authType: 'api-key'` 的 AI 源配置存储在独立的 JSON 文件中，支持手动编辑、备份迁移和 SDK 直接读取。
+
+## Requirements
 
 ### Requirement: LLM 配置文件存储
 
@@ -20,6 +26,7 @@
 - **THEN** 文件使用 UTF-8 编码
 - **AND** JSON 格式化缩进为 2 空格
 - **AND** 包含 `version`、`currentId`、`sources` 字段
+- **AND** 每个 source 可包含可选的 `apiType` 字段
 
 ### Requirement: 配置文件读取
 

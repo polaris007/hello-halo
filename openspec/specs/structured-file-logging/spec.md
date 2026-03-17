@@ -13,10 +13,12 @@
 - **WHEN** server启动时
 - **THEN** 系统创建日志目录`<应用启动目录>/logs/`（如果不存在）
 - **AND** server日志默认写入`<应用启动目录>/logs/server-YYYY-MM-DD.log`文件
+- **AND** server日志与api日志、ai日志位于同一目录
 
 #### Scenario: 环境变量覆盖日志目录
 - **WHEN** 设置了环境变量`HALO_LOG_DIR=/custom/log/path`
 - **THEN** server日志写入`/custom/log/path/server-YYYY-MM-DD.log`文件
+- **AND** api日志和ai日志也写入同一目录
 
 #### Scenario: Server日志级别控制
 - **WHEN** 设置了环境变量`HALO_LOG_LEVEL=DEBUG`

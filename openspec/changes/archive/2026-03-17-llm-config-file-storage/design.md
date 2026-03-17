@@ -56,6 +56,7 @@
       "provider": "openai|anthropic|...",
       "apiUrl": "https://api.example.com/v1",
       "apiKey": "sk-xxx",
+      "apiType": "chat_completions|responses|anthropic_passthrough",
       "model": "gpt-4o",
       "availableModels": [{ "id": "gpt-4o", "name": "GPT-4o" }],
       "createdAt": "ISO-8601",
@@ -76,7 +77,7 @@
 
 ### Decision 3: 配置服务架构
 
-**选择**: 创建独立的 `LLMConfigService` 服务
+**选择**: 创建独立的 `LLMConfigService` 服务（`src/server/services/llm-config.service.ts`）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -109,7 +110,7 @@
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │                  Agent Module                            ││
 │  │  ┌─────────────────────────────────────────────────────┐││
-│  │  │  getApiCredentials() ──▶ LLMConfigService.load()    │││
+│  │  │  getApiCredentials() ──▶ loadLLMConfig()            │││
 │  │  └─────────────────────────────────────────────────────┘││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
@@ -118,7 +119,7 @@
 **理由**:
 - 分离关注点，API-Key 配置与 OAuth 配置分别处理
 - 服务可被 API 路由和 Agent 模块复用
-- 缓存机制避免频繁文件读取
+- 缓存机制避免频繁文件读取（5秒 TTL）
 
 **替代方案**:
 - 扩展现有 `config.service.ts`: 职责混乱，该服务负责 `server.json` 配置
@@ -130,21 +131,28 @@
 
 ```typescript
 export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
-  // 1. 尝试从 llm-config.json 读取
-  const llmConfig = LLMConfigService.load()
-  if (llmConfig?.currentId) {
-    const source = llmConfig.sources.find(s => s.id === llmConfig.currentId)
-    if (source && source.authType === 'api-key') {
-      return {
-        baseUrl: source.apiUrl,
-        apiKey: source.apiKey,
-        model: source.model,
-        // ...
+  // Step 1: 尝试从 llm-config.json 文件读取（API-key 源）
+  try {
+    const llmConfig = getLLMConfig()
+    if (llmConfig.currentId) {
+      const currentSource = getCurrentLLMSourceFromConfig()
+      if (currentSource) {
+        return {
+          baseUrl: currentSource.apiUrl,
+          apiKey: currentSource.apiKey,
+          model: currentSource.model,
+          displayModel: currentSource.name || currentSource.model,
+          provider: currentSource.provider === 'anthropic' ? 'anthropic' : 'openai',
+          apiType: currentSource.apiType,
+          // ...
+        }
       }
     }
+  } catch (error) {
+    console.warn('[Agent] Failed to load from llm-config.json:', error.message)
   }
 
-  // 2. 回退到数据库配置（兼容 OAuth 和旧配置）
+  // Step 2: 回退到数据库配置（OAuth 源和旧配置）
   const cfg = config || await getConfig()
   // ... 现有逻辑
 }

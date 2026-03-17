@@ -34,6 +34,7 @@
 - **AND** 将 `apiUrl` 字段填充到 URL 输入框
 - **AND** 将 `apiKey` 字段填充到 API Key 输入框
 - **AND** 将 `model` 字段设置为模型选择器的选中值
+- **AND** 如有 `apiType` 字段，保留该值
 
 #### Scenario: 配置为空时显示默认值
 - **WHEN** 用户打开自定义 API 配置页面
@@ -41,3 +42,18 @@
 - **THEN** 前端显示默认配置表单
 - **AND** 提供商默认选择第一个选项
 - **AND** API URL 显示该提供商的默认 URL
+
+### Requirement: API 源配置删除
+
+系统 SHALL 支持通过 API 删除 API-Key 类型的 AI 源配置。
+
+#### Scenario: 删除 API-Key 源
+- **WHEN** 用户删除 `authType: 'api-key'` 的 AI 源
+- **THEN** 系统从 `llm-config.json` 文件中移除该源
+- **AND** 同时从数据库元数据中移除该源
+- **AND** 如果删除的是当前使用的源，自动切换到其他可用源
+
+#### Scenario: 删除 OAuth 源
+- **WHEN** 用户删除 `authType: 'oauth'` 的 AI 源
+- **THEN** 系统仅从数据库中移除该源
+- **AND** 不影响 `llm-config.json` 文件
