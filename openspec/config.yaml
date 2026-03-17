@@ -7,7 +7,7 @@ context: |
 
   ## 技术栈
   - 前端：React 18 + TypeScript + Vite + Tailwind CSS + Zustand
-  - 后端：Node.js + Express 5 + WebSocket (ws)
+  - 后端：Node.js + Express 5 + SSE (Server-Sent Events)
   - 数据库：SQLite (better-sqlite3)
   - AI：@anthropic-ai/claude-agent-sdk
   - 构建工具：electron-vite（当前）、Vite（改造后）
@@ -33,7 +33,7 @@ context: |
   ## API 设计
   - HTTP API 前缀：/api/v1/
   - 已有双传输层：IPC (本地) + HTTP (远程)
-  - WebSocket 事件与 IPC 事件对齐
+  - SSE 流式响应用于 AI 消息实时推送
 
   ## 核心约束
   - **必须基于 Claude Agent SDK（@anthropic-ai/claude-agent-sdk）实现**：所有 AI 交互功能必须通过 Claude Agent SDK 驱动。SDK 运行于纯 Node.js 环境（>= 18），通过 child_process.spawn() 启动内置 cli.js 子进程，不依赖 Electron 或其他特殊运行时。

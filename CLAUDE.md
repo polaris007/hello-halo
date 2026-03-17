@@ -74,7 +74,7 @@ src/
 
 ## 技术栈
 
-- **服务器**: Express 5, TypeScript, SQLite (better-sqlite3), WebSocket
+- **服务器**: Express 5, TypeScript, SQLite (better-sqlite3), SSE (Server-Sent Events)
 - **客户端**: React 18, TypeScript, Vite, Tailwind CSS, Zustand
 - **AI**: Claude Agent SDK, Anthropic SDK
 - **测试**: Vitest (单元测试), Playwright (E2E 测试)
