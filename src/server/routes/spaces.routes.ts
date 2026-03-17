@@ -4,7 +4,7 @@
 
 import { Router } from 'express'
 import { getDatabase } from '../utils/database'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
 import { existsSync, mkdirSync, accessSync, statSync, constants } from 'fs'
 import { join, resolve } from 'path'
 import { randomUUID } from 'crypto'
@@ -12,8 +12,78 @@ import { getConfig } from '../services/config.service'
 
 const router = Router()
 
-// 所有空间 API 都需要认证
-router.use(authMiddleware)
+/**
+ * Get user ID - use default user if not authenticated
+ */
+function getUserId(req: any): string {
+  if (req.userId) {
+    return req.userId
+  }
+  // Fallback to default user
+  const db = getDatabase()
+  const defaultUser = db.prepare('SELECT id FROM users WHERE is_default = 1 LIMIT 1').get() as any
+  if (defaultUser) {
+    return defaultUser.id
+  }
+  throw new Error('No user found')
+}
+
+// 所有空间 API 都需要认证（可选，首次使用时可以不登录）
+router.use(optionalAuthMiddleware)
+
+/**
+ * GET /api/v1/spaces/halo - 获取 Halo 默认临时空间
+ */
+router.get('/halo', (req, res) => {
+  try {
+    const userId = getUserId(req)
+    const config = getConfig()
+    const db = getDatabase()
+
+    // Check if halo space already exists
+    let haloSpace = db.prepare(`
+      SELECT id, name, path, working_dir, created_at, updated_at
+      FROM spaces
+      WHERE user_id = ? AND name = 'halo'
+    `).get(userId) as any
+
+    if (!haloSpace) {
+      // Create halo temp space
+      const id = randomUUID()
+      const spacePath = join(config.data.basePath, 'users', userId, 'spaces', id)
+      if (!existsSync(spacePath)) {
+        mkdirSync(spacePath, { recursive: true })
+      }
+      const now = Date.now()
+      db.prepare(`
+        INSERT INTO spaces (id, user_id, name, path, working_dir, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(id, userId, 'halo', spacePath, null, now, now)
+      
+      haloSpace = {
+        id,
+        name: 'halo',
+        path: spacePath,
+        working_dir: null,
+        created_at: now,
+        updated_at: now
+      }
+    }
+
+    // Mark as temp space for frontend
+    haloSpace.isTemp = true
+
+    res.json({
+      success: true,
+      data: haloSpace
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
 
 /**
  * GET /api/v1/spaces/default-path - 获取默认空间路径
@@ -39,13 +109,14 @@ router.get('/default-path', (req, res) => {
  */
 router.get('/', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
     const spaces = db.prepare(`
       SELECT id, name, path, working_dir, created_at, updated_at
       FROM spaces
       WHERE user_id = ?
       ORDER BY created_at DESC
-    `).all(req.userId)
+    `).all(userId)
 
     res.json({
       success: true,
@@ -64,12 +135,13 @@ router.get('/', (req, res) => {
  */
 router.get('/:id', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
     const space = db.prepare(`
       SELECT id, name, path, working_dir, created_at, updated_at
       FROM spaces
       WHERE id = ? AND user_id = ?
-    `).get(req.params.id, req.userId) as any
+    `).get(req.params.id, userId) as any
 
     if (!space) {
       return res.status(404).json({
@@ -95,6 +167,7 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
+    const userId = getUserId(req)
     const { name, customPath } = req.body
 
     if (!name) {
@@ -144,7 +217,7 @@ router.post('/', (req, res) => {
     const id = randomUUID()
     // 按用户隔离文件系统：{data-dir}/users/{user_id}/spaces/{space_id}/
     const config = getConfig()
-    const spacePath = join(config.data.basePath, 'users', req.userId!, 'spaces', id)
+    const spacePath = join(config.data.basePath, 'users', userId, 'spaces', id)
 
     // 确保空间目录存在
     if (!existsSync(spacePath)) {
@@ -154,7 +227,7 @@ router.post('/', (req, res) => {
     db.prepare(`
       INSERT INTO spaces (id, user_id, name, path, working_dir)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, req.userId, name, spacePath, workingDir)
+    `).run(id, userId, name, spacePath, workingDir)
 
     res.status(201).json({
       success: true,
@@ -180,11 +253,12 @@ router.post('/', (req, res) => {
  */
 router.put('/:id', (req, res) => {
   try {
+    const userId = getUserId(req)
     const { name } = req.body
     const db = getDatabase()
 
     // 检查空间是否存在且属于当前用户
-    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(req.params.id, req.userId)
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(req.params.id, userId)
 
     if (!space) {
       return res.status(404).json({
@@ -197,7 +271,7 @@ router.put('/:id', (req, res) => {
       UPDATE spaces
       SET name = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).run(name || (space as any).name, Date.now(), req.params.id, req.userId)
+    `).run(name || (space as any).name, Date.now(), req.params.id, userId)
 
     res.json({
       success: true,
@@ -220,10 +294,11 @@ router.put('/:id', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
 
     // 检查空间是否存在且属于当前用户
-    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(req.params.id, req.userId)
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(req.params.id, userId)
 
     if (!space) {
       return res.status(404).json({
@@ -233,7 +308,7 @@ router.delete('/:id', (req, res) => {
     }
 
     // 删除空间（外键约束会自动删除相关的 conversations）
-    db.prepare('DELETE FROM spaces WHERE id = ? AND user_id = ?').run(req.params.id, req.userId)
+    db.prepare('DELETE FROM spaces WHERE id = ? AND user_id = ?').run(req.params.id, userId)
 
     res.json({
       success: true,

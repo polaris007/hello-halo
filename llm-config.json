@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "currentId": "0c1f4674-757b-406e-94e0-370f66e88fd0",
+  "sources": [
+    {
+      "id": "0c1f4674-757b-406e-94e0-370f66e88fd0",
+      "name": "OpenAI Compatible",
+      "provider": "openai",
+      "apiUrl": "https://wishub-x6.ctyun.cn/v1/chat/completions",
+      "apiKey": "6df214ca9c0848a3b7db7a97234a9090",
+      "model": "DeepSeek-V3.2-Standard",
+      "availableModels": [
+        {
+          "id": "DeepSeek-V3.2-Standard",
+          "name": "DeepSeek-V3.2-Standard"
+        },
+        {
+          "id": "Doubao-Seed-2.0-pro",
+          "name": "Doubao-Seed-2.0-pro"
+        },
+        {
+          "id": "GLM-5",
+          "name": "GLM-5"
+        },
+        {
+          "id": "Kimi-K2-Instruct",
+          "name": "Kimi-K2-Instruct"
+        },
+        {
+          "id": "Kimi-K2-Thinking",
+          "name": "Kimi-K2-Thinking"
+        },
+        {
+          "id": "Qwen-Image",
+          "name": "Qwen-Image"
+        },
+        {
+          "id": "Qwen3-235B-A22B",
+          "name": "Qwen3-235B-A22B"
+        },
+        {
+          "id": "Qwen3-235B-A22B-Instruct-2507",
+          "name": "Qwen3-235B-A22B-Instruct-2507"
+        },
+        {
+          "id": "Qwen3-Coder-Plus",
+          "name": "Qwen3-Coder-Plus"
+        },
+        {
+          "id": "Qwen3-Max",
+          "name": "Qwen3-Max"
+        },
+        {
+          "id": "Qwen3.5-397B-A17B",
+          "name": "Qwen3.5-397B-A17B"
+        }
+      ],
+      "createdAt": "2026-03-17T06:17:47.767Z",
+      "updatedAt": "2026-03-17T06:17:47.767Z"
+    },
+    {
+      "id": "9a552fb6-1877-41c0-a7ef-f1cfce78084b",
+      "name": "OpenAI Compatible",
+      "provider": "openai",
+      "apiUrl": "https://wishub-x6.ctyun.cn/v1/chat/completions",
+      "apiKey": "",
+      "model": "DeepSeek-V3.2-Standard",
+      "availableModels": [
+        {
+          "id": "DeepSeek-V3.2-Standard",
+          "name": "DeepSeek-V3.2-Standard"
+        },
+        {
+          "id": "Doubao-Seed-2.0-pro",
+          "name": "Doubao-Seed-2.0-pro"
+        },
+        {
+          "id": "GLM-5",
+          "name": "GLM-5"
+        },
+        {
+          "id": "Kimi-K2-Instruct",
+          "name": "Kimi-K2-Instruct"
+        },
+        {
+          "id": "Kimi-K2-Thinking",
+          "name": "Kimi-K2-Thinking"
+        },
+        {
+          "id": "Qwen-Image",
+          "name": "Qwen-Image"
+        },
+        {
+          "id": "Qwen3-235B-A22B",
+          "name": "Qwen3-235B-A22B"
+        },
+        {
+          "id": "Qwen3-235B-A22B-Instruct-2507",
+          "name": "Qwen3-235B-A22B-Instruct-2507"
+        },
+        {
+          "id": "Qwen3-Coder-Plus",
+          "name": "Qwen3-Coder-Plus"
+        },
+        {
+          "id": "Qwen3-Max",
+          "name": "Qwen3-Max"
+        },
+        {
+          "id": "Qwen3.5-397B-A17B",
+          "name": "Qwen3.5-397B-A17B"
+        }
+      ],
+      "createdAt": "2026-03-17T06:42:43.941Z",
+      "updatedAt": "2026-03-17T06:42:43.941Z"
+    }
+  ]
+}

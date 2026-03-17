@@ -531,9 +531,26 @@ import {
 const AI_SOURCES_KEY = 'aiSources'
 
 /**
+ * Get user ID - use default user if not authenticated
+ */
+function getUserId(req: any): string {
+  if (req.userId) {
+    return req.userId
+  }
+  // Fallback to default user
+  const db = getDatabase()
+  const defaultUser = db.prepare('SELECT id FROM users WHERE is_default = 1 LIMIT 1').get() as any
+  if (defaultUser) {
+    return defaultUser.id
+  }
+  throw new Error('No user found')
+}
+
+/**
  * Get aiSources config from database for current user
  */
-function getUserAISources(userId: string): AISourcesConfig {
+function getUserAISources(req: any): AISourcesConfig {
+  const userId = getUserId(req)
   const db = getDatabase()
   const row = db.prepare('SELECT value FROM configs WHERE user_id = ? AND key = ?').get(userId, AI_SOURCES_KEY) as any
   if (row) {
@@ -549,7 +566,8 @@ function getUserAISources(userId: string): AISourcesConfig {
 /**
  * Save aiSources config to database for current user
  */
-function saveUserAISources(userId: string, config: AISourcesConfig): void {
+function saveUserAISources(req: any, config: AISourcesConfig): void {
+  const userId = getUserId(req)
   const db = getDatabase()
   const now = Date.now()
   const value = JSON.stringify(config)
@@ -629,7 +647,7 @@ function mergeAISourcesWithFileConfig(dbConfig: AISourcesConfig): AISourcesConfi
  * API-Key sources are stored in llm-config.json file
  * OAuth sources are stored in database
  */
-router.post('/sources', (req, res) => {
+router.post('/sources', optionalAuthMiddleware, (req, res) => {
   try {
     const sourceData = req.body as AISource
 
@@ -680,7 +698,7 @@ router.post('/sources', (req, res) => {
       }
 
       // Also add to database for metadata (without sensitive data)
-      const dbConfig = getUserAISources(req.userId!)
+      const dbConfig = getUserAISources(req)
       const dbSource = createSource({
         name: newSource.name,
         provider: newSource.provider,
@@ -691,7 +709,7 @@ router.post('/sources', (req, res) => {
         availableModels: newSource.availableModels
       })
       const newDbConfig = addSource(dbConfig, dbSource)
-      saveUserAISources(req.userId!, newDbConfig)
+      saveUserAISources(req, newDbConfig)
 
       res.json({
         success: true,
@@ -699,9 +717,9 @@ router.post('/sources', (req, res) => {
       })
     } else {
       // OAuth source - store in database only
-      const config = getUserAISources(req.userId!)
+      const config = getUserAISources(req)
       const newConfig = addSource(config, newSource)
-      saveUserAISources(req.userId!, newConfig)
+      saveUserAISources(req, newConfig)
 
       res.json({
         success: true,
@@ -721,7 +739,7 @@ router.post('/sources', (req, res) => {
  * API-Key sources are stored in llm-config.json file
  * OAuth sources are stored in database
  */
-router.put('/sources/:id', (req, res) => {
+router.put('/sources/:id', optionalAuthMiddleware, (req, res) => {
   try {
     const sourceId = req.params.id
     const updates = req.body as Partial<AISource>
@@ -749,7 +767,7 @@ router.put('/sources/:id', (req, res) => {
       }
 
       // Also update database metadata (without sensitive data)
-      const dbConfig = getUserAISources(req.userId!)
+      const dbConfig = getUserAISources(req)
       const dbUpdates: Partial<AISource> = {}
       if (updates.name !== undefined) dbUpdates.name = updates.name
       if (updates.apiUrl !== undefined) dbUpdates.apiUrl = updates.apiUrl
@@ -758,7 +776,7 @@ router.put('/sources/:id', (req, res) => {
       if (updates.apiType !== undefined) dbUpdates.apiType = updates.apiType
 
       const newDbConfig = updateSource(dbConfig, sourceId, dbUpdates)
-      saveUserAISources(req.userId!, newDbConfig)
+      saveUserAISources(req, newDbConfig)
 
       res.json({
         success: true,
@@ -766,9 +784,9 @@ router.put('/sources/:id', (req, res) => {
       })
     } else {
       // OAuth source or not found in file - update in database
-      const config = getUserAISources(req.userId!)
+      const config = getUserAISources(req)
       const newConfig = updateSource(config, sourceId, updates)
-      saveUserAISources(req.userId!, newConfig)
+      saveUserAISources(req, newConfig)
 
       res.json({
         success: true,
@@ -788,7 +806,7 @@ router.put('/sources/:id', (req, res) => {
  * API-Key sources are stored in llm-config.json file
  * OAuth sources are stored in database
  */
-router.delete('/sources/:id', (req, res) => {
+router.delete('/sources/:id', optionalAuthMiddleware, (req, res) => {
   try {
     const sourceId = req.params.id
 
@@ -807,9 +825,9 @@ router.delete('/sources/:id', (req, res) => {
       }
 
       // Also delete from database metadata
-      const dbConfig = getUserAISources(req.userId!)
+      const dbConfig = getUserAISources(req)
       const newDbConfig = deleteSource(dbConfig, sourceId)
-      saveUserAISources(req.userId!, newDbConfig)
+      saveUserAISources(req, newDbConfig)
 
       res.json({
         success: true,
@@ -817,9 +835,9 @@ router.delete('/sources/:id', (req, res) => {
       })
     } else {
       // OAuth source or not found in file - delete from database
-      const config = getUserAISources(req.userId!)
+      const config = getUserAISources(req)
       const newConfig = deleteSource(config, sourceId)
-      saveUserAISources(req.userId!, newConfig)
+      saveUserAISources(req, newConfig)
 
       res.json({
         success: true,
@@ -838,7 +856,7 @@ router.delete('/sources/:id', (req, res) => {
  * POST /api/v1/ai-sources/switch-source - 切换当前 AI Source (v2)
  * Updates currentId in both file (for API-Key) and database (for OAuth)
  */
-router.post('/switch-source', (req, res) => {
+router.post('/switch-source', optionalAuthMiddleware, (req, res) => {
   try {
     const { sourceId } = req.body
 
@@ -865,9 +883,9 @@ router.post('/switch-source', (req, res) => {
     }
 
     // Also update database
-    const config = getUserAISources(req.userId!)
+    const config = getUserAISources(req)
     const newConfig = setCurrentSource(config, sourceId)
-    saveUserAISources(req.userId!, newConfig)
+    saveUserAISources(req, newConfig)
 
     res.json({
       success: true,
@@ -884,7 +902,7 @@ router.post('/switch-source', (req, res) => {
 /**
  * POST /api/v1/ai-sources/set-model - 设置当前模型 (v2)
  */
-router.post('/set-model', (req, res) => {
+router.post('/set-model', optionalAuthMiddleware, (req, res) => {
   try {
     const { modelId } = req.body
 
@@ -895,9 +913,9 @@ router.post('/set-model', (req, res) => {
       })
     }
 
-    const config = getUserAISources(req.userId!)
+    const config = getUserAISources(req)
     const newConfig = setCurrentModel(config, modelId)
-    saveUserAISources(req.userId!, newConfig)
+    saveUserAISources(req, newConfig)
 
     res.json({
       success: true,
@@ -915,7 +933,7 @@ router.post('/set-model', (req, res) => {
  * GET /api/v1/ai-sources/file-config - 获取文件配置 (llm-config.json)
  * Returns the LLM config file content for API-key sources
  */
-router.get('/file-config', (req, res) => {
+router.get('/file-config', optionalAuthMiddleware, (req, res) => {
   try {
     const config = getLLMConfig()
 
@@ -956,7 +974,7 @@ router.get('/file-config', (req, res) => {
  * Returns the full LLM config file content including API keys
  * Use with caution - only for editing operations
  */
-router.get('/file-config/full', (req, res) => {
+router.get('/file-config/full', optionalAuthMiddleware, (req, res) => {
   try {
     const config = getLLMConfig()
 
@@ -976,12 +994,12 @@ router.get('/file-config/full', (req, res) => {
  * POST /api/v1/ai-sources/migrate - 迁移数据库配置到文件
  * Migrates API-Key sources from database to llm-config.json file
  */
-router.post('/migrate', async (req, res) => {
+router.post('/migrate', optionalAuthMiddleware, async (req, res) => {
   try {
     const { checkOnly } = req.body
 
     // Get database sources
-    const dbConfig = getUserAISources(req.userId!)
+    const dbConfig = getUserAISources(req)
     const dbSources = dbConfig.sources
 
     // Import migration functions

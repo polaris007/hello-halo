@@ -247,4 +247,24 @@ router.get('/config', (_req, res) => {
   })
 })
 
+/**
+ * GET /api/v1/auth/providers - Get available auth providers
+ */
+router.get('/providers', (_req, res) => {
+  res.json({
+    success: true,
+    data: [
+      {
+        type: 'custom',
+        displayName: { en: 'Custom API', 'zh-CN': '自定义 API' },
+        description: { en: 'Use your own API Key', 'zh-CN': '使用自己的 API Key' },
+        icon: 'wrench',
+        iconBgColor: '#da7756',
+        recommended: true,
+        enabled: true
+      }
+    ]
+  })
+})
+
 export { router }

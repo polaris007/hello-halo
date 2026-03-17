@@ -149,7 +149,19 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
         updatedAt: now
       }
 
-      // Build v2 aiSources config
+      // Use the v2 AI Sources API to save to llm-config.json
+      const addResult = await api.aiSourcesAddSource(newSource)
+      if (!addResult.success) {
+        throw new Error(addResult.error || 'Failed to add AI source')
+      }
+
+      // Set as current source
+      const switchResult = await api.aiSourcesSwitchSource(newSource.id)
+      if (!switchResult.success) {
+        throw new Error(switchResult.error || 'Failed to set current source')
+      }
+
+      // Update local store
       const newAiSources: AISourcesConfig = {
         version: 2,
         currentId: newSource.id,
@@ -171,7 +183,6 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
         isFirstLaunch: false
       }
 
-      await api.setConfig(newConfig)
       setConfig(newConfig as any)
 
       // Enter Halo

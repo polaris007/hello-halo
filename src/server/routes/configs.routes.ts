@@ -4,7 +4,7 @@
 
 import { Router } from 'express'
 import { getDatabase } from '../utils/database'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
 import { randomUUID } from 'crypto'
 import type { AISourcesConfig } from '../../shared/types/ai-sources'
 import { createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
@@ -13,8 +13,24 @@ import type { AISource } from '../../shared/types/ai-sources'
 
 const router = Router()
 
-// 所有配置 API 都需要认证
-router.use(authMiddleware)
+/**
+ * Get user ID - use default user if not authenticated
+ */
+function getUserId(req: any): string {
+  if (req.userId) {
+    return req.userId
+  }
+  // Fallback to default user
+  const db = getDatabase()
+  const defaultUser = db.prepare('SELECT id FROM users WHERE is_default = 1 LIMIT 1').get() as any
+  if (defaultUser) {
+    return defaultUser.id
+  }
+  throw new Error('No user found')
+}
+
+// 所有配置 API 都需要认证（可选，首次使用时可以不登录）
+router.use(optionalAuthMiddleware)
 
 /**
  * Merge file config with database config for aiSources
@@ -77,12 +93,13 @@ function mergeAISourcesWithFileConfig(dbConfig: AISourcesConfig): AISourcesConfi
  */
 router.get('/', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
     const configs = db.prepare(`
       SELECT key, value, created_at, updated_at
       FROM configs
       WHERE user_id = ?
-    `).all(req.userId)
+    `).all(userId)
 
     // 转换为键值对格式
     const configMap: Record<string, any> = {}
@@ -113,16 +130,59 @@ router.get('/', (req, res) => {
 })
 
 /**
+ * POST /api/v1/configs - 批量更新配置项（支持部分更新）
+ */
+router.post('/', (req, res) => {
+  try {
+    const userId = getUserId(req)
+    const updates = req.body as Record<string, any>
+    const db = getDatabase()
+    const now = Date.now()
+
+    for (const [key, value] of Object.entries(updates)) {
+      // 检查配置是否存在
+      const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get(key, userId)
+
+      if (existing) {
+        // 更新现有配置
+        db.prepare(`
+          UPDATE configs
+          SET value = ?, updated_at = ?
+          WHERE key = ? AND user_id = ?
+        `).run(JSON.stringify(value), now, key, userId)
+      } else {
+        // 创建新配置
+        db.prepare(`
+          INSERT INTO configs (id, user_id, key, value, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(randomUUID(), userId, key, JSON.stringify(value), now, now)
+      }
+    }
+
+    res.json({
+      success: true,
+      data: updates
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
  * GET /api/v1/configs/:key - 获取单个配置项
  */
 router.get('/:key', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
     const config = db.prepare(`
       SELECT key, value, created_at, updated_at
       FROM configs
       WHERE key = ? AND user_id = ?
-    `).get(req.params.key, req.userId) as any
+    `).get(req.params.key, userId) as any
 
     if (!config) {
       return res.status(404).json({
@@ -150,6 +210,7 @@ router.get('/:key', (req, res) => {
  */
 router.put('/:key', (req, res) => {
   try {
+    const userId = getUserId(req)
     const { value } = req.body
     const key = req.params.key
 
@@ -164,7 +225,7 @@ router.put('/:key', (req, res) => {
     const now = Date.now()
 
     // 检查配置是否存在
-    const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get(key, req.userId)
+    const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get(key, userId)
 
     if (existing) {
       // 更新现有配置
@@ -172,13 +233,13 @@ router.put('/:key', (req, res) => {
         UPDATE configs
         SET value = ?, updated_at = ?
         WHERE key = ? AND user_id = ?
-      `).run(JSON.stringify(value), now, key, req.userId)
+      `).run(JSON.stringify(value), now, key, userId)
     } else {
       // 创建新配置
       db.prepare(`
         INSERT INTO configs (id, user_id, key, value, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(randomUUID(), req.userId, key, JSON.stringify(value), now, now)
+      `).run(randomUUID(), userId, key, JSON.stringify(value), now, now)
     }
 
     res.json({
@@ -201,8 +262,9 @@ router.put('/:key', (req, res) => {
  */
 router.delete('/:key', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
-    const result = db.prepare('DELETE FROM configs WHERE key = ? AND user_id = ?').run(req.params.key, req.userId)
+    const result = db.prepare('DELETE FROM configs WHERE key = ? AND user_id = ?').run(req.params.key, userId)
 
     if (result.changes === 0) {
       return res.status(404).json({
@@ -228,11 +290,12 @@ router.delete('/:key', (req, res) => {
  */
 router.get('/ai-provider', (req, res) => {
   try {
+    const userId = getUserId(req)
     const db = getDatabase()
     const config = db.prepare(`
       SELECT value FROM configs
       WHERE key = 'ai-provider' AND user_id = ?
-    `).get(req.userId) as any
+    `).get(userId) as any
 
     if (!config) {
       // Return default empty config
@@ -265,6 +328,7 @@ router.get('/ai-provider', (req, res) => {
  */
 router.put('/ai-provider', (req, res) => {
   try {
+    const userId = getUserId(req)
     const { provider, apiKey, apiUrl, model } = req.body
     const db = getDatabase()
     const now = Date.now()
@@ -277,19 +341,19 @@ router.put('/ai-provider', (req, res) => {
     })
 
     // Check if config exists
-    const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get('ai-provider', req.userId)
+    const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get('ai-provider', userId)
 
     if (existing) {
       db.prepare(`
         UPDATE configs
         SET value = ?, updated_at = ?
         WHERE key = ? AND user_id = ?
-      `).run(configValue, now, 'ai-provider', req.userId)
+      `).run(configValue, now, 'ai-provider', userId)
     } else {
       db.prepare(`
         INSERT INTO configs (id, user_id, key, value, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(randomUUID(), req.userId, 'ai-provider', configValue, now, now)
+      `).run(randomUUID(), userId, 'ai-provider', configValue, now, now)
     }
 
     res.json({
