@@ -179,14 +179,8 @@ export function getLogDirectory(): string {
   if (process.env.HALO_LOG_DIR) {
     return process.env.HALO_LOG_DIR
   }
-  // Default: use {data-dir}/logs
-  try {
-    const config = getConfig()
-    return join(config.data.basePath, 'logs')
-  } catch {
-    // Fallback to cwd/logs if config not yet initialized
-    return join(process.cwd(), 'logs')
-  }
+  // Default: use {cwd}/logs (unified with api-xxxx.log and ai-xxxx.log)
+  return join(process.cwd(), 'logs')
 }
 
 let currentLogFilePath: string | null = null

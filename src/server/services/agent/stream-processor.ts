@@ -104,6 +104,8 @@ export interface ProcessStreamParams {
   t0: number
   /** Strategy callbacks for caller-specific behavior */
   callbacks: StreamCallbacks
+  /** Request ID for AI logging (used to correlate user_message → ai_config → ai_request → ai_response) */
+  requestId?: string
 }
 
 // ============================================
@@ -194,8 +196,8 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   console.log(`[Agent][${conversationId}]   - v2Session.stream exists: ${!!v2Session?.stream}`)
   console.log(`[Agent][${conversationId}] --------------------------------------------`)
 
-  // Generate request ID for AI logging
-  const aiRequestId = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  // Use provided requestId or generate a new one for AI logging
+  const aiRequestId = params.requestId || `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 
   // Stream chunk counter for AI logging
   let streamChunkCounter = 0

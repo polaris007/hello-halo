@@ -168,6 +168,51 @@ function sanitizeAiRequest(request: any): any {
   return sanitized
 }
 
+// 用户消息日志接口
+export interface UserMessageLog {
+  timestamp: string
+  type: 'user_message'
+  requestId: string
+  userId?: string
+  spaceId?: string
+  conversationId?: string
+  message: {
+    content: string
+    images: number
+  }
+}
+
+// AI配置日志接口
+export interface AiConfigLog {
+  timestamp: string
+  type: 'ai_config'
+  requestId: string
+  conversationId?: string
+  config: {
+    provider: string
+    model: string
+    displayModel?: string
+    baseUrl?: string
+    apiType?: string
+    customHeaders?: Record<string, string> | null
+    forceStream?: boolean
+    filterContent?: boolean
+    hasApiKey: boolean
+  }
+}
+
+// AI配置错误日志接口
+export interface AiConfigErrorLog {
+  timestamp: string
+  type: 'ai_config_error'
+  requestId: string
+  conversationId?: string
+  error: {
+    type: string
+    message: string
+  }
+}
+
 // AI请求日志接口
 export interface AiRequestLog {
   timestamp: string
@@ -230,8 +275,178 @@ export interface AiStreamChunkLog {
 }
 
 // 生成唯一的请求ID
-function generateRequestId(): string {
+export function generateRequestId(): string {
   return `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
+
+// 记录用户消息
+export function logUserMessage(params: {
+  userId?: string
+  spaceId?: string
+  conversationId?: string
+  messageContent: string
+  imageCount?: number
+  requestId?: string
+}): string {
+  const requestId = params.requestId || generateRequestId()
+
+  // 检查是否应该记录详细AI交互
+  if (!shouldLogAiDetails()) {
+    return requestId
+  }
+
+  try {
+    const timestamp = new Date().toISOString()
+
+    // 脱敏用户消息内容
+    const sanitizedContent = sanitizeTextContent(params.messageContent)
+
+    // 截断大内容
+    const truncatedContent = truncateContent(sanitizedContent)
+
+    const logEntry: UserMessageLog = {
+      timestamp,
+      type: 'user_message',
+      requestId,
+      userId: params.userId,
+      spaceId: params.spaceId,
+      conversationId: params.conversationId,
+      message: {
+        content: truncatedContent,
+        images: params.imageCount || 0
+      }
+    }
+
+    // 写入日志文件
+    const logFilePath = getAiLogFilePathWithCleanup()
+    const logContent = JSON.stringify(logEntry) + '\n'
+
+    appendFileSync(logFilePath, logContent, 'utf-8')
+
+    // 也记录到server日志用于调试
+    logger.info(`[AI Logger] User message logged: ${requestId}, conversationId: ${params.conversationId}`)
+
+  } catch (error) {
+    logger.error('[AI Logger] Failed to log user message:', error)
+  }
+
+  return requestId
+}
+
+// 记录AI配置
+export function logAiConfig(params: {
+  conversationId?: string
+  requestId: string
+  config: {
+    provider: string
+    model: string
+    displayModel?: string
+    baseUrl?: string
+    apiType?: string
+    customHeaders?: Record<string, string> | null
+    forceStream?: boolean
+    filterContent?: boolean
+    apiKey?: string
+  }
+}): void {
+  // 检查是否应该记录详细AI交互
+  if (!shouldLogAiDetails()) {
+    return
+  }
+
+  try {
+    const timestamp = new Date().toISOString()
+
+    const logEntry: AiConfigLog = {
+      timestamp,
+      type: 'ai_config',
+      requestId: params.requestId,
+      conversationId: params.conversationId,
+      config: {
+        provider: params.config.provider,
+        model: params.config.model,
+        displayModel: params.config.displayModel,
+        baseUrl: params.config.baseUrl,
+        apiType: params.config.apiType,
+        customHeaders: params.config.customHeaders,
+        forceStream: params.config.forceStream,
+        filterContent: params.config.filterContent,
+        // 不记录实际的apiKey值，只记录是否存在
+        hasApiKey: !!params.config.apiKey
+      }
+    }
+
+    // 写入日志文件
+    const logFilePath = getAiLogFilePathWithCleanup()
+    const logContent = JSON.stringify(logEntry) + '\n'
+
+    appendFileSync(logFilePath, logContent, 'utf-8')
+
+    // 也记录到server日志用于调试
+    logger.info(`[AI Logger] AI config logged: ${params.requestId}, provider: ${params.config.provider}, model: ${params.config.model}`)
+
+  } catch (error) {
+    logger.error('[AI Logger] Failed to log AI config:', error)
+  }
+}
+
+// 记录AI配置错误
+export function logAiConfigError(params: {
+  conversationId?: string
+  requestId: string
+  errorType: string
+  errorMessage: string
+}): void {
+  // 检查是否应该记录详细AI交互
+  if (!shouldLogAiDetails()) {
+    return
+  }
+
+  try {
+    const timestamp = new Date().toISOString()
+
+    const logEntry: AiConfigErrorLog = {
+      timestamp,
+      type: 'ai_config_error',
+      requestId: params.requestId,
+      conversationId: params.conversationId,
+      error: {
+        type: params.errorType,
+        message: params.errorMessage
+      }
+    }
+
+    // 写入日志文件
+    const logFilePath = getAiLogFilePathWithCleanup()
+    const logContent = JSON.stringify(logEntry) + '\n'
+
+    appendFileSync(logFilePath, logContent, 'utf-8')
+
+    // 也记录到server日志用于调试
+    logger.error(`[AI Logger] AI config error logged: ${params.requestId}, error: ${params.errorType} - ${params.errorMessage}`)
+
+  } catch (error) {
+    logger.error('[AI Logger] Failed to log AI config error:', error)
+  }
+}
+
+// 脱敏文本内容（用于用户消息等）
+function sanitizeTextContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return content
+  }
+
+  let sanitized = content
+
+  // 脱敏API密钥（sk-开头的字符串）
+  sanitized = sanitized.replace(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]')
+
+  // 脱敏密码相关的模式
+  sanitized = sanitized.replace(/password["\s]*[:=]["\s]*[^"',}\s]+/gi, 'password": "[REDACTED]"')
+  sanitized = sanitized.replace(/secret["\s]*[:=]["\s]*[^"',}\s]+/gi, 'secret": "[REDACTED]"')
+  sanitized = sanitized.replace(/token["\s]*[:=]["\s]*[^"',}\s]+/gi, 'token": "[REDACTED]"')
+
+  return sanitized
 }
 
 // 记录AI请求
@@ -477,11 +692,15 @@ export function createAiLoggerWrapper(params: {
 }
 
 export default {
+  logUserMessage,
+  logAiConfig,
+  logAiConfigError,
   logAiRequest,
   logAiResponse,
   logAiStreamChunk,
   createAiLoggerWrapper,
-  cleanupOldAiLogs
+  cleanupOldAiLogs,
+  generateRequestId
 }
 
 // 导出辅助函数用于测试

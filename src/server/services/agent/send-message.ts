@@ -34,6 +34,11 @@ import {
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
 import { processStream } from './stream-processor'
 import { getDatabase } from '../../utils/database'
+import {
+  logUserMessage,
+  logAiConfig,
+  logAiConfigError
+} from '../../utils/ai-logger'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -68,6 +73,14 @@ export async function sendMessage(
 
   console.log(`[Agent] sendMessage: conv=${conversationId}${images && images.length > 0 ? `, images=${images.length}` : ''}${thinkingEnabled ? ', thinking=ON' : ''}${canvasContext?.isOpen ? `, canvas tabs=${canvasContext.tabCount}` : ''}`)
 
+  // 生成唯一的 requestId，用于关联整个调用链路的日志
+  const requestId = logUserMessage({
+    spaceId,
+    conversationId,
+    messageContent: message,
+    imageCount: images?.length || 0
+  })
+
   const workDir = getWorkingDir(spaceId)
 
   // Create abort controller for this session
@@ -87,7 +100,38 @@ export async function sendMessage(
 
   try {
     // Get API credentials
-    const credentials = await getApiCredentials()
+    let credentials
+    try {
+      credentials = await getApiCredentials()
+    } catch (credError: unknown) {
+      // 记录 AI 配置获取失败日志
+      const credErr = credError as Error
+      logAiConfigError({
+        conversationId,
+        requestId,
+        errorType: 'config_error',
+        errorMessage: credErr.message || 'Failed to get API credentials'
+      })
+      throw credError
+    }
+
+    // 记录 AI 配置日志
+    logAiConfig({
+      conversationId,
+      requestId,
+      config: {
+        provider: credentials.provider,
+        model: credentials.model,
+        displayModel: credentials.displayModel,
+        baseUrl: credentials.baseUrl,
+        apiType: credentials.apiType,
+        customHeaders: credentials.customHeaders,
+        forceStream: credentials.forceStream,
+        filterContent: credentials.filterContent,
+        apiKey: credentials.apiKey
+      }
+    })
+
     console.log(`[Agent] ============================================`)
     console.log(`[Agent] sendMessage called with params:`)
     console.log(`[Agent]   - spaceId: ${spaceId}`)
@@ -189,6 +233,7 @@ export async function sendMessage(
       displayModel: resolvedCredentials.displayModel,
       abortController,
       t0,
+      requestId,  // Pass requestId for AI logging correlation
       callbacks: {
         onComplete: (streamResult) => {
           // Save session ID for future resumption
