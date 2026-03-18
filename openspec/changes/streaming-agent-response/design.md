@@ -754,76 +754,6 @@ router.post('/reject', async (req, res) => {
 }
 ```
 
-**核心实现机制**:
-
-等待状态通过 Promise + Map 实现，存储在进程内存中：
-
-```typescript
-// session-manager.ts 中新增
-// 等待输入的解析器映射 - key 为 conversationId
-const pendingInputResolvers = new Map<string, {
-  resolve: (value: any) => void
-  reject: (reason: any) => void
-  inputType: 'tool-approval' | 'ask-question'
-  createdAt: number
-  timeoutId?: NodeJS.Timeout
-}>()
-
-// SSE 流等待用户输入时
-export async function waitForUserInput(
-  conversationId: string,
-  inputType: 'tool-approval' | 'ask-question',
-  metadata: { toolCallId?: string; questionId?: string },
-  timeoutMs: number = 5 * 60 * 1000 // 默认 5 分钟超时
-): Promise<{ approved?: boolean; answers?: Record<string, string> }> {
-  return new Promise((resolve, reject) => {
-    // 设置超时
-    const timeoutId = setTimeout(() => {
-      pendingInputResolvers.delete(conversationId)
-      reject(new Error('User input timeout'))
-    }, timeoutMs)
-
-    // 存储解析器，等待 HTTP 端点调用
-    pendingInputResolvers.set(conversationId, {
-      resolve: (value) => {
-        clearTimeout(timeoutId)
-        pendingInputResolvers.delete(conversationId)
-        resolve(value)
-      },
-      reject: (reason) => {
-        clearTimeout(timeoutId)
-        pendingInputResolvers.delete(conversationId)
-        reject(reason)
-      },
-      inputType,
-      createdAt: Date.now(),
-      timeoutId
-    })
-  })
-}
-
-// 供 HTTP 端点调用
-export function resolveUserInput(
-  conversationId: string,
-  result: { approved?: boolean; answers?: Record<string, string> }
-): boolean {
-  const pending = pendingInputResolvers.get(conversationId)
-  if (pending) {
-    pending.resolve(result)
-    return true
-  }
-  return false
-}
-
-// SSE 连接断开时清理
-export function cancelPendingInput(conversationId: string) {
-  const pending = pendingInputResolvers.get(conversationId)
-  if (pending) {
-    pending.reject(new Error('SSE connection closed'))
-  }
-}
-```
-
 **HTTP 端点修改**:
 ```typescript
 // agent.routes.ts
@@ -901,8 +831,9 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
 
     // 2. 发送 waiting-for-input 事件
     emitEvent('agent:waiting-for-input', {
-      type: 'question',
-      questionId: id
+      inputType: 'question',
+      questionId: id,
+      message: '等待用户回答问题'
     })
 
     // 3. 等待用户回答
@@ -1226,6 +1157,15 @@ await processStream({
 2. 都不提供时，事件只写入日志（兼容旧行为）
 3. automation app 无需修改调用方式，只需传入 `onEvent` 回调
 
+**回调职责对比**:
+
+| 回调 | 定义位置 | 用途 | 调用时机 |
+|-----|---------|------|---------|
+| `callbacks.onComplete` | Decision 9 | 最终持久化 | 流结束 |
+| `callbacks.onIncrementalPersist` | Decision 9 | 增量持久化 | 关键节点 |
+| `callbacks.onRawMessage` | Decision 9 | 原始消息日志 | 每条 SDK 消息 |
+| `onEvent` | Decision 11 | 事件消费（automation app） | 每个事件 |
+
 ### Decision 12: 增量持久化数据库支持
 
 **问题**: 增量持久化需要数据库支持 `isPartial` 字段
@@ -1298,7 +1238,10 @@ function updateAssistantMessage(conversationId: string, update: {
 ```
 
 **持久化时机**:
-1. **流式生成期间**: 每 2 秒更新一次，`isPartial: true`
+1. **流式生成期间**: 事件驱动触发（最少间隔 1 秒），`isPartial: true`
+   - text 块结束时
+   - tool_result 完成时
+   - thinking 累积超过阈值时
 2. **流完成时**: 最终更新，`isPartial: false`
 3. **流中断时**: 保留当前内容，`isPartial: true`（用户可看到部分内容）
 

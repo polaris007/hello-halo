@@ -374,7 +374,9 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 
 #### Scenario: 部分内容持久化
 - **WHEN** SSE 流正在推送文本内容
-- **THEN** 系统每 2 秒更新一次数据库中的 assistant message
+- **THEN** 系统在关键节点更新数据库中的 assistant message（事件驱动触发）
+- **AND** 触发节点包括：text 块结束、tool_result 完成、thinking 累积超过阈值
+- **AND** 频率限制为最少间隔 1 秒，避免高频写入
 - **AND** 更新内容包括当前累计的 `content` 和 `thoughts`
 - **AND** 消息标记为 `isPartial: true`
 
