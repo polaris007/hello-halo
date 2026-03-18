@@ -54,7 +54,7 @@ export type {
 // Send Message
 // ============================================
 
-export { sendMessage } from './send-message'
+export { sendMessage, sendMessageWithSSE, type AgentSSERequest } from './send-message'
 
 // ============================================
 // Control Functions
@@ -139,9 +139,17 @@ export {
   unregisterActiveSession,
   getActiveSession,
 
+  // SSE stream management
+  registerSSEStream,
+  unregisterSSEStream,
+  getSSEStream,
+  updateSSEActivity,
+  cleanupStaleSSEStreams,
+
   // Session maps (for advanced use cases)
   activeSessions,
-  v2Sessions
+  v2Sessions,
+  activeSSEStreams
 } from './session-manager'
 
 // ============================================

@@ -144,6 +144,10 @@ export interface SessionState {
   conversationId: string
   thoughts: Thought[]  // Backend accumulates thoughts (Single Source of Truth)
   isGenerating?: boolean
+  /** SSE 连接建立时间 */
+  sseConnectedAt?: number
+  /** 最后活动时间（用于超时清理） */
+  lastActivityAt?: number
 }
 
 // ============================================

@@ -44,6 +44,82 @@ export const v2Sessions = new Map<string, V2SessionInfo>()
 /** Active session state for in-flight requests */
 export const activeSessions = new Map<string, SessionState>()
 
+/** Active SSE streams by conversationId */
+export const activeSSEStreams = new Map<string, {
+  controller: AbortController
+  connectedAt: number
+  lastActivityAt: number
+}>()
+
+/** SSE connection timeout (30 minutes) */
+const SSE_TIMEOUT_MS = 30 * 60 * 1000
+
+/**
+ * Register an active SSE stream
+ */
+export function registerSSEStream(conversationId: string, controller: AbortController): void {
+  // 如果已有连接，先取消旧连接
+  const existing = activeSSEStreams.get(conversationId)
+  if (existing) {
+    console.log(`[SSE][${conversationId}] Closing existing SSE connection`)
+    existing.controller.abort()
+  }
+
+  const now = Date.now()
+  activeSSEStreams.set(conversationId, {
+    controller,
+    connectedAt: now,
+    lastActivityAt: now
+  })
+  console.log(`[SSE][${conversationId}] SSE stream registered, active: ${activeSSEStreams.size}`)
+}
+
+/**
+ * Unregister an active SSE stream
+ */
+export function unregisterSSEStream(conversationId: string): void {
+  activeSSEStreams.delete(conversationId)
+  console.log(`[SSE][${conversationId}] SSE stream unregistered, active: ${activeSSEStreams.size}`)
+}
+
+/**
+ * Get active SSE stream
+ */
+export function getSSEStream(conversationId: string): { controller: AbortController } | undefined {
+  return activeSSEStreams.get(conversationId)
+}
+
+/**
+ * Update SSE stream activity timestamp
+ */
+export function updateSSEActivity(conversationId: string): void {
+  const stream = activeSSEStreams.get(conversationId)
+  if (stream) {
+    stream.lastActivityAt = Date.now()
+  }
+}
+
+/**
+ * Clean up stale SSE streams
+ */
+export function cleanupStaleSSEStreams(): void {
+  const now = Date.now()
+  let cleaned = 0
+
+  for (const [conversationId, stream] of activeSSEStreams) {
+    if (now - stream.lastActivityAt > SSE_TIMEOUT_MS) {
+      stream.controller.abort()
+      activeSSEStreams.delete(conversationId)
+      cleaned++
+      console.log(`[SSE][${conversationId}] Stream timed out after ${SSE_TIMEOUT_MS / 60000} minutes`)
+    }
+  }
+
+  if (cleaned > 0) {
+    console.log(`[SSE] Cleaned up ${cleaned} stale streams, remaining: ${activeSSEStreams.size}`)
+  }
+}
+
 // ============================================
 // Session State Management
 // ============================================

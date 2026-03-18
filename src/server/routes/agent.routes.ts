@@ -1,13 +1,23 @@
 /**
  * Agent API 路由
  * 提供 Agent 会话管理和消息发送功能
+ *
+ * SSE 流式响应架构：
+ * - POST /message 返回 SSE 流（主通道）
+ * - WebSocket 用于全局事件和兼容性（双通道架构）
  */
 
-import { Router } from 'express'
+import { Router, Response } from 'express'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { getDatabase } from '../utils/database'
 import { randomUUID } from 'crypto'
 import * as agentService from '../services/agent'
+import { createSseWriter, setSSEHeaders, SseWriter } from '../utils/sse-writer'
+import {
+  registerSSEStream,
+  unregisterSSEStream,
+  getSSEStream
+} from '../services/agent/session-manager'
 
 const router = Router()
 
@@ -17,99 +27,115 @@ router.use(authMiddleware)
 /**
  * POST /api/v1/agent/message - 发送消息到 Agent
  *
- * 触发 AI 对话流程，异步处理并通过 WebSocket 推送流式响应
+ * 返回 SSE 流式响应，实时推送 Agent 处理事件
+ * 同时通过 WebSocket 推送（双通道架构）
  */
 router.post('/message', async (req, res) => {
-  try {
-    const { spaceId, conversationId, message, images, aiBrowserEnabled, thinkingEnabled, canvasContext } = req.body
+  const { spaceId, conversationId, message, images, aiBrowserEnabled, thinkingEnabled, canvasContext } = req.body
 
-    if (!spaceId || !conversationId || !message) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_REQUEST', message: '缺少必要参数' }
-      })
-    }
+  if (!spaceId || !conversationId || !message) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_REQUEST', message: '缺少必要参数' }
+    })
+  }
 
-    const db = getDatabase()
+  const db = getDatabase()
 
-    // 验证空间是否存在且属于当前用户
-    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
-    if (!space) {
-      return res.status(404).json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: '空间不存在' }
-      })
-    }
+  // 验证空间是否存在且属于当前用户
+  const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+  if (!space) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: '空间不存在' }
+    })
+  }
 
-    // 检查对话是否存在
-    let conversation = db.prepare(`
-      SELECT * FROM conversations WHERE id = ? AND user_id = ?
-    `).get(conversationId, req.userId) as any
+  // 检查对话是否存在
+  let conversation = db.prepare(`
+    SELECT * FROM conversations WHERE id = ? AND user_id = ?
+  `).get(conversationId, req.userId) as any
 
-    if (!conversation) {
-      // 创建新对话
-      const now = Date.now()
-      db.prepare(`
-        INSERT INTO conversations (id, user_id, space_id, title, messages, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(conversationId, req.userId, spaceId, '新对话', '[]', now, now)
-
-      conversation = {
-        id: conversationId,
-        user_id: req.userId,
-        space_id: spaceId,
-        title: '新对话',
-        messages: '[]'
-      }
-    }
-
-    // 添加用户消息
-    const messages = JSON.parse(conversation.messages || '[]')
-    const userMessage = {
-      id: randomUUID(),
-      role: 'user',
-      content: message,
-      images: images || [],
-      timestamp: Date.now()
-    }
-    messages.push(userMessage)
-
+  if (!conversation) {
+    // 创建新对话
+    const now = Date.now()
     db.prepare(`
-      UPDATE conversations
-      SET messages = ?, updated_at = ?
-      WHERE id = ? AND user_id = ?
-    `).run(JSON.stringify(messages), Date.now(), conversationId, req.userId)
+      INSERT INTO conversations (id, user_id, space_id, title, messages, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(conversationId, req.userId, spaceId, '新对话', '[]', now, now)
 
-    // 启动异步 AI 处理（不等待完成）
-    // 响应将通过 WebSocket 流式推送
-    agentService.sendMessage({
+    conversation = {
+      id: conversationId,
+      user_id: req.userId,
+      space_id: spaceId,
+      title: '新对话',
+      messages: '[]'
+    }
+  }
+
+  // 添加用户消息
+  const messages = JSON.parse(conversation.messages || '[]')
+  const userMessage = {
+    id: randomUUID(),
+    role: 'user',
+    content: message,
+    images: images || [],
+    timestamp: Date.now()
+  }
+  messages.push(userMessage)
+
+  db.prepare(`
+    UPDATE conversations
+    SET messages = ?, updated_at = ?
+    WHERE id = ? AND user_id = ?
+  `).run(JSON.stringify(messages), Date.now(), conversationId, req.userId)
+
+  // 设置 SSE 响应头
+  setSSEHeaders(res)
+
+  // 创建 SSE writer
+  const sseWriter = createSseWriter(res)
+
+  // 创建 AbortController 用于取消请求
+  const abortController = new AbortController()
+
+  // 注册 SSE 流
+  registerSSEStream(conversationId, abortController)
+
+  // 处理连接断开
+  req.on('close', () => {
+    console.log(`[SSE][${conversationId}] Client disconnected`)
+    abortController.abort()
+    unregisterSSEStream(conversationId)
+  })
+
+  try {
+    // 启动 AI 处理并传递 SSE writer
+    await agentService.sendMessageWithSSE({
       spaceId,
       conversationId,
       message,
       images,
       aiBrowserEnabled,
       thinkingEnabled,
-      canvasContext
-    }).catch(error => {
-      console.error('[Agent] Async processing error:', error)
-    })
-
-    // 立即返回成功响应
-    res.json({
-      success: true,
-      data: {
-        messageId: userMessage.id,
-        conversationId,
-        status: 'processing',
-        message: '消息已接收，AI 正在处理中'
-      }
+      canvasContext,
+      sseWriter,
+      abortController
     })
   } catch (error: any) {
-    console.error('Agent message error:', error)
-    res.status(500).json({
-      success: false,
-      error: { code: 'SERVER_ERROR', message: error.message }
-    })
+    console.error('[Agent] SSE processing error:', error)
+    // 发送错误事件
+    if (!sseWriter.isClosed()) {
+      sseWriter.writeEvent('error', {
+        type: 'agent:error',
+        error: error.message || '处理失败',
+        errorType: 'unknown'
+      })
+    }
+  } finally {
+    // 清理 SSE 流
+    unregisterSSEStream(conversationId)
+    sseWriter.end()
   }
 })
 
