@@ -12,8 +12,10 @@ import {
   unsubscribeFromConversation,
   setAuthToken,
   clearAuthToken,
-  getAuthToken
+  getAuthToken,
+  dispatchEvent
 } from './transport'
+import { sendMessageSSE, type SSEEvent, type SendMessageParams } from './sse'
 import type {
   HealthStatusResponse,
   HealthStateResponse,
@@ -327,6 +329,12 @@ export const api = {
   },
 
   // ===== Agent =====
+  /**
+   * 发送消息到 Agent（使用 SSE 流式响应）
+   *
+   * SSE 事件通过 dispatchEvent 分发到 WebSocket 监听器（双通道架构）
+   * 这确保了 App.tsx 中的 onAgentXxx 回调能够接收到事件
+   */
   sendMessage: async (request: {
     spaceId: string
     conversationId: string
@@ -360,9 +368,43 @@ export const api = {
       }>
     }
   }): Promise<ApiResponse> => {
-    // Subscribe to conversation events before sending
-    subscribeToConversation(request.conversationId)
-    return httpRequest('POST', '/api/v1/agent/message', request)
+    // 构建 SSE 请求参数
+    const sseParams: SendMessageParams = {
+      spaceId: request.spaceId,
+      conversationId: request.conversationId,
+      message: request.message,
+      images: request.images,
+      aiBrowserEnabled: request.aiBrowserEnabled,
+      thinkingEnabled: request.thinkingEnabled,
+      canvasContext: request.canvasContext
+    }
+
+    // 发送 SSE 请求
+    // 事件通过 dispatchEvent 分发到 WebSocket 监听器
+    const result = await sendMessageSSE(
+      sseParams,
+      // onEvent: 处理 SSE 事件并分发到监听器
+      (event: SSEEvent) => {
+        // 将 SSE 事件名转换为 agent:* 格式
+        // SSE event: "message" -> agent:eventType: "agent:message"
+        // SSE event: "thought" -> agent:eventType: "agent:thought"
+        const agentEventType = `agent:${event.event}`
+
+        // 分发事件到 WebSocket 监听器
+        // 这确保 App.tsx 中的 onAgentXxx 回调能够接收到事件
+        dispatchEvent(agentEventType, event.data)
+      },
+      // onError: 处理错误
+      (error: Error) => {
+        console.error('[SSE] Error:', error.message)
+      }
+    )
+
+    if (result.success) {
+      return { success: true }
+    } else {
+      return { success: false, error: result.error }
+    }
   },
 
   stopGeneration: async (conversationId?: string): Promise<ApiResponse> => {

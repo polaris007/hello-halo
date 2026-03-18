@@ -15,7 +15,8 @@ import type { ApiCredentials } from './types'
 import { inferOpenAIWireApi } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
-import { sendToRenderer } from './helpers'
+// Note: sendToRenderer is no longer used directly in this file
+// emitEvent is passed as a parameter from callers
 import { getConfig } from '../config.service'
 
 // ============================================
@@ -82,6 +83,8 @@ export interface BaseSdkOptionsParams {
   mcpServers?: Record<string, any> | null
   /** Maximum tool call turns per message (from config) */
   maxTurns?: number
+  /** Event emitter function for SSE/WebSocket dual-channel events */
+  emitEvent?: (eventName: string, data: Record<string, unknown>) => void
 }
 
 // ============================================
@@ -309,7 +312,8 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     conversationId,
     abortController,
     stderrHandler,
-    mcpServers
+    mcpServers,
+    emitEvent
   } = params
 
   console.log(`[SDK Config] ============================================`)
@@ -352,11 +356,11 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     // Enable Skills loading from $CLAUDE_CONFIG_DIR/skills/ and <workspace>/.claude/skills/
     settingSources: ['user', 'project'],
     permissionMode: 'bypassPermissions' as const,
-    canUseTool: createCanUseTool({
-      sendToRenderer,
-      spaceId,
-      conversationId
-    }),
+    canUseTool: createCanUseTool(
+      emitEvent
+        ? { emitEvent, spaceId, conversationId }
+        : undefined
+    ),
     // Requires SDK patch: enable token-level streaming (stream_event)
     includePartialMessages: true,
     executable: nodePath,

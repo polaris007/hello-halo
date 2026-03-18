@@ -257,3 +257,16 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
     wsEventListeners.get(channel)?.delete(callback)
   }
 }
+
+/**
+ * Dispatch event to listeners (used by SSE to emit events)
+ * This allows SSE events to be received by the same listeners as WebSocket events
+ */
+export function dispatchEvent(eventType: string, data: unknown): void {
+  const listeners = wsEventListeners.get(eventType)
+  if (listeners) {
+    listeners.forEach((callback) => {
+      callback(data)
+    })
+  }
+}

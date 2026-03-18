@@ -45,6 +45,38 @@ import { toSSEEventName } from '../../utils/sse-writer'
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
 
 // ============================================
+// Error Type Detection
+// ============================================
+
+/**
+ * Determine error type based on error context
+ *
+ * @param wasAborted - Whether the stream was aborted by user
+ * @param hadMaxTurnsReached - Whether max turns limit was reached
+ * @param hasErrorThought - Whether an error thought was received
+ * @param errorThought - The error thought object (if any)
+ * @param isInterrupted - Whether the stream was interrupted
+ * @returns Error type string: 'rate_limit', 'auth_failure', 'interrupted', 'max_turns', or 'unknown'
+ */
+function getErrorType(
+  wasAborted: boolean,
+  hadMaxTurnsReached: boolean,
+  hasErrorThought: boolean,
+  errorThought?: Thought,
+  isInterrupted?: boolean
+): string {
+  if (wasAborted) return 'interrupted'
+  if (hadMaxTurnsReached) return 'max_turns'
+  if (hasErrorThought && errorThought?.errorCode) {
+    const code = errorThought.errorCode.toLowerCase()
+    if (code.includes('rate') || code.includes('limit')) return 'rate_limit'
+    if (code.includes('auth') || code.includes('api_key') || code.includes('invalid_key')) return 'auth_failure'
+  }
+  if (isInterrupted) return 'interrupted'
+  return 'unknown'
+}
+
+// ============================================
 // Types
 // ============================================
 
@@ -708,9 +740,17 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           // SDK reported an error (rate_limit, authentication_failed, etc.)
           // Send error to frontend - user should see the actual error from provider
           console.log(`[Agent][${conversationId}] Error thought received: ${thought.content}`)
+          const errorType = getErrorType(
+            false, // wasAborted
+            false, // hadMaxTurnsReached
+            true,  // hasErrorThought
+            thought,
+            false  // isInterrupted
+          )
           emitEvent('agent:error', {
             type: 'error',
             error: thought.content,
+            errorType,
             errorCode: thought.errorCode  // Preserve error code for debugging
           })
         } else if (thought.type === 'result') {
@@ -922,10 +962,20 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         ? (hadErrorDuringExecution ? 'error_during_execution' : 'stream interrupted')
         : 'empty response'
     console.log(`[Agent][${conversationId}] Sending interrupted error (${reason}, content: ${finalContent ? 'yes' : 'no'})`)
+
+    const errorType = getErrorType(
+      wasAborted,
+      hadMaxTurnsReached,
+      hasErrorThought,
+      errorThought,
+      isInterrupted
+    )
+
     emitEvent('agent:error', {
       type: 'error',
-      errorType: 'interrupted',
-      error: errorMessage
+      errorType,
+      error: errorMessage,
+      errorCode: errorThought?.errorCode
     })
   } else if (wasAborted) {
     console.log(`[Agent][${conversationId}] User stopped - no error sent`)

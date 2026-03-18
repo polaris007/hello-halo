@@ -44,6 +44,7 @@ import {
   logAiConfigError
 } from '../../utils/ai-logger'
 import type { SseWriter } from '../../utils/sse-writer'
+import { toSSEEventName } from '../../utils/sse-writer'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -186,7 +187,11 @@ export async function sendMessage(
         stderrBuffer += data
       },
       mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : null,
-      maxTurns: 50
+      maxTurns: 50,
+      // WebSocket-only emitEvent (for backward compatibility)
+      emitEvent: (eventName: string, data: Record<string, unknown>) => {
+        sendToRenderer(eventName, spaceId, conversationId, data)
+      }
     })
 
     // Apply thinking mode
@@ -286,9 +291,23 @@ export async function sendMessage(
       }
     }
 
+    // Determine error type
+    let errorType = 'unknown'
+    let errorCode = ''
+
+    if (err.message.toLowerCase().includes('rate') || err.message.toLowerCase().includes('limit')) {
+      errorType = 'rate_limit'
+    } else if (err.message.toLowerCase().includes('auth') || err.message.toLowerCase().includes('api_key') || err.message.toLowerCase().includes('invalid_key')) {
+      errorType = 'auth_failure'
+    } else if (err.name === 'AbortError') {
+      errorType = 'interrupted'
+    }
+
     sendToRenderer('agent:error', spaceId, conversationId, {
       type: 'error',
-      error: errorMessage
+      error: errorMessage,
+      errorType,
+      errorCode
     })
 
     // Persist error to database
@@ -525,7 +544,18 @@ export async function sendMessageWithSSE(
         stderrBuffer += data
       },
       mcpServers: null,
-      maxTurns: 50
+      maxTurns: 50,
+      // SSE + WebSocket dual-channel emitEvent
+      emitEvent: (eventName: string, data: Record<string, unknown>) => {
+        // Send to WebSocket (for backward compatibility)
+        sendToRenderer(eventName, spaceId, conversationId, data)
+        // Send to SSE if writer is available and not closed
+        if (sseWriter && !sseWriter.isClosed()) {
+          // Convert agent:event-name to event-name for SSE
+          const sseEventName = toSSEEventName(eventName)
+          sseWriter.writeEvent(sseEventName, data)
+        }
+      }
     })
 
     // Apply thinking mode
@@ -623,6 +653,18 @@ export async function sendMessageWithSSE(
       }
     }
 
+    // Determine error type
+    let errorType = 'unknown'
+    let errorCode = ''
+
+    if (err.message.toLowerCase().includes('rate') || err.message.toLowerCase().includes('limit')) {
+      errorType = 'rate_limit'
+    } else if (err.message.toLowerCase().includes('auth') || err.message.toLowerCase().includes('api_key') || err.message.toLowerCase().includes('invalid_key')) {
+      errorType = 'auth_failure'
+    } else if (err.name === 'AbortError') {
+      errorType = 'interrupted'
+    }
+
     // Send error event via SSE
     if (!sseWriter.isClosed()) {
       sseWriter.writeEvent('error', {
@@ -630,7 +672,8 @@ export async function sendMessageWithSSE(
         spaceId,
         conversationId,
         error: errorMessage,
-        errorType: 'unknown'
+        errorType,
+        errorCode
       })
     }
 
@@ -646,6 +689,11 @@ export async function sendMessageWithSSE(
     // Clean up active session state
     unregisterActiveSession(conversationId)
     console.log(`[Agent][${conversationId}] SSE session cleaned up. V2 sessions: ${v2Sessions.size}`)
+
+    // End SSE stream
+    if (sseWriter && !sseWriter.isClosed()) {
+      sseWriter.end()
+    }
   }
 }
 

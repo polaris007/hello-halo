@@ -25,15 +25,8 @@ type CanUseToolFn = (
   options: { signal: AbortSignal }
 ) => Promise<PermissionResult>
 
-type SendToRendererFn = (
-  channel: string,
-  spaceId: string,
-  conversationId: string,
-  data: Record<string, unknown>
-) => void
-
 interface CanUseToolDeps {
-  sendToRenderer: SendToRendererFn
+  emitEvent: (eventName: string, data: Record<string, unknown>) => void
   spaceId: string
   conversationId: string
 }
@@ -122,7 +115,7 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
       return { behavior: 'allow' as const, updatedInput: { ...input, answers: {} } }
     }
 
-    const { sendToRenderer, spaceId, conversationId } = deps
+    const { emitEvent, spaceId, conversationId } = deps
     const id = `ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const questions = input.questions as Array<{
       question: string
@@ -153,10 +146,17 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
       }
     })
 
-    // Send questions to renderer via WebSocket
-    sendToRenderer('agent:ask-question', spaceId, conversationId, {
+    // Send questions to renderer via emitEvent (SSE + WebSocket dual channel)
+    emitEvent('agent:ask-question', {
       id,
       questions: questions || []
+    })
+
+    // Send waiting-for-input event
+    emitEvent('agent:waiting-for-input', {
+      inputType: 'question',
+      questionId: id,
+      message: '等待用户回答问题'
     })
 
     try {

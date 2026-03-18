@@ -8,10 +8,10 @@
 
 ## 1. 后端 SSE 基础设施
 
-- [ ] 1.1 创建 `src/server/utils/sse-writer.ts` - SSE 写入器工具类
-- [ ] 1.2 定义 `SseWriter` 接口和 `createSseWriter(res)` 工厂函数
-- [ ] 1.3 实现 SSE 事件格式化（`event:` 和 `data:` 行，双换行分隔）
-- [ ] 1.4 添加单元测试 `tests/unit/sse-writer.test.ts`
+- [x] 1.1 创建 `src/server/utils/sse-writer.ts` - SSE 写入器工具类
+- [x] 1.2 定义 `SseWriter` 接口和 `createSseWriter(res)` 工厂函数
+- [x] 1.3 实现 SSE 事件格式化（`event:` 和 `data:` 行，双换行分隔）
+- [x] 1.4 添加单元测试 `tests/unit/sse-writer.test.ts`
 
 **依赖**: 无
 
@@ -21,10 +21,10 @@
 
 **依赖**: 任务 1 完成
 
-- [ ] 2.1 修改 `ProcessStreamParams` 接口，添加可选参数：
+- [x] 2.1 修改 `ProcessStreamParams` 接口，添加可选参数：
   - `sseWriter?: SseWriter` - SSE 模式（主对话）
   - `onEvent?: (eventName: string, data: any) => void` - 回调模式（automation app）
-- [ ] 2.2 创建 `emitEvent()` 统一事件发送函数，**同时发送到 SSE 和 WebSocket**：
+- [x] 2.2 创建 `emitEvent()` 统一事件发送函数，**同时发送到 SSE 和 WebSocket**：
   ```typescript
   function emitEvent(eventName: string, data: any) {
     // 1. 继续发送到 WebSocket（保持兼容性，过渡期）
@@ -42,12 +42,12 @@
     }
   }
   ```
-- [ ] 2.3 将所有 `sendToRenderer()` 调用替换为 `emitEvent()`
-- [ ] 2.4 处理流完成时的 `sseWriter.end()` 调用（仅 SSE 模式）
-- [ ] 2.5 实现完整的 `errorType` 判断逻辑（rate_limit, auth_failure, interrupted, max_turns, unknown）
-- [ ] 2.6 确保错误事件包含 `errorCode` 字段（如果可用）
-- [ ] 2.7 验证 automation app 兼容性：传入 `onEvent` 回调时正常工作
-- [ ] 2.8 **保留 `broadcastMcpStatus()` 调用不变**（全局事件，仅 WebSocket）
+- [x] 2.3 将所有 `sendToRenderer()` 调用替换为 `emitEvent()`
+- [x] 2.4 处理流完成时的 `sseWriter.end()` 调用（仅 SSE 模式）
+- [x] 2.5 实现完整的 `errorType` 判断逻辑（rate_limit, auth_failure, interrupted, max_turns, unknown）
+- [x] 2.6 确保错误事件包含 `errorCode` 字段（如果可用）
+- [x] 2.7 验证 automation app 兼容性：传入 `onEvent` 回调时正常工作
+- [x] 2.8 **保留 `broadcastMcpStatus()` 调用不变**（全局事件，仅 WebSocket）
 
 ---
 
