@@ -258,9 +258,9 @@
 #### Scenario: 连接断开检测
 - **WHEN** 客户端断开 SSE 连接（关闭标签页、网络断开等）
 - **THEN** 系统通过 `req.on('close')` 检测到连接断开
-- **AND** 从 `activeSSEStreams` 映射中获取对应的 AbortController
-- **AND** 调用 `abortController.abort()` 取消 Agent 任务
-- **AND** 清理映射中的条目
+- **AND** 从 `activeSSEStreams` 映射中获取对应的连接条目
+- **AND** 调用连接条目中的 `controller.abort()` 取消 Agent 任务
+- **AND** 清理映射中的条目（由 finally 块负责）
 
 #### Scenario: 请求取消
 - **WHEN** 用户通过 `POST /api/v1/agent/stop` 取消生成
@@ -271,11 +271,11 @@
 
 #### Scenario: SSE 流映射管理
 - **WHEN** 新 SSE 流开始
-- **THEN** 系统创建新的 AbortController
+- **THEN** 系统创建新的 AbortController 和超时定时器
 - **AND** 若该 conversationId 已有活跃连接，先取消旧连接
-- **AND** 将 `conversationId -> AbortController` 映射存入 `activeSSEStreams`
+- **AND** 将 `conversationId -> { controller, timeoutId }` 映射存入 `activeSSEStreams`
 - **WHEN** SSE 流结束（完成、错误、取消、断开）
-- **THEN** 系统从 `activeSSEStreams` 中删除对应条目
+- **THEN** 系统清理超时定时器并从 `activeSSEStreams` 中删除对应条目
 
 #### Scenario: 连接超时清理
 - **WHEN** SSE 连接持续时间超过 30 分钟
@@ -291,6 +291,19 @@
 - **AND** 设置 `Authorization: Bearer <token>` 头
 - **AND** 通过 `response.body.getReader()` 获取 ReadableStream
 - **AND** 循环读取并解析 SSE 事件
+
+#### Scenario: SSE 断开后不自动重连
+- **WHEN** SSE 连接因网络中断或服务器关闭而断开
+- **THEN** 前端不自动重连（SSE 是有状态的流，无法从中断点恢复）
+- **AND** 前端显示"连接中断"或"响应已中断"提示
+- **AND** 用户可查看已有的部分内容（通过 `GET /api/v1/conversations/:id` 获取）
+- **AND** 用户可选择重新发送消息继续对话
+
+#### Scenario: 部分内容恢复显示
+- **WHEN** 用户打开对话，该对话有 `isPartial: true` 的 assistant message
+- **THEN** 前端显示已生成的部分内容
+- **AND** 前端显示提示"上次响应未完成，可发送消息继续"
+- **AND** 用户发送新消息后，AI 将基于上下文继续处理
 
 #### Scenario: SSE 事件解析
 - **WHEN** 前端接收到 SSE 数据块
@@ -424,70 +437,10 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 - **THEN** 系统通过 SSE 流推送
 - **AND** 不通过 WebSocket 推送
 
-### Requirement: 增量持久化
-系统 SHALL 在 SSE 流式生成过程中实时持久化部分内容，确保连接中断时用户不会丢失已生成的内容。
+### Requirement: 数据库支持增量持久化
+系统 SHALL 在数据库中支持 `isPartial` 字段，用于标记消息是否为部分内容。
 
-#### Scenario: 部分内容持久化
-- **WHEN** SSE 流正在推送文本内容
-- **THEN** 系统每 2 秒更新一次数据库中的 assistant message
-- **AND** 更新内容包括当前累计的 `content` 和 `thoughts`
-- **AND** 消息标记为 `isPartial: true`
-
-#### Scenario: 完成时持久化
-- **WHEN** SSE 流完成（收到 complete 事件或 error 事件）
-- **THEN** 系统更新数据库中的 assistant message
-- **AND** 消息标记为 `isPartial: false`
-- **AND** 包含完整的 tokenUsage
-
-#### Scenario: 连接中断后的内容恢复
-- **WHEN** 用户重新打开对话或发送新消息
-- **AND** 该对话有 `isPartial: true` 的 assistant message
-- **THEN** 前端显示之前已生成的部分内容
-- **AND** 用户可选择发送 "continue" 继续
-
-### Requirement: 双向通信场景处理
-系统 SHALL 正确处理需要用户输入的场景，包括工具审批和 AI 提问。
-
-#### Scenario: 工具审批流程
-- **WHEN** Agent 调用需要审批的工具（如 Bash、Edit、Write）
-- **THEN** SSE 流推送 `event: tool-call` 事件，包含 `requiresApproval: true`
-- **AND** SSE 流推送 `event: waiting-for-input` 事件，`inputType: "tool-approval"`
-- **AND** SSE 流保持打开，等待用户操作
-- **WHEN** 用户调用 `POST /api/v1/agent/approve`
-- **THEN** 系统继续 Agent 执行
-- **AND** SSE 流继续推送后续事件
-- **WHEN** 用户调用 `POST /api/v1/agent/reject`
-- **THEN** 系统取消该工具调用
-- **AND** SSE 流继续推送后续事件（或完成）
-
-#### Scenario: AskUserQuestion 流程
-- **WHEN** Agent 调用 AskUserQuestion 工具
-- **THEN** SSE 流推送 `event: ask-question` 事件，包含问题列表
-- **AND** SSE 流推送 `event: waiting-for-input` 事件，`inputType: "ask-question"`
-- **AND** SSE 流保持打开，等待用户回答
-- **WHEN** 用户调用 `POST /api/v1/agent/answer-question`
-- **THEN** 系统继续 Agent 执行
-- **AND** SSE 流继续推送后续事件
-
-#### Scenario: 用户取消等待状态
-- **WHEN** 用户点击"停止"按钮取消等待中的输入请求
-- **THEN** 系统调用 `abortController.abort()`
-- **AND** SSE 流推送 `event: error` 事件，`errorType: "interrupted"`
-- **AND** SSE 连接关闭
-
-### Requirement: WebSocket 保留功能
-系统 SHALL 保留 WebSocket 用于非 Agent 场景的事件推送。
-
-#### Scenario: 文件变更通知
-- **WHEN** 文件系统发生变更
-- **THEN** 系统通过 WebSocket 推送 `file:change` 事件
-- **AND** 事件包含 `action`（create/update/delete）和 `path`
-
-#### Scenario: 全局广播
-- **WHEN** 系统需要广播全局通知
-- **THEN** 系统通过 WebSocket 的 `broadcastToAll` 推送事件
-
-#### Scenario: Agent 事件不再通过 WebSocket
-- **WHEN** Agent 产生事件（message、thought、tool-call 等）
-- **THEN** 系统通过 SSE 流推送
-- **AND** 不通过 WebSocket 推送
+#### Scenario: 数据库 schema 更新
+- **WHEN** 实现增量持久化功能
+- **THEN** messages 表添加 `is_partial` 字段（BOOLEAN，默认 FALSE）
+- **AND** Message 类型定义添加 `isPartial?: boolean` 字段

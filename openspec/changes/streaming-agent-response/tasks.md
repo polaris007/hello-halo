@@ -21,12 +21,15 @@
 
 **依赖**: 任务 1 完成
 
-- [ ] 2.1 修改 `ProcessStreamParams` 接口，添加 `sseWriter` 参数（必填）
-- [ ] 2.2 创建 `emitEvent()` 统一事件发送函数
+- [ ] 2.1 修改 `ProcessStreamParams` 接口，添加可选参数：
+  - `sseWriter?: SseWriter` - SSE 模式（主对话）
+  - `onEvent?: (eventName: string, data: any) => void` - 回调模式（automation app）
+- [ ] 2.2 创建 `emitEvent()` 统一事件发送函数，支持 SSE 和回调两种模式
 - [ ] 2.3 将所有 `sendToRenderer()` 调用替换为 `emitEvent()`
-- [ ] 2.4 处理流完成时的 `sseWriter.end()` 调用
+- [ ] 2.4 处理流完成时的 `sseWriter.end()` 调用（仅 SSE 模式）
 - [ ] 2.5 实现完整的 `errorType` 判断逻辑（rate_limit, auth_failure, interrupted, max_turns, unknown）
 - [ ] 2.6 确保错误事件包含 `errorCode` 字段（如果可用）
+- [ ] 2.7 验证 automation app 兼容性：传入 `onEvent` 回调时正常工作
 
 ---
 
@@ -43,14 +46,31 @@
 - [ ] 3.3 创建 SSE 写入器并传递给 `sendMessage()`
 - [ ] 3.4 处理连接断开事件（`req.on('close')`）
 - [ ] 3.5 确保认证失败返回 401 JSON（非 SSE 格式）
-- [ ] 3.6 实现 `activeSSEStreams` 映射管理（conversationId -> AbortController）
+- [ ] 3.6 实现 `activeSSEStreams` 映射管理（conversationId -> { controller, timeoutId }）
 - [ ] 3.7 实现并发连接处理：新连接启动时取消该 conversationId 的旧连接
-- [ ] 3.8 实现连接超时清理：连接超过 30 分钟自动取消
+  - 清理旧连接的超时定时器
+  - 调用旧连接的 abort()
+  - 删除旧连接的映射条目
+  - 取消该对话的等待状态
+- [ ] 3.8 实现连接超时清理机制：
+  - [ ] 3.8.1 创建 SSE 流时启动 30 分钟超时定时器
+  - [ ] 3.8.2 超时触发时调用 abort() 和 cancelPendingInput()
+  - [ ] 3.8.3 在 finally 块中清理超时定时器（防止内存泄漏）
 - [ ] 3.9 修改 `POST /api/v1/agent/stop` 端点，从 `activeSSEStreams` 获取并中断流
 - [ ] 3.10 实现增量持久化：在流式生成过程中每 2 秒更新数据库
 - [ ] 3.11 新增 `waiting-for-input` 事件类型，用于通知前端进入等待状态
 - [ ] 3.12 新增 `ask-question` 事件类型，用于 AI 提问场景
-- [ ] 3.13 修改 `/approve`、`/reject`、`/answer-question` 端点以支持继续当前 SSE 流
+- [ ] 3.13 实现双向通信的核心机制：
+  - [ ] 3.13.1 在 `session-manager.ts` 中创建 `pendingInputResolvers` Map
+  - [ ] 3.13.2 实现 `waitForUserInput()` 函数（Promise + 超时机制）
+  - [ ] 3.13.3 实现 `resolveUserInput()` 函数（供 HTTP 端点调用）
+  - [ ] 3.13.4 实现 `cancelPendingInput()` 函数（SSE 断开时调用）
+  - [ ] 3.13.5 实现 `getPendingInput()` 函数（检查等待状态）
+- [ ] 3.14 修改 `/approve` 端点：调用 `resolveUserInput(conversationId, { approved: true })`
+- [ ] 3.15 修改 `/reject` 端点：调用 `resolveUserInput(conversationId, { approved: false })`
+- [ ] 3.16 修改 `/answer-question` 端点：调用 `resolveUserInput(conversationId, { answers })`
+- [ ] 3.17 数据库修改：messages 表新增 `is_partial` 字段（BOOLEAN，默认 FALSE）
+- [ ] 3.18 更新 Message 类型定义，添加 `isPartial?: boolean` 字段
 
 ---
 
@@ -108,7 +128,7 @@
 
 **后端 Agent 相关**：
 - [ ] 7.1 删除 `src/server/services/agent/helpers.ts` 中的 `sendToRenderer` 函数
-- [ ] 7.2 删除 `src/server/services/agent/helpers.ts` 中的 `broadcastToAllClients` 函数
+- [ ] 7.2 保留 `broadcastToAllClients` 函数（用于全局广播）
 - [ ] 7.3 保留 `setWebSocketService` 函数（用于非 Agent 事件）
 
 **后端 WebSocket 服务**：

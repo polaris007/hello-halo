@@ -1,6 +1,6 @@
 ## Why
 
-当前 Agent 消息 API (`POST /api/v1/agent/message`) 采用"fire-and-forget"模式：后端立即返回 JSON 响应 `{ status: "processing" }`，然后通过 WebSocket 异步推送实时事件。虽然代码中有 `pendingSubscriptions` 队列机制来缓冲订阅请求，但仍存在以下问题：
+当前 Agent 消息 API (`POST /api/v1/agent/message`) 采用"fire-and-forget"模式：后端立即返回 JSON 响应 `{ success: true, data: { messageId, conversationId, status: "processing", message: "消息已接收，AI 正在处理中" } }`，然后通过 WebSocket 异步推送实时事件。虽然代码中有 `pendingSubscriptions` 队列机制来缓冲订阅请求，但仍存在以下问题：
 
 **请求与响应分离的复杂性**：
 - HTTP 请求立即返回，实际响应通过 WebSocket 推送，前端需要维护两套通信状态
@@ -32,7 +32,9 @@
    - WebSocket 服务**保留**，但仅用于非 Agent 场景：
      - 文件变更通知（`file:change` 事件）
      - 全局广播（`broadcastToAll`）
-   - Agent 对话相关订阅逻辑（`subscribeToConversation`、`unsubscribeFromConversation`）**移除**
+   - Agent 对话相关订阅逻辑**移除**：
+     - `subscribeToConversation`、`unsubscribeFromConversation` 函数
+     - `conversationSubscriptions` Map（存储对话订阅关系）
    - Agent 事件路由（`agent:event` 消息类型）**移除**
 
 4. **双向通信场景的处理方案**
@@ -58,7 +60,7 @@
 - `src/server/routes/agent.routes.ts` - 路由处理器需要返回 SSE 流
 - `src/server/services/agent/stream-processor.ts` - 使用 SSE Writer 替代 `sendToRenderer`
 - `src/server/services/agent/send-message.ts` - 传递 SSE Writer 给 `processStream`
-- `src/server/services/agent/helpers.ts` - 删除 `sendToRenderer` 函数，保留 WebSocket 服务注册（用于非 Agent 事件）
+- `src/server/services/agent/helpers.ts` - 删除 `sendToRenderer` 函数，保留 `broadcastToAllClients` 函数（用于全局广播）
 - `src/server/utils/sse-writer.ts` - **新增** SSE 写入器工具类
 - `src/server/services/websocket.service.ts` - **保留** 但移除 `broadcastAgentEvent` 函数
 
@@ -99,6 +101,12 @@ Event stream:
 
   event: compact
   data: {"type":"agent:compact","spaceId":"...","conversationId":"...","trigger":"auto","preTokens":12345}
+
+  event: ask-question
+  data: {"type":"agent:ask-question","spaceId":"...","conversationId":"...","id":"...","questions":[...]}
+
+  event: waiting-for-input
+  data: {"type":"agent:waiting-for-input","spaceId":"...","conversationId":"...","inputType":"...","message":"..."}
 
   event: complete
   data: {"type":"agent:complete","spaceId":"...","conversationId":"...","tokenUsage":{...}}
