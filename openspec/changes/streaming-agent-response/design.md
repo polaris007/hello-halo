@@ -35,11 +35,15 @@ WebSocket 推送给已订阅的前端客户端
 2. 前端能够实时接收 thinking、tool_use、text 等事件
 3. 保持 AI 日志记录功能正常工作
 4. 确保错误能通过 SSE 流正确传递给前端
-5. 完全移除 WebSocket 对话相关代码
+5. 采用 SSE + WebSocket 双通道架构：
+   - SSE 负责对话特定事件
+   - WebSocket 负责全局事件（MCP 状态、文件变更等）
+6. 过渡期间 Agent 事件同时发送到两个通道，确保兼容性
 
 **Non-Goals:**
-1. 对话列表功能（独立 change）
-2. 多设备实时同步（未来需求）
+1. 完全移除 WebSocket（保留用于全局事件）
+2. 对话列表功能（独立 change）
+3. 多设备实时同步（未来需求）
 
 ## Decisions
 
@@ -85,9 +89,23 @@ data: {"type":"agent:error","spaceId":"...","conversationId":"...","error":"..."
 
 ### Decision 2: stream-processor.ts 改造
 
-**选择**: 使用 SSE Writer 直接替代 `sendToRenderer()`
+**选择**: SSE + WebSocket 并存模式，`emitEvent()` 同时发送到两个通道
+
+**核心理念**:
+1. **渐进式迁移**: 过渡期间，Agent 事件同时发送到 SSE 和 WebSocket，确保兼容性
+2. **职责分离**: SSE 负责对话特定事件，WebSocket 负责全局事件
+3. **平滑过渡**: 前端可以逐步切换到 SSE，无需一次性全部改动
+
+**架构分层**:
+
+| 事件类型 | 传输方式 | 处理函数 | 说明 |
+|---------|---------|---------|------|
+| Agent 对话事件 | SSE + WebSocket | `emitEvent()` | 同时发送到两个通道（过渡期） |
+| 全局事件（MCP 状态） | 仅 WebSocket | `broadcastToAllClients()` | 广播给所有客户端 |
+| 文件变更通知 | 仅 WebSocket | `sendFileChangeEvent()` | 文件系统监控 |
 
 **改造方式**:
+
 ```typescript
 // ProcessStreamParams 新增参数
 interface ProcessStreamParams {
@@ -108,20 +126,23 @@ interface SseWriter {
 
 // processStream 内部
 function processStream(params: ProcessStreamParams) {
-  const { sseWriter, onEvent, spaceId, conversationId, ... } = params
+  const { sseWriter, onEvent, spaceId, conversationId, sendToRenderer, ... } = params
 
-  // 统一的事件发送函数（支持 SSE 和回调两种模式）
+  // 统一的事件发送函数（同时发送到 SSE 和 WebSocket）
   const emitEvent = (eventName: string, data: any) => {
     const eventData = { ...data, spaceId, conversationId }
 
+    // 1. 继续发送到 WebSocket（保持兼容性，过渡期）
+    sendToRenderer(eventName, spaceId, conversationId, eventData)
+
+    // 2. 如果有 sseWriter，也发送到 SSE
     if (sseWriter) {
-      // SSE 模式：写入 SSE 流
       const sseEventName = eventName.replace('agent:', '')
       sseWriter.writeEvent(sseEventName, eventData)
     }
 
+    // 3. 如果有 onEvent 回调，也调用回调（automation app）
     if (onEvent) {
-      // 回调模式：调用回调函数（用于 automation app）
       onEvent(eventName, eventData)
     }
   }
@@ -130,6 +151,33 @@ function processStream(params: ProcessStreamParams) {
   emitEvent('agent:message', { type: 'message', content: '...', isStreaming: true })
 }
 ```
+
+**全局事件特殊处理**:
+
+`stream-processor.ts` 中有 `broadcastMcpStatus()` 调用，这是全局事件，仅通过 WebSocket 广播：
+
+```typescript
+// stream-processor.ts 中保持不变
+broadcastMcpStatus(mcpServers)  // 仅 WebSocket，不发送到 SSE
+```
+
+**sendToRenderer 调用点分类**:
+
+`stream-processor.ts` 中的 `sendToRenderer` 调用，按事件类型分类：
+
+| 事件名称 | 调用次数 | 改造方式 |
+|---------|---------|---------|
+| `agent:message` | 4 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:thought` | 4 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:thought-delta` | 5 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:tool-call` | 2 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:tool-result` | 2 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:error` | 2 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:compact` | 1 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:complete` | 1 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:ask-question` | 1 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `agent:waiting-for-input` | 1 | 改用 `emitEvent()`（SSE + WebSocket） |
+| `broadcastMcpStatus` | 1 | 保持不变（仅 WebSocket） |
 
 ### Decision 3: 前端消费方式
 
@@ -335,59 +383,45 @@ const getErrorType = (
 
 **选择**: 维护全局 `activeSSEStreams` 映射，使用 `try-finally` 模式确保资源释放
 
+> **注意**: `activeSSEStreams` 的详细生命周期管理见 Decision 14（SSE 连接与 V2 Session 生命周期协调）。
+> 本节描述 agent.routes.ts 中的简化用法，Decision 14 描述 session-manager.ts 中的统一管理。
+
 **责任边界设计**:
 - **`req.on('close')` 回调**: 只负责 `abort()`，不负责删除映射
 - **`finally` 块**: 只负责删除映射和清理等待状态，不重复 abort（abort 是幂等的，重复调用无害）
 - **超时定时器**: 在创建 SSE 流时启动，在 `finally` 块中清理
 
-**实现**:
+**agent.routes.ts 简化实现**（生命周期协调移到 session-manager.ts）:
 ```typescript
-// 在 agent routes 中维护
-const activeSSEStreams = new Map<string, {
-  controller: AbortController
-  timeoutId: NodeJS.Timeout
-}>()
-
-const SSE_TIMEOUT_MS = 30 * 60 * 1000 // 30 分钟
+import {
+  registerSSEStream,
+  unregisterSSEStream,
+  cancelPendingInput
+} from '../services/agent/session-manager'
 
 // POST /api/v1/agent/message 处理
 router.post('/message', async (req, res) => {
   const { conversationId } = req.body
-
-  // 1. 取消该 conversationId 的旧连接（如果有）
-  const existing = activeSSEStreams.get(conversationId)
-  if (existing) {
-    clearTimeout(existing.timeoutId)
-    existing.controller.abort()
-    activeSSEStreams.delete(conversationId)
-    sessionManager.cancelPendingInput(conversationId)
-  }
-
-  // 2. 创建新的 AbortController 和超时定时器
   const abortController = new AbortController()
-  const timeoutId = setTimeout(() => {
-    abortController.abort()
-    sessionManager.cancelPendingInput(conversationId)
-    console.log(`[Agent] Connection timeout: ${conversationId}`)
-  }, SSE_TIMEOUT_MS)
 
-  activeSSEStreams.set(conversationId, { controller: abortController, timeoutId })
+  // 1. 注册 SSE 连接（包含超时定时器设置和 V2 Session 同步）
+  registerSSEStream(conversationId, sseWriter, abortController)
 
   try {
-    // 3. 设置 SSE headers
+    // 2. 设置 SSE headers
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.setHeader('X-Accel-Buffering', 'no')
     res.flushHeaders()
 
-    // 4. 监听连接断开 - 只负责 abort，不负责删除
+    // 3. 监听连接断开 - 只负责 abort，不负责删除
     req.on('close', () => {
       abortController.abort()
-      sessionManager.cancelPendingInput(conversationId)
+      cancelPendingInput(conversationId)
     })
 
-    // 5. 创建 SSE Writer 并执行 Agent
+    // 4. 创建 SSE Writer 并执行 Agent
     const sseWriter = createSseWriter(res)
     await sendMessage({
       conversationId,
@@ -402,12 +436,8 @@ router.post('/message', async (req, res) => {
       res.status(500).json({ error: error.message })
     }
   } finally {
-    // 6. 清理超时定时器和映射
-    const entry = activeSSEStreams.get(conversationId)
-    if (entry) {
-      clearTimeout(entry.timeoutId)
-    }
-    activeSSEStreams.delete(conversationId)
+    // 5. 注销 SSE 连接（清理超时定时器和同步 V2 Session 状态）
+    unregisterSSEStream(conversationId)
   }
 })
 
@@ -416,8 +446,8 @@ router.post('/stop', async (req, res) => {
   const { conversationId } = req.body
   const entry = activeSSEStreams.get(conversationId)
   if (entry) {
-    entry.controller.abort()
-    sessionManager.cancelPendingInput(conversationId)
+    entry.abortController.abort()
+    cancelPendingInput(conversationId)
     // 注意：不要在这里删除或清理定时器，让 finally 块处理
   }
   res.json({ success: true })
@@ -456,31 +486,271 @@ req.on('close', () => {
 
 ### Decision 7: 工具审批（Tool Approval）处理
 
+> **重要说明**：工具审批是**新功能开发**，而非功能迁移。
+> 当前代码使用 `permissionMode: 'bypassPermissions'` 跳过所有权限检查，
+> `approveTool` 和 `rejectTool` 函数是空实现（TODO）。
+
 **问题**: SSE 是单向通信，如何处理需要用户审批的工具调用？
 
-**选择**: SSE 流保持打开，发送等待事件，用户通过独立 HTTP 端点提交审批结果
+**选择**: 修改 SDK 权限模式，在 `createCanUseTool` 回调中实现工具审批逻辑
+
+**现状分析**:
+
+当前 `permission-handler.ts` 的实现：
+```typescript
+// 当前代码：只处理 AskUserQuestion，其他工具全部 auto-allow
+export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
+  return async (toolName, input, options) => {
+    // Non-AskUserQuestion tools: auto-allow
+    if (toolName !== 'AskUserQuestion') {
+      return { behavior: 'allow', updatedInput: input }
+    }
+    // AskUserQuestion: 暂停等待用户回答...
+  }
+}
+```
+
+当前 `index.ts` 的空实现：
+```typescript
+export async function approveTool(conversationId: string, toolId?: string): Promise<void> {
+  // TODO: Implement tool approval logic
+  console.log(`[Agent] Tool approved: ${conversationId}, ${toolId}`)
+}
+```
+
+**改造方案**:
+
+1. **修改 SDK 权限模式**（`sdk-config.ts`）：
+```typescript
+// 从 bypassPermissions 改为 default（启用权限检查）
+permissionMode: 'default' as const,  // 不再是 'bypassPermissions'
+```
+
+2. **扩展 `createCanUseTool` 回调**（`permission-handler.ts`）：
+```typescript
+// 需要审批的工具列表
+const TOOLS_REQUIRING_APPROVAL = ['Bash', 'Edit', 'Write', 'NotebookEdit']
+
+export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
+  return async (toolName, input, options) => {
+    // AskUserQuestion: 保持现有逻辑
+    if (toolName === 'AskUserQuestion') {
+      return handleAskQuestion(deps, input, options)
+    }
+
+    // 工具审批：检查是否需要审批
+    if (TOOLS_REQUIRING_APPROVAL.includes(toolName)) {
+      return handleToolApproval(deps, toolName, input, options)
+    }
+
+    // 其他工具：auto-allow
+    return { behavior: 'allow', updatedInput: input }
+  }
+}
+
+// 工具审批处理函数
+async function handleToolApproval(
+  deps: CanUseToolDeps | undefined,
+  toolName: string,
+  input: Record<string, unknown>,
+  options: { signal: AbortSignal }
+): Promise<PermissionResult> {
+  if (!deps) {
+    return { behavior: 'allow', updatedInput: input }
+  }
+
+  const { sendToRenderer, spaceId, conversationId } = deps
+  const toolCallId = `tool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+  // 1. 发送 tool-call 事件（包含 requiresApproval 标志）
+  sendToRenderer('agent:tool-call', spaceId, conversationId, {
+    id: toolCallId,
+    name: toolName,
+    input,
+    status: 'pending',
+    requiresApproval: true
+  })
+
+  // 2. 发送 waiting-for-input 事件
+  sendToRenderer('agent:waiting-for-input', spaceId, conversationId, {
+    inputType: 'tool-approval',
+    toolCallId,
+    toolName,
+    message: `等待审批工具调用: ${toolName}`
+  })
+
+  // 3. 等待用户审批（通过 pendingInputResolvers）
+  try {
+    const result = await waitForUserInput(
+      conversationId,
+      'tool-approval',
+      { toolCallId },
+      options.signal
+    )
+
+    if (result.approved) {
+      return { behavior: 'allow', updatedInput: input }
+    } else {
+      return { behavior: 'deny', updatedInput: input }
+    }
+  } catch (error) {
+    // 超时或取消
+    return { behavior: 'deny', updatedInput: input }
+  }
+}
+```
+
+3. **整合 `pendingInputResolvers` 机制**（`session-manager.ts`）：
+
+现有的 `pendingQuestions` Map（在 `permission-handler.ts` 中）处理 AskUserQuestion，
+新增 `pendingInputResolvers` Map（在 `session-manager.ts` 中）处理工具审批。
+
+```typescript
+// session-manager.ts 中新增
+const pendingInputResolvers = new Map<string, {
+  resolve: (value: { approved?: boolean; answers?: Record<string, string> }) => void
+  reject: (reason: any) => void
+  inputType: 'tool-approval' | 'ask-question'
+  createdAt: number
+  timeoutId?: NodeJS.Timeout
+}>()
+
+// 等待用户输入（支持超时和取消）
+export async function waitForUserInput(
+  conversationId: string,
+  inputType: 'tool-approval' | 'ask-question',
+  metadata: { toolCallId?: string; questionId?: string },
+  signal?: AbortSignal,
+  timeoutMs: number = 5 * 60 * 1000
+): Promise<{ approved?: boolean; answers?: Record<string, string> }> {
+  return new Promise((resolve, reject) => {
+    // 设置超时
+    const timeoutId = setTimeout(() => {
+      pendingInputResolvers.delete(conversationId)
+      reject(new Error('User input timeout'))
+    }, timeoutMs)
+
+    // 存储解析器
+    pendingInputResolvers.set(conversationId, {
+      resolve: (value) => {
+        clearTimeout(timeoutId)
+        pendingInputResolvers.delete(conversationId)
+        resolve(value)
+      },
+      reject: (reason) => {
+        clearTimeout(timeoutId)
+        pendingInputResolvers.delete(conversationId)
+        reject(reason)
+      },
+      inputType,
+      createdAt: Date.now(),
+      timeoutId
+    })
+
+    // 监听 abort 信号
+    if (signal) {
+      const onAbort = () => {
+        const entry = pendingInputResolvers.get(conversationId)
+        if (entry) {
+          entry.reject(new Error('Aborted'))
+        }
+      }
+      if (signal.aborted) {
+        onAbort()
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true })
+      }
+    }
+  })
+}
+
+// 供 HTTP 端点调用
+export function resolveUserInput(
+  conversationId: string,
+  result: { approved?: boolean; answers?: Record<string, string> }
+): boolean {
+  const pending = pendingInputResolvers.get(conversationId)
+  if (pending) {
+    pending.resolve(result)
+    return true
+  }
+  return false
+}
+
+// SSE 连接断开或 stop 时清理
+export function cancelPendingInput(conversationId: string) {
+  const pending = pendingInputResolvers.get(conversationId)
+  if (pending) {
+    pending.reject(new Error('SSE connection closed'))
+    pendingInputResolvers.delete(conversationId)
+  }
+}
+```
+
+4. **实现 HTTP 端点**（`agent.routes.ts`）：
+```typescript
+// 批准工具调用
+router.post('/approve', async (req, res) => {
+  const { conversationId, toolId } = req.body
+  const resolved = resolveUserInput(conversationId, { approved: true })
+  if (resolved) {
+    res.json({ success: true, message: 'Tool approved, SSE stream continues' })
+  } else {
+    res.status(404).json({ error: 'No pending approval for this conversation' })
+  }
+})
+
+// 拒绝工具调用
+router.post('/reject', async (req, res) => {
+  const { conversationId, toolId } = req.body
+  const resolved = resolveUserInput(conversationId, { approved: false })
+  if (resolved) {
+    res.json({ success: true, message: 'Tool rejected, SSE stream continues' })
+  } else {
+    res.status(404).json({ error: 'No pending approval for this conversation' })
+  }
+})
+```
 
 **流程**:
 ```
-1. Agent 调用需要审批的工具（如 Bash、Edit）
-2. SSE 流发送 event: tool-call，包含 requiresApproval: true
-3. SSE 流发送 event: waiting-for-input，type: "tool-approval"
-4. SSE 流暂停（不关闭），等待用户操作
-5. 用户点击"批准"或"拒绝"
-6. 前端调用 POST /api/v1/agent/approve 或 /reject
-7. 后端收到请求后，继续 Agent 执行
-8. SSE 流继续推送后续事件
+1. SDK 调用需要审批的工具（如 Bash）
+2. SDK 通过 canUseTool 回调询问权限
+3. createCanUseTool 发送 tool-call 事件（requiresApproval: true）
+4. createCanUseTool 发送 waiting-for-input 事件
+5. createCanUseTool 调用 waitForUserInput() 等待
+6. 用户点击"批准"或"拒绝"
+7. 前端调用 POST /api/v1/agent/approve 或 /reject
+8. HTTP 端点调用 resolveUserInput()
+9. waitForUserInput() Promise 解析
+10. canUseTool 返回 { behavior: 'allow' | 'deny' }
+11. SDK 继续或取消工具执行
+12. SSE 流继续推送后续事件
 ```
 
 **新事件格式**:
 ```typescript
+// event: tool-call（需要审批时）
+{
+  "type": "agent:tool-call",
+  "spaceId": "space-xxx",
+  "conversationId": "conv-xxx",
+  "id": "tool-xxx",
+  "name": "Bash",
+  "input": { "command": "rm -rf /" },
+  "status": "pending",
+  "requiresApproval": true
+}
+
 // event: waiting-for-input
 {
-  "type": "waiting-for-input",
+  "type": "agent:waiting-for-input",
+  "spaceId": "space-xxx",
+  "conversationId": "conv-xxx",
   "inputType": "tool-approval",
   "toolCallId": "tool-xxx",
   "toolName": "Bash",
-  "message": "等待审批工具调用"
+  "message": "等待审批工具调用: Bash"
 }
 ```
 
@@ -594,35 +864,83 @@ router.post('/reject', async (req, res) => {
 
 **问题**: AskUserQuestion 工具需要用户回答问题，如何处理？
 
-**选择**: 与工具审批类似的机制，复用 `pendingInputResolvers` 映射
+**现状分析**:
+- `AskUserQuestion` 是 `@anthropic-ai/claude-agent-sdk` 的**内置工具**
+- `permission-handler.ts` 已有完整实现：
+  - `pendingQuestions` Map 管理等待回答的问题
+  - `resolveQuestion()` 函数供 HTTP 端点调用
+  - `rejectQuestion()` 函数处理取消场景
+- `agent.routes.ts` 已有 `/answer-question` 端点
+
+**选择**: 保留现有实现，修改为使用 `emitEvent` 支持 SSE 双通道
+
+**需要的修改**:
+```typescript
+// permission-handler.ts - 修改 CanUseToolDeps 接口
+interface CanUseToolDeps {
+  emitEvent: (eventName: string, data: any) => void  // 改用 emitEvent
+  spaceId: string
+  conversationId: string
+}
+
+// permission-handler.ts - 修改发送逻辑
+export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
+  return async (toolName, input, options) => {
+    if (toolName !== 'AskUserQuestion') {
+      return { behavior: 'allow', updatedInput: input }
+    }
+
+    // ... 创建 answersPromise ...
+
+    // 修改：使用 emitEvent 发送事件（支持 SSE + WebSocket 双通道）
+    // 1. 发送 ask-question 事件
+    emitEvent('agent:ask-question', {
+      id,
+      questions: questions || []
+    })
+
+    // 2. 发送 waiting-for-input 事件
+    emitEvent('agent:waiting-for-input', {
+      type: 'question',
+      questionId: id
+    })
+
+    // 3. 等待用户回答
+    const answers = await answersPromise
+    return { behavior: 'allow', updatedInput: { ...input, answers } }
+  }
+}
+```
 
 **流程**:
 ```
-1. Agent 调用 AskUserQuestion 工具
-2. SSE 流发送 event: ask-question，包含问题列表
-3. SSE 流发送 event: waiting-for-input，type: "ask-question"
-4. SSE 流暂停（不关闭），等待用户回答
-5. 用户填写答案并提交
-6. 前端调用 POST /api/v1/agent/answer-question
-7. 后端收到答案后，继续 Agent 执行
-8. SSE 流继续推送后续事件
+1. Agent 调用 AskUserQuestion 工具（SDK 内置）
+2. permission-handler.ts 拦截，创建 pendingQuestions 条目
+3. 发送 agent:ask-question 事件（SSE + WebSocket 双通道）
+4. 发送 agent:waiting-for-input 事件（SSE + WebSocket 双通道）
+5. SSE 流暂停（Promise await），等待用户回答
+6. 用户填写答案并提交
+7. 前端调用 POST /api/v1/agent/answer-question
+8. 后端调用 resolveQuestion() 解析 Promise
+9. Agent 继续执行
+10. SSE 流继续推送后续事件
 ```
 
-**新事件格式**:
+**事件格式**:
 ```typescript
 // event: ask-question
 {
   "type": "ask-question",
-  "id": "question-xxx",
+  "id": "ask-xxx",
   "questions": [
     {
-      "key": "framework",
       "question": "使用哪个前端框架？",
       "header": "Framework",
       "options": [
         { "label": "React", "description": "组件化框架" },
         { "label": "Vue", "description": "渐进式框架" }
-      ]
+      ],
+      "multiSelect": false
     }
   ]
 }
@@ -630,87 +948,202 @@ router.post('/reject', async (req, res) => {
 // event: waiting-for-input
 {
   "type": "waiting-for-input",
-  "inputType": "ask-question",
-  "questionId": "question-xxx",
+  "inputType": "question",
+  "questionId": "ask-xxx",
   "message": "等待用户回答问题"
 }
 ```
 
-**HTTP 端点修改**:
+**HTTP 端点保持不变**:
 ```typescript
-// agent.routes.ts
+// agent.routes.ts - 现有实现无需修改
 router.post('/answer-question', async (req, res) => {
   const { conversationId, id, answers } = req.body
-
-  // 查找并解析等待中的 SSE 流
-  const resolved = sessionManager.resolveUserInput(conversationId, { answers })
-
-  if (resolved) {
-    res.json({ success: true, message: 'Answers submitted, SSE stream continues' })
-  } else {
-    res.status(404).json({ error: 'No pending question for this conversation' })
-  }
+  await agentService.answerQuestion(conversationId, id, answers)
+  // resolveQuestion() 在 agentService.answerQuestion() 内部调用
 })
 ```
 
 **实现要点**:
-1. 复用 Decision 7 中的 `pendingInputResolvers` 机制
-2. 复用现有的 `handleAskQuestion` 和 `answerQuestion` 逻辑
-3. 前端 `chat.store.ts` 设置 `pendingQuestion` 状态
+1. 修改 `CanUseToolDeps` 接口，用 `emitEvent` 替代 `sendToRenderer`
+2. 在发送 `agent:ask-question` 后立即发送 `agent:waiting-for-input`
+3. 保留现有 `pendingQuestions` Map 机制
+4. `emitEvent` 从 `stream-processor.ts` 传入 `createCanUseTool()`
 
 ### Decision 9: 增量持久化
 
 **问题**: SSE 连接中断时，已生成的部分内容如何保留？
 
-**选择**: 在流式生成过程中实时更新数据库中的 assistant message
+**选择**: 在流式生成过程中，通过事件驱动触发增量持久化（非定时器）
 
-**实现**:
+**核心理念**:
+1. **不使用定时器**: 避免定时器与 `for await...of` 流循环的协调问题
+2. **事件驱动触发**: 在有意义的内容节点持久化，而非盲目按时间
+3. **错误隔离**: 增量持久化失败不中断主流程，只记录警告
+4. **与 onComplete 协调**: 最后一次增量持久化后，再调用 onComplete 做最终处理
+
+**架构设计**:
+
 ```typescript
-// stream-processor.ts 中定期更新数据库
-const PERSIST_INTERVAL_MS = 2000 // 每 2 秒持久化一次
-let lastPersistTime = Date.now()
-
-// 在 text delta 处理中
-if (Date.now() - lastPersistTime > PERSIST_INTERVAL_MS) {
-  await updateAssistantMessage(conversationId, {
-    content: currentStreamingText,
-    thoughts: sessionState.thoughts,
-    isPartial: true // 标记为部分内容
-  })
-  lastPersistTime = Date.now()
+// 1. 在 StreamCallbacks 中添加增量持久化回调
+export interface StreamCallbacks {
+  onComplete(result: StreamResult): void
+  onRawMessage?(sdkMessage: any): void
+  onIncrementalPersist?(finalContent: string, thoughts: Thought[]): void  // 新增
 }
+
+// 2. 在 stream-processor.ts 内部实现
+function processStream(params: ProcessStreamParams) {
+  const { callbacks, ... } = params
+
+  // 状态
+  let lastPersistTime = 0
+  const MIN_PERSIST_INTERVAL_MS = 1000  // 最少间隔 1 秒，避免高频写入
+
+  // 增量持久化辅助函数
+  function tryIncrementalPersist() {
+    const now = Date.now()
+    if (now - lastPersistTime < MIN_PERSIST_INTERVAL_MS) return
+
+    try {
+      if (callbacks.onIncrementalPersist) {
+        callbacks.onIncrementalPersist(finalContent, [...sessionState.thoughts])
+        lastPersistTime = now
+      }
+    } catch (error) {
+      console.warn('[Agent] Incremental persist failed, will retry later:', error)
+      // 不抛出错误，继续流处理
+    }
+  }
+
+  // 判断是否为好的持久化时机
+  function shouldTryPersist(sdkMessage: any): boolean {
+    // text 块结束（用户可见内容增加）
+    if (sdkMessage.type === 'content_block_stop' && currentBlockType === 'text') {
+      return true
+    }
+    // tool_result 完成
+    if (sdkMessage.type === 'tool_result') {
+      return true
+    }
+    // thinking 累积超过阈值
+    if (currentThinkingLength > 500) {
+      return true
+    }
+    return false
+  }
+
+  // 流处理循环
+  try {
+    for await (const sdkMessage of queryIterator) {
+      // 处理消息...
+
+      // 在关键节点尝试增量持久化
+      if (shouldTryPersist(sdkMessage)) {
+        tryIncrementalPersist()
+      }
+    }
+  } finally {
+    // 流结束时，最后一次增量持久化
+    try {
+      if (callbacks.onIncrementalPersist) {
+        callbacks.onIncrementalPersist(finalContent, [...sessionState.thoughts])
+      }
+    } catch (error) {
+      console.warn('[Agent] Final incremental persist failed:', error)
+    }
+
+    // 然后调用 onComplete 进行最终持久化
+    callbacks.onComplete(result)
+  }
+}
+
+// 3. 在 send-message.ts 中实现回调
+await processStream({
+  callbacks: {
+    onComplete: (streamResult) => {
+      // 最终持久化（isPartial: false）
+      const { finalContent, thoughts, tokenUsage, hasErrorThought, errorThought } = streamResult
+      if (finalContent || hasErrorThought) {
+        updateAssistantMessage(conversationId, {
+          content: finalContent,
+          thoughts: thoughts.length > 0 ? [...thoughts] : undefined,
+          tokenUsage: tokenUsage || undefined,
+          error: errorThought?.content,
+          isPartial: false  // 最终持久化标记为完整
+        })
+      }
+    },
+    onIncrementalPersist: (finalContent, thoughts) => {
+      // 增量持久化（isPartial: true）
+      updateAssistantMessage(conversationId, {
+        content: finalContent,
+        thoughts: [...thoughts],
+        isPartial: true  // 标记为部分内容
+      })
+    }
+  }
+})
 ```
 
+**持久化触发点**:
+
+| 触发点 | 说明 | 优先级 |
+|--------|------|--------|
+| 完整 text 块后 | 用户可见内容增加 | 高 |
+| tool_result 后 | 工具执行结果 | 中 |
+| thinking 块累积超过 500 字符 | 思考过程记录 | 低 |
+| 流结束前（finally） | 确保最后一次状态 | 必须 |
+
 **注意事项**:
-1. 持久化频率不宜过高，避免数据库压力
-2. `isPartial` 标记帮助前端区分部分内容和完整内容
-3. 流完成时设置 `isPartial: false`
-4. 用户重试时，可看到之前的部分内容
+1. 增量持久化失败不中断流，只记录警告
+2. 频率限制：最少间隔 1 秒，避免高频 text 块导致过多数据库写入
+3. `isPartial` 标记帮助前端区分部分内容和完整内容
+4. 流完成时调用 onComplete 设置 `isPartial: false`
+5. 用户重试时，可看到之前的部分内容
 
-### Decision 10: WebSocket 保留范围
+### Decision 10: SSE + WebSocket 双通道架构
 
-**选择**: WebSocket 服务保留，但仅用于非 Agent 场景
+**选择**: WebSocket 服务保留，与 SSE 并存
+
+**架构设计**:
+- **SSE 通道**: 对话特定事件（每个连接独立）
+- **WebSocket 通道**: 全局事件 + Agent 事件（过渡期双通道）
+
+**通道分配**:
+
+| 事件类型 | SSE 通道 | WebSocket 通道 | 说明 |
+|---------|---------|----------------|------|
+| `agent:message` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:thought` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:tool-call` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:complete` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:error` | ✓ | ✓ | 对话事件，双通道 |
+| `mcp:status` | ✗ | ✓ | 全局事件，仅 WebSocket |
+| `file:change` | ✗ | ✓ | 全局事件，仅 WebSocket |
+| `broadcastToAll` | ✗ | ✓ | 全局事件，仅 WebSocket |
 
 **保留的功能**:
 | 功能 | 消息类型 | 说明 |
 |------|---------|------|
 | 文件变更通知 | `file:change` | 监控文件系统变化 |
 | 全局广播 | `broadcastToAll` | 系统级通知 |
+| MCP 状态广播 | `mcp:status` | MCP 服务器状态变更 |
+| Agent 事件推送 | `agent:*` | 过渡期双通道 |
 
 **移除的功能**:
 | 功能 | 消息类型 | 原因 |
 |------|---------|------|
-| Agent 事件推送 | `agent:event` | 改用 SSE |
-| 对话订阅 | `subscribe`/`unsubscribe` | 不再需要 |
+| 对话订阅 | `subscribe`/`unsubscribe` | SSE 无需订阅 |
 
 **代码修改**:
 ```typescript
 // websocket.service.ts - 保留
 export function sendFileChangeEvent(userId: string, action: string, path: string) { ... }
 export function broadcastToAll(event: any) { ... }
+export function broadcastAgentEvent(eventType: string, data: any) { ... }  // 保留（双通道需要）
 
 // websocket.service.ts - 删除
-export function broadcastAgentEvent(eventType: string, data: any) { ... }
 // conversationSubscriptions 相关逻辑
 
 // transport.ts - 保留
@@ -719,7 +1152,6 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
 // transport.ts - 删除
 export function subscribeToConversation(conversationId: string): void { ... }
 export function unsubscribeFromConversation(conversationId: string): void { ... }
-// Agent 事件监听相关代码
 ```
 
 ### Decision 11: Automation App 兼容性
@@ -743,20 +1175,23 @@ interface ProcessStreamParams {
 
 // processStream 内部统一事件发送
 function processStream(params: ProcessStreamParams) {
-  const { sseWriter, onEvent, spaceId, conversationId, ... } = params
+  const { sseWriter, onEvent, spaceId, conversationId, sendToRenderer, ... } = params
 
-  // 统一的事件发送函数
+  // 统一的事件发送函数（双通道 + 回调）
   const emitEvent = (eventName: string, data: any) => {
     const eventData = { ...data, spaceId, conversationId }
 
+    // 1. 发送到 WebSocket（双通道架构）
+    sendToRenderer(eventName, spaceId, conversationId, eventData)
+
+    // 2. 发送到 SSE（如果提供）
     if (sseWriter) {
-      // SSE 模式：写入 SSE 流
       const sseEventName = eventName.replace('agent:', '')
       sseWriter.writeEvent(sseEventName, eventData)
     }
 
+    // 3. 调用回调（automation app）
     if (onEvent) {
-      // 回调模式：调用回调函数
       onEvent(eventName, eventData)
     }
   }
@@ -795,20 +1230,16 @@ await processStream({
 
 **问题**: 增量持久化需要数据库支持 `isPartial` 字段
 
-**选择**: 在 messages 表添加 `is_partial` 字段
+**选择**: 将 `isPartial` 作为 JSON 对象的属性存储在每条消息内部
 
-**数据库迁移**:
-```sql
--- 新增字段
-ALTER TABLE messages ADD COLUMN is_partial BOOLEAN DEFAULT FALSE;
-
--- 索引优化（可选，用于查询未完成的消息）
-CREATE INDEX idx_messages_partial ON messages(is_partial) WHERE is_partial = TRUE;
-```
+**理由**:
+1. 当前消息以 JSON 数组形式存储在 `conversations` 表的 `messages` 字段中
+2. 无需数据库架构重构，只需更新数据操作逻辑
+3. 与现有存储模式一致，改动最小
 
 **Message 类型更新**:
 ```typescript
-// shared/types.ts
+// shared/types.ts - Message 接口新增字段
 interface Message {
   id: string
   conversationId: string
@@ -820,12 +1251,61 @@ interface Message {
   createdAt: string
   updatedAt: string
 }
+
+// 数据库存储示例（conversations.messages JSON 数组中的 assistant message）
+{
+  "id": "msg-xxx",
+  "role": "assistant",
+  "content": "已生成的部分文本...",
+  "thoughts": [...],
+  "isPartial": true,  // 存储在 JSON 对象内部
+  "timestamp": 1709123456789
+}
+```
+
+**数据操作修改**:
+```typescript
+// send-message.ts 中的 updateAssistantMessage 函数
+function updateAssistantMessage(conversationId: string, update: {
+  content?: string
+  thoughts?: any[]
+  tokenUsage?: any
+  error?: string
+  isPartial?: boolean  // 新增参数
+}) {
+  try {
+    const db = getDatabase()
+    const conversation = db.prepare('SELECT * FROM conversations WHERE id = ?').get(conversationId) as any
+    if (!conversation) return
+
+    const messages = JSON.parse(conversation.messages || '[]')
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage && lastMessage.role === 'assistant') {
+      lastMessage.content = update.content || ''
+      if (update.thoughts) lastMessage.thoughts = update.thoughts
+      if (update.tokenUsage) lastMessage.tokenUsage = update.tokenUsage
+      if (update.error) lastMessage.error = update.error
+      if (update.isPartial !== undefined) lastMessage.isPartial = update.isPartial  // 更新 isPartial
+      lastMessage.timestamp = Date.now()
+    }
+
+    db.prepare('UPDATE conversations SET messages = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(messages), Date.now(), conversationId)
+  } catch (error) {
+    console.error('[Agent] Failed to update assistant message:', error)
+  }
+}
 ```
 
 **持久化时机**:
 1. **流式生成期间**: 每 2 秒更新一次，`isPartial: true`
 2. **流完成时**: 最终更新，`isPartial: false`
 3. **流中断时**: 保留当前内容，`isPartial: true`（用户可看到部分内容）
+
+**注意事项**:
+- 无需数据库迁移脚本
+- 前端读取对话历史时，需检查 `isPartial` 字段并显示相应提示
+- 旧消息默认 `isPartial: false`（字段不存在时视为完整消息）
 
 ### Decision 13: 错误场景处理
 
@@ -860,7 +1340,255 @@ Decision 5 检查旧连接
 - `pendingInputResolvers` 设置 5 分钟超时
 - 超时后 reject Promise，Agent 收到错误
 
-### Decision 14: 多进程部署限制
+### Decision 14: SSE 连接与 V2 Session 生命周期协调
+
+**问题**: SSE 连接超时与 V2 SDK Session 超时需要协调，两者都使用 30 分钟超时，但 Proposal 没有说明如何同步。
+
+**现状分析**:
+
+`session-manager.ts` 已有：
+- `v2Sessions` Map - V2 SDK 会话
+- `activeSessions` Map - 请求中的会话状态
+- `SESSION_TIMEOUT_MS = 30 * 60 * 1000` - 30 分钟超时
+- `cleanupStaleSessions()` - 每 5 分钟清理一次
+
+Proposal 新增：
+- `activeSSEStreams` Map - SSE 连接（在 agent.routes.ts 中）
+- `pendingInputResolvers` Map - 等待输入状态
+
+**选择**: 扩展现有 `session-manager.ts`，统一管理生命周期
+
+**理由**:
+1. SSE 连接与 Session 生命周期紧密绑定
+2. 共享 AbortController 更直接
+3. 避免多个文件间的同步问题
+
+**设计方案**:
+
+```typescript
+// types.ts - 扩展 SessionState 和 V2SessionInfo
+export interface SessionState {
+  abortController: AbortController
+  spaceId: string
+  conversationId: string
+  thoughts: Thought[]
+  isGenerating: boolean
+  sseConnectedAt?: number      // 新增：SSE 连接建立时间
+  lastActivityAt?: number      // 新增：最后活动时间
+}
+
+export interface V2SessionInfo {
+  session: V2SDKSession
+  spaceId: string
+  conversationId: string
+  createdAt: number
+  lastUsedAt: number
+  config: SessionConfig
+  credentialsGeneration: number
+  isSSEActive?: boolean        // 新增：是否有活跃的 SSE 连接
+}
+
+// session-manager.ts - 新增 SSE 连接管理
+/** SSE 连接信息 */
+interface SSEStreamEntry {
+  conversationId: string
+  sseWriter: SseWriter
+  createdAt: number
+  lastActivityAt: number
+  abortController: AbortController
+  timeoutId: NodeJS.Timeout
+}
+
+/** SSE 连接映射（从 agent.routes.ts 移入） */
+export const activeSSEStreams = new Map<string, SSEStreamEntry>()
+
+const SSE_TIMEOUT_MS = 30 * 60 * 1000  // 与 SESSION_TIMEOUT_MS 一致
+
+/**
+ * 注册 SSE 连接
+ */
+export function registerSSEStream(
+  conversationId: string,
+  sseWriter: SseWriter,
+  abortController: AbortController
+): void {
+  const now = Date.now()
+  const timeoutId = setTimeout(() => {
+    console.log(`[Agent] SSE timeout: ${conversationId}`)
+    abortController.abort()
+    cancelPendingInput(conversationId)
+  }, SSE_TIMEOUT_MS)
+
+  activeSSEStreams.set(conversationId, {
+    conversationId,
+    sseWriter,
+    createdAt: now,
+    lastActivityAt: now,
+    abortController,
+    timeoutId
+  })
+
+  // 同步更新 V2 Session 信息
+  const sessionInfo = v2Sessions.get(conversationId)
+  if (sessionInfo) {
+    sessionInfo.isSSEActive = true
+  }
+
+  // 同步更新 activeSessions
+  const sessionState = activeSessions.get(conversationId)
+  if (sessionState) {
+    sessionState.sseConnectedAt = now
+    sessionState.lastActivityAt = now
+  }
+
+  console.log(`[Agent][${conversationId}] SSE stream registered`)
+}
+
+/**
+ * 注销 SSE 连接
+ */
+export function unregisterSSEStream(conversationId: string): void {
+  const entry = activeSSEStreams.get(conversationId)
+  if (entry) {
+    clearTimeout(entry.timeoutId)
+    // 注意：不调用 abortController.abort()，由调用方决定
+    activeSSEStreams.delete(conversationId)
+  }
+
+  // 同步更新 V2 Session 信息
+  const sessionInfo = v2Sessions.get(conversationId)
+  if (sessionInfo) {
+    sessionInfo.isSSEActive = false
+  }
+
+  console.log(`[Agent][${conversationId}] SSE stream unregistered`)
+}
+
+/**
+ * 统一清理超时资源（替换原来的 cleanupStaleSessions）
+ */
+export function cleanupStaleResources(): void {
+  const now = Date.now()
+  let sseCleaned = 0
+  let sessionCleaned = 0
+
+  // 1. 清理超时的 SSE 连接
+  for (const [conversationId, entry] of activeSSEStreams) {
+    // 如果正在生成中，跳过
+    const sessionState = activeSessions.get(conversationId)
+    if (sessionState?.isGenerating) {
+      continue
+    }
+
+    // 检查超时
+    if (now - entry.lastActivityAt > SSE_TIMEOUT_MS) {
+      try {
+        entry.abortController.abort()
+      } catch (e) {
+        // ignore
+      }
+      clearTimeout(entry.timeoutId)
+      activeSSEStreams.delete(conversationId)
+
+      // 同步更新 V2 Session
+      const sessionInfo = v2Sessions.get(conversationId)
+      if (sessionInfo) {
+        sessionInfo.isSSEActive = false
+      }
+
+      sseCleaned++
+      console.log(`[Agent][${conversationId}] SSE stream timed out and cleaned`)
+    }
+  }
+
+  // 2. 清理超时的 V2 Session
+  for (const [conversationId, info] of v2Sessions) {
+    // 跳过有活跃 SSE 连接或正在生成的会话
+    if (info.isSSEActive || activeSessions.has(conversationId)) {
+      continue
+    }
+
+    if (now - info.lastUsedAt > SESSION_TIMEOUT_MS) {
+      try {
+        info.session.close()
+      } catch (error) {
+        console.error(`[Agent][${conversationId}] Error closing stale session:`, error)
+      }
+      v2Sessions.delete(conversationId)
+      sessionCleaned++
+    }
+  }
+
+  if (sseCleaned > 0 || sessionCleaned > 0) {
+    console.log(`[Agent] Cleaned up: ${sseCleaned} SSE streams, ${sessionCleaned} sessions`)
+  }
+}
+
+// 替换原来的 setInterval
+setInterval(cleanupStaleResources, 5 * 60 * 1000)  // 每 5 分钟
+```
+
+**agent.routes.ts 简化**:
+
+```typescript
+// SSE 连接管理移到 session-manager.ts
+import {
+  registerSSEStream,
+  unregisterSSEStream,
+  cancelPendingInput
+} from '../services/agent/session-manager'
+
+router.post('/message', async (req, res) => {
+  const abortController = new AbortController()
+
+  // 注册 SSE 连接（包含超时定时器设置）
+  registerSSEStream(conversationId, sseWriter, abortController)
+
+  try {
+    // ... 流处理 ...
+  } finally {
+    // 注销 SSE 连接（清理超时定时器）
+    unregisterSSEStream(conversationId)
+  }
+})
+```
+
+**生命周期协调图**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    统一的生命周期管理                         │
+│                    (session-manager.ts)                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+     ┌────────▼─────────┐          ┌────────▼─────────┐
+     │  V2 SDK Session  │          │   SSE 连接       │
+     │  (v2Sessions)    │          │ (activeSSEStreams)│
+     │                  │          │                   │
+     │  isSSEActive ────┼──────────┼─▶ 同步状态        │
+     └────────┬─────────┘          └────────┬─────────┘
+              │                               │
+              └───────────────┬───────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │  共享的清理机制    │
+                    │  cleanupStaleResources()
+                    │  (每 5 分钟运行)   │
+                    └───────────────────┘
+```
+
+**关键设计原则**:
+
+| 原则 | 说明 |
+|-----|------|
+| 超时时间统一 | SSE 连接和 V2 Session 都使用 30 分钟超时 |
+| 活跃状态优先 | 如果有 `isGenerating` 或 `isSSEActive`，不清理 |
+| 双向同步 | SSE 连接状态变化时同步更新 V2 Session 信息 |
+| 统一清理入口 | `cleanupStaleResources()` 同时清理两者 |
+
+### Decision 15: 多进程部署限制
 
 **问题**: `activeSSEStreams` 和 `pendingInputResolvers` 是进程内内存，多进程部署时无法共享。
 
@@ -892,6 +1620,67 @@ export async function waitForUserInput(conversationId: string, ...): Promise<any
 ```
 
 ## Architecture
+
+### 总体架构（SSE + WebSocket 并存）
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                              前端                                    │
+│  ┌──────────────────┐              ┌──────────────────┐            │
+│  │   SSE 消费器     │              │  WebSocket 连接   │            │
+│  │   (Agent 对话)   │              │   (全局事件)      │            │
+│  │                  │              │                   │            │
+│  │ fetch +          │              │ onEvent()         │            │
+│  │ ReadableStream   │              │                   │            │
+│  └────────┬─────────┘              └────────┬─────────┘            │
+│           │                                 │                       │
+│           │ POST /agent/message             │ WS 连接（保持打开）    │
+│           │ (返回 SSE 流)                   │                       │
+└───────────┼─────────────────────────────────┼───────────────────────┘
+            │                                 │
+            ▼                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                              后端                                    │
+│                                                                      │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    stream-processor.ts                        │  │
+│  │  ┌─────────────────────────────────────────────────────────┐  │  │
+│  │  │                    emitEvent()                          │  │  │
+│  │  │                                                         │  │  │
+│  │  │   ┌──────────────────┐   ┌──────────────────┐          │  │  │
+│  │  │   │ sendToRenderer() │   │ sseWriter.       │          │  │  │
+│  │  │   │ → WebSocket      │   │ writeEvent()     │          │  │  │
+│  │  │   │                  │   │ → SSE 流          │          │  │  │
+│  │  │   └────────┬─────────┘   └────────┬─────────┘          │  │  │
+│  │  └────────────┼──────────────────────┼────────────────────┘  │  │
+│  │               │                      │                        │  │
+│  └───────────────┼──────────────────────┼────────────────────────┘  │
+│                  │                      │                            │
+│                  ▼                      ▼                            │
+│  ┌───────────────────────┐   ┌───────────────────────┐              │
+│  │  websocket.service.ts │   │   agent.routes.ts     │              │
+│  │                       │   │                       │              │
+│  │  - sendFileChange()   │   │  - SSE headers        │              │
+│  │  - broadcastToAll()   │   │  - sseWriter 创建      │              │
+│  │  - broadcastMcpStatus │   │  - 连接管理            │              │
+│  │    (全局事件)          │   │                       │              │
+│  └───────────────────────┘   └───────────────────────┘              │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+事件流向：
+┌─────────────────────────────────────────────────────────────────────┐
+│ 事件类型              │ SSE 通道     │ WebSocket 通道  │ 说明        │
+├─────────────────────────────────────────────────────────────────────┤
+│ agent:message         │ ✓           │ ✓              │ 对话事件    │
+│ agent:thought         │ ✓           │ ✓              │ 对话事件    │
+│ agent:tool-call       │ ✓           │ ✓              │ 对话事件    │
+│ agent:complete        │ ✓           │ ✓              │ 对话事件    │
+│ agent:error           │ ✓           │ ✓              │ 对话事件    │
+│ mcp:status            │ ✗           │ ✓              │ 全局事件    │
+│ file:change           │ ✗           │ ✓              │ 全局事件    │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### SSE 消息流架构
 
@@ -961,7 +1750,7 @@ export async function waitForUserInput(conversationId: string, ...): Promise<any
 │  │  onEvent()      │◀──── WebSocket 连接（保留）                │
 │  └─────────────────┘                                            │
 │           │                                                      │
-│           │ 仅用于：file:change、broadcastToAll                  │
+│           │ 用于：agent:* (过渡期)、file:change、mcp:status      │
 │           ▼                                                      │
 └───────────────────────────────────────────────────────────────────┘
             │
@@ -977,9 +1766,9 @@ export async function waitForUserInput(conversationId: string, ...): Promise<any
 │  保留功能：                                                       │
 │  - sendFileChangeEvent()                                         │
 │  - broadcastToAll()                                              │
+│  - broadcastAgentEvent() ✓ (双通道需要)                          │
 │                                                                  │
 │  移除功能：                                                       │
-│  - broadcastAgentEvent() ❌                                       │
 │  - conversationSubscriptions ❌                                   │
 └───────────────────────────────────────────────────────────────────┘
 ```
@@ -991,6 +1780,7 @@ export async function waitForUserInput(conversationId: string, ...): Promise<any
 - **缓解**:
   - 后端检测连接断开时通过 AbortController 取消 Agent 执行
   - 前端显示"连接中断"提示，用户可重试
+  - WebSocket 通道作为备用，前端仍可接收事件
 
 ### Risk 2: 认证 Token 过期
 - **风险**: 长时间 SSE 连接期间 token 过期
@@ -1007,28 +1797,34 @@ export async function waitForUserInput(conversationId: string, ...): Promise<any
   - 新连接启动时，清理该 conversationId 的旧连接
   - 添加超时检查：如果连接超过 30 分钟，自动清理
 
+### Risk 5: 双通道事件重复
+- **风险**: Agent 事件同时发送到 SSE 和 WebSocket，前端可能重复处理
+- **缓解**:
+  - 前端使用消息 ID 去重
+  - 过渡期结束后可选择关闭 WebSocket 的 Agent 事件监听
+
 ## Migration Plan
 
 ### Phase 1: 实现 SSE 流式响应
 1. 创建 `src/server/utils/sse-writer.ts` 工具类
-2. 修改 `stream-processor.ts`，使用 SSE Writer 替代 `sendToRenderer`
+2. 修改 `stream-processor.ts`，实现 `emitEvent()` 同时发送到 SSE 和 WebSocket
 3. 修改 `agent.routes.ts` 返回 SSE 流
 4. 实现 `activeSSEStreams` 映射管理
 
 ### Phase 2: 前端适配
 1. 创建 `src/web/api/sse.ts` SSE 消费工具
 2. 修改 `chat.store.ts` 使用 fetch + ReadableStream
+3. 保留 WebSocket 事件监听器（双通道兼容）
 
 ### Phase 3: 清理
-1. 删除 `src/server/services/agent/helpers.ts` 中的 `sendToRenderer` 函数（保留 `broadcastToAllClients`）
-2. 删除 `src/server/services/websocket.service.ts` 中的 Agent 相关代码：
-   - 删除 `broadcastAgentEvent` 函数
+1. ~~删除 `sendToRenderer` 函数~~ **保留**（双通道需要）
+2. 删除 `src/server/services/websocket.service.ts` 中的订阅相关代码：
    - 删除 `conversationSubscriptions` Map
    - 删除 `subscribeUserToConversation` 函数
    - 删除 `unsubscribeUserFromConversation` 函数
-   - 保留 `sendFileChangeEvent` 和 `broadcastToAll` 函数
-3. 删除 `src/web/api/transport.ts` 中 Agent 相关代码：
+   - **保留** `sendFileChangeEvent`、`broadcastToAll` 和 `broadcastAgentEvent` 函数
+3. 删除 `src/web/api/transport.ts` 中订阅相关代码：
    - 删除 `subscribeToConversation` 函数
    - 删除 `unsubscribeFromConversation` 函数
-   - 保留 WebSocket 连接和 `onEvent` 函数（用于非 Agent 事件）
+   - **保留** WebSocket 连接和 `onEvent` 函数
 4. 添加单元测试和 E2E 测试

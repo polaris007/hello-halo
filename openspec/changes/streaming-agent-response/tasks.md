@@ -24,12 +24,30 @@
 - [ ] 2.1 修改 `ProcessStreamParams` 接口，添加可选参数：
   - `sseWriter?: SseWriter` - SSE 模式（主对话）
   - `onEvent?: (eventName: string, data: any) => void` - 回调模式（automation app）
-- [ ] 2.2 创建 `emitEvent()` 统一事件发送函数，支持 SSE 和回调两种模式
+- [ ] 2.2 创建 `emitEvent()` 统一事件发送函数，**同时发送到 SSE 和 WebSocket**：
+  ```typescript
+  function emitEvent(eventName: string, data: any) {
+    // 1. 继续发送到 WebSocket（保持兼容性，过渡期）
+    sendToRenderer(eventName, spaceId, conversationId, data)
+
+    // 2. 如果有 sseWriter，也发送到 SSE
+    if (sseWriter) {
+      const sseEventName = eventName.replace('agent:', '')
+      sseWriter.writeEvent(sseEventName, data)
+    }
+
+    // 3. 如果有 onEvent 回调，也调用回调（automation app）
+    if (onEvent) {
+      onEvent(eventName, data)
+    }
+  }
+  ```
 - [ ] 2.3 将所有 `sendToRenderer()` 调用替换为 `emitEvent()`
 - [ ] 2.4 处理流完成时的 `sseWriter.end()` 调用（仅 SSE 模式）
 - [ ] 2.5 实现完整的 `errorType` 判断逻辑（rate_limit, auth_failure, interrupted, max_turns, unknown）
 - [ ] 2.6 确保错误事件包含 `errorCode` 字段（如果可用）
 - [ ] 2.7 验证 automation app 兼容性：传入 `onEvent` 回调时正常工作
+- [ ] 2.8 **保留 `broadcastMcpStatus()` 调用不变**（全局事件，仅 WebSocket）
 
 ---
 
@@ -46,31 +64,55 @@
 - [ ] 3.3 创建 SSE 写入器并传递给 `sendMessage()`
 - [ ] 3.4 处理连接断开事件（`req.on('close')`）
 - [ ] 3.5 确保认证失败返回 401 JSON（非 SSE 格式）
-- [ ] 3.6 实现 `activeSSEStreams` 映射管理（conversationId -> { controller, timeoutId }）
+- [ ] 3.6 **SSE 连接与 V2 Session 生命周期协调**（在 `session-manager.ts` 中实现）：
+  - [ ] 3.6.1 扩展 `SessionState` 接口，添加 `sseConnectedAt?: number` 和 `lastActivityAt?: number`
+  - [ ] 3.6.2 扩展 `V2SessionInfo` 接口，添加 `isSSEActive?: boolean`
+  - [ ] 3.6.3 在 `session-manager.ts` 中创建 `activeSSEStreams` Map（从 agent.routes.ts 移入）
+  - [ ] 3.6.4 实现 `registerSSEStream()` 函数（注册连接 + 设置超时定时器 + 同步状态）
+  - [ ] 3.6.5 实现 `unregisterSSEStream()` 函数（清理超时定时器 + 同步状态）
+  - [ ] 3.6.6 修改 `cleanupStaleSessions()` 为 `cleanupStaleResources()`，同时清理 SSE 和 Session
+  - [ ] 3.6.7 实现 `activeSSEStreams` 映射管理（conversationId -> { controller, timeoutId }）
 - [ ] 3.7 实现并发连接处理：新连接启动时取消该 conversationId 的旧连接
   - 清理旧连接的超时定时器
   - 调用旧连接的 abort()
   - 删除旧连接的映射条目
   - 取消该对话的等待状态
-- [ ] 3.8 实现连接超时清理机制：
-  - [ ] 3.8.1 创建 SSE 流时启动 30 分钟超时定时器
-  - [ ] 3.8.2 超时触发时调用 abort() 和 cancelPendingInput()
-  - [ ] 3.8.3 在 finally 块中清理超时定时器（防止内存泄漏）
-- [ ] 3.9 修改 `POST /api/v1/agent/stop` 端点，从 `activeSSEStreams` 获取并中断流
-- [ ] 3.10 实现增量持久化：在流式生成过程中每 2 秒更新数据库
-- [ ] 3.11 新增 `waiting-for-input` 事件类型，用于通知前端进入等待状态
-- [ ] 3.12 新增 `ask-question` 事件类型，用于 AI 提问场景
-- [ ] 3.13 实现双向通信的核心机制：
-  - [ ] 3.13.1 在 `session-manager.ts` 中创建 `pendingInputResolvers` Map
-  - [ ] 3.13.2 实现 `waitForUserInput()` 函数（Promise + 超时机制）
-  - [ ] 3.13.3 实现 `resolveUserInput()` 函数（供 HTTP 端点调用）
-  - [ ] 3.13.4 实现 `cancelPendingInput()` 函数（SSE 断开时调用）
-  - [ ] 3.13.5 实现 `getPendingInput()` 函数（检查等待状态）
+- [ ] 3.8 修改 `POST /api/v1/agent/stop` 端点，从 `activeSSEStreams` 获取并中断流
+- [ ] 3.9 实现增量持久化（事件驱动触发，非定时器）：
+  - [ ] 3.9.1 在 `StreamCallbacks` 中添加 `onIncrementalPersist` 回调
+  - [ ] 3.9.2 实现 `shouldTryPersist()` 函数判断持久化触发点
+  - [ ] 3.9.3 实现 `tryIncrementalPersist()` 函数（带频率限制和错误隔离）
+  - [ ] 3.9.4 在关键节点调用增量持久化：text 块结束、tool_result 完成、thinking 累积超过阈值
+  - [ ] 3.9.5 在 `finally` 块中执行最后一次增量持久化
+  - [ ] 3.9.6 在 `send-message.ts` 中实现 `onIncrementalPersist` 回调
+- [ ] 3.10 新增 `waiting-for-input` 事件类型，用于通知前端进入等待状态
+- [ ] 3.11 新增 `ask-question` 事件类型，用于 AI 提问场景
+- [ ] 3.12 实现双向通信的核心机制：
+  - [ ] 3.12.1 在 `session-manager.ts` 中创建 `pendingInputResolvers` Map
+  - [ ] 3.12.2 实现 `waitForUserInput()` 函数（Promise + 超时机制）
+  - [ ] 3.12.3 实现 `resolveUserInput()` 函数（供 HTTP 端点调用）
+  - [ ] 3.12.4 实现 `cancelPendingInput()` 函数（SSE 断开时调用）
+  - [ ] 3.12.5 实现 `getPendingInput()` 函数（检查等待状态）
+- [ ] 3.13 **工具审批功能（新功能开发）**：
+  - [ ] 3.13.1 修改 `sdk-config.ts`：将 `permissionMode` 从 `'bypassPermissions'` 改为 `'default'`
+  - [ ] 3.13.2 在 `permission-handler.ts` 中定义需要审批的工具列表（Bash、Edit、Write、NotebookEdit）
+  - [ ] 3.13.3 在 `createCanUseTool` 中实现 `handleToolApproval` 函数
+  - [ ] 3.13.4 实现 tool-call 事件发送（包含 `requiresApproval: true` 标志）
+  - [ ] 3.13.5 实现 waiting-for-input 事件发送（`inputType: 'tool-approval'`）
+  - [ ] 3.13.6 调用 `waitForUserInput()` 等待用户审批结果
 - [ ] 3.14 修改 `/approve` 端点：调用 `resolveUserInput(conversationId, { approved: true })`
 - [ ] 3.15 修改 `/reject` 端点：调用 `resolveUserInput(conversationId, { approved: false })`
-- [ ] 3.16 修改 `/answer-question` 端点：调用 `resolveUserInput(conversationId, { answers })`
-- [ ] 3.17 数据库修改：messages 表新增 `is_partial` 字段（BOOLEAN，默认 FALSE）
-- [ ] 3.18 更新 Message 类型定义，添加 `isPartial?: boolean` 字段
+- [ ] 3.16 **AskUserQuestion SSE 集成（修改现有实现）**：
+  - [ ] 3.16.1 修改 `CanUseToolDeps` 接口，用 `emitEvent` 替代 `sendToRenderer`
+  - [ ] 3.16.2 在 `permission-handler.ts` 中发送 `agent:ask-question` 后立即发送 `agent:waiting-for-input`
+  - [ ] 3.16.3 确保 `emitEvent` 从 `stream-processor.ts` 正确传入 `createCanUseTool()`
+  - [ ] 3.16.4 `/answer-question` 端点保持不变，使用现有 `resolveQuestion()` 机制
+- [ ] 3.17 更新 Message 类型定义，添加 `isPartial?: boolean` 字段
+- [ ] 3.18 修改 `updateAssistantMessage` 函数，支持 `isPartial` 参数更新
+- [ ] 3.19 确保 `isPartial` 状态正确转换：
+  - 增量持久化时设置为 `true`
+  - 最终持久化（onComplete）时设置为 `false`
+  - 历史消息视为 `false`（默认值）
 
 ---
 
@@ -126,13 +168,16 @@
 
 ### 清理代码
 
+> **注意**: 由于采用 SSE + WebSocket 双通道架构，过渡期间 Agent 事件仍通过 WebSocket 发送，
+> 因此不删除 `sendToRenderer` 相关函数，仅删除对话订阅逻辑。
+
 **后端 Agent 相关**：
-- [ ] 7.1 删除 `src/server/services/agent/helpers.ts` 中的 `sendToRenderer` 函数
+- [ ] 7.1 ~~删除 `src/server/services/agent/helpers.ts` 中的 `sendToRenderer` 函数~~ **保留**（双通道需要）
 - [ ] 7.2 保留 `broadcastToAllClients` 函数（用于全局广播）
 - [ ] 7.3 保留 `setWebSocketService` 函数（用于非 Agent 事件）
 
 **后端 WebSocket 服务**：
-- [ ] 7.4 从 `src/server/services/websocket.service.ts` 中删除 `broadcastAgentEvent` 函数
+- [ ] 7.4 ~~从 `src/server/services/websocket.service.ts` 中删除 `broadcastAgentEvent` 函数~~ **保留**（双通道需要）
 - [ ] 7.5 删除 `conversationSubscriptions` 相关逻辑（Map 和所有引用）
 - [ ] 7.6 删除 `subscribeUserToConversation` 和 `unsubscribeUserFromConversation` 函数
 - [ ] 7.7 保留 `sendFileChangeEvent` 和 `broadcastToAll` 函数
@@ -145,7 +190,7 @@
 - [ ] 7.12 保留 WebSocket 连接管理逻辑（重连、认证等）
 
 **前端初始化组件**：
-- [ ] 7.13 移除 Agent WebSocket 事件监听器注册（`agent:message`、`agent:thought` 等）
+- [ ] 7.13 ~~移除 Agent WebSocket 事件监听器注册~~ **保留**（双通道需要）
 - [ ] 7.14 保留文件变更事件监听器（`file:change`）
 
 ### 功能测试
@@ -195,19 +240,33 @@
 - [ ] 7.28 手动测试：验证文件变更通知仍然工作
 - [ ] 7.29 手动测试：验证全局广播仍然工作
 
+### SSE + WebSocket 双通道测试
+
+- [ ] 7.30 手动测试：验证 Agent 事件同时发送到 SSE 和 WebSocket
+  - 打开浏览器 DevTools Network 面板
+  - 发送消息，验证 SSE 流接收事件
+  - 同时检查 WebSocket 面板，验证也收到相同事件
+- [ ] 7.31 手动测试：验证 MCP 状态变更仅通过 WebSocket 广播
+  - 触发 MCP 服务器状态变更
+  - 验证 WebSocket 收到 `mcp:status` 事件
+  - 验证 SSE 流不包含该事件
+- [ ] 7.32 手动测试：验证前端可以只使用 SSE 通道
+  - 修改前端代码，忽略 WebSocket 的 Agent 事件
+  - 验证对话功能正常工作
+
 ### 日志验证
 
-- [ ] 7.30 检查 AI 日志文件，确认 `ai_request` 日志被记录
-- [ ] 7.31 检查 AI 日志文件，确认 `ai_response` 日志包含完整 tokenUsage
-- [ ] 7.32 检查 AI 日志文件，确认 `ai_stream_chunk` 日志按规则记录
+- [ ] 7.33 检查 AI 日志文件，确认 `ai_request` 日志被记录
+- [ ] 7.34 检查 AI 日志文件，确认 `ai_response` 日志包含完整 tokenUsage
+- [ ] 7.35 检查 AI 日志文件，确认 `ai_stream_chunk` 日志按规则记录
 
 ### 自动化测试
 
-- [ ] 7.33 添加单元测试 `tests/unit/sse-writer.test.ts`
-- [ ] 7.34 添加单元测试 `tests/unit/sse-parser.test.ts`（前端 SSE 解析）
-- [ ] 7.35 添加 E2E 测试 `tests/e2e/specs/agent-sse.spec.ts`
+- [ ] 7.36 添加单元测试 `tests/unit/sse-writer.test.ts`
+- [ ] 7.37 添加单元测试 `tests/unit/sse-parser.test.ts`（前端 SSE 解析）
+- [ ] 7.38 添加 E2E 测试 `tests/e2e/specs/agent-sse.spec.ts`
 
 ### 文档更新
 
-- [ ] 7.36 更新 API 文档，说明新的 SSE 响应格式
-- [ ] 7.37 更新部署文档，说明反向代理配置要求（禁用缓冲）
+- [ ] 7.39 更新 API 文档，说明新的 SSE 响应格式
+- [ ] 7.40 更新部署文档，说明反向代理配置要求（禁用缓冲）

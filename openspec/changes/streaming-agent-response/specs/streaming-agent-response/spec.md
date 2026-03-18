@@ -214,7 +214,7 @@
 | inputType | 触发场景 | 额外字段 |
 |-----------|---------|---------|
 | `tool-approval` | 工具需要审批 | `toolCallId`, `toolName` |
-| `ask-question` | AI 提问 | `questionId` |
+| `question` | AI 提问（AskUserQuestion） | `questionId` |
 
 - **AND** SSE 流保持打开，等待用户操作
 - **WHEN** 用户通过独立 HTTP 端点提交操作后
@@ -393,23 +393,32 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 ### Requirement: 双向通信场景处理
 系统 SHALL 正确处理需要用户输入的场景，包括工具审批和 AI 提问。
 
-#### Scenario: 工具审批流程
-- **WHEN** Agent 调用需要审批的工具（如 Bash、 Edit、 Write）
-- **THEN** SSE 流推送 `event: tool-call` 事件，包含 `requiresApproval: true`
-- **AND** SSE 流推送 `event: waiting-for-input` 事件， `inputType: "tool-approval"`
+> **重要说明**：工具审批是**新功能开发**，当前系统使用 `permissionMode: 'bypassPermissions'` 跳过所有权限检查。
+> 实现工具审批需要修改 SDK 配置并扩展 `createCanUseTool` 回调。
+
+#### Scenario: 工具审批流程（新功能）
+- **GIVEN** SDK 配置 `permissionMode: 'default'`（非 `bypassPermissions`）
+- **AND** `createCanUseTool` 回调中定义了需要审批的工具列表
+- **WHEN** Agent 调用需要审批的工具（如 Bash、Edit、Write、NotebookEdit）
+- **THEN** SDK 调用 `canUseTool` 回调询问权限
+- **AND** 系统推送 `event: tool-call` 事件，包含 `requiresApproval: true`
+- **AND** 系统推送 `event: waiting-for-input` 事件，`inputType: "tool-approval"`
 - **AND** SSE 流保持打开，等待用户操作
 - **WHEN** 用户调用 `POST /api/v1/agent/approve`
-- **THEN** 系统继续 Agent 执行
+- **THEN** `canUseTool` 回调返回 `{ behavior: 'allow' }`
+- **AND** SDK 继续执行工具
 - **AND** SSE 流继续推送后续事件
 - **WHEN** 用户调用 `POST /api/v1/agent/reject`
-    **THEN** 系统取消该工具调用
+- **THEN** `canUseTool` 回调返回 `{ behavior: 'deny' }`
+- **AND** SDK 取消该工具调用
 - **AND** SSE 流继续推送后续事件（或完成）
 
 #### Scenario: AskUserQuestion 流程
-- **WHEN** Agent 调用 AskUserQuestion 工具
+- **WHEN** Agent 调用 AskUserQuestion 工具（SDK 内置工具）
 - **THEN** SSE 流推送 `event: ask-question` 事件，包含问题列表
-- **AND** SSE 流推送 `event: waiting-for-input` 事件， `inputType: "ask-question"`
+- **AND** SSE 流推送 `event: waiting-for-input` 事件， `inputType: "question"`
 - **AND** SSE 流保持打开,等待用户回答
+- **AND** WebSocket 同时收到相同事件（双通道架构）
 - **WHEN** 用户调用 `POST /api/v1/agent/answer-question`
     **THEN** 系统继续 Agent 执行
     **AND** SSE 流继续推送后续事件
@@ -419,6 +428,44 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 - **THEN** 系统调用 `abortController.abort()`
 - **AND** SSE 流推送 `event: error` 事件，`errorType: "interrupted"`
 - **AND** SSE 连接关闭
+
+### Requirement: SSE + WebSocket 双通道架构
+系统 SHALL 采用 SSE + WebSocket 并存的双通道架构，SSE 处理对话特定事件，WebSocket 处理全局事件。
+
+#### Scenario: 双通道事件路由
+- **GIVEN** 前端同时维护 SSE 连接和 WebSocket 连接
+- **WHEN** Agent 产生事件
+- **THEN** 对话特定事件同时发送到 SSE 和 WebSocket（过渡期）
+- **AND** 全局事件仅发送到 WebSocket
+
+#### Scenario: 事件类型与通道映射
+- **GIVEN** 系统采用双通道架构
+- **THEN** 事件类型与传输通道的映射关系如下：
+
+| 事件类型 | SSE 通道 | WebSocket 通道 | 说明 |
+|---------|---------|----------------|------|
+| `agent:message` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:thought` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:thought-delta` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:tool-call` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:tool-result` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:compact` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:ask-question` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:waiting-for-input` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:complete` | ✓ | ✓ | 对话事件，双通道 |
+| `agent:error` | ✓ | ✓ | 对话事件，双通道 |
+| `mcp:status` | ✗ | ✓ | 全局事件，仅 WebSocket |
+| `file:change` | ✗ | ✓ | 全局事件，仅 WebSocket |
+| `broadcastToAll` | ✗ | ✓ | 全局事件，仅 WebSocket |
+
+#### Scenario: 前端双通道消费
+- **GIVEN** 前端需要同时处理 SSE 和 WebSocket 事件
+- **WHEN** 前端初始化
+- **THEN** 建立 WebSocket 连接用于全局事件
+- **WHEN** 用户发送消息
+- **THEN** 建立 SSE 连接用于对话事件
+- **AND** SSE 连接随对话结束而关闭
+- **AND** WebSocket 连接保持打开
 
 ### Requirement: WebSocket 保留功能
 系统 SHALL 保留 WebSocket 用于非 Agent 场景的事件推送。
@@ -432,15 +479,41 @@ SSE 流式响应 SHALL 与现有 AI 日志记录系统集成，确保所有请�
 - **WHEN** 系统需要广播全局通知
 - **THEN** 系统通过 WebSocket 的 `broadcastToAll` 推送事件
 
-#### Scenario: Agent 事件不再通过 WebSocket
-- **WHEN** Agent 产生事件（message、 thought、 tool-call 等）
-- **THEN** 系统通过 SSE 流推送
-- **AND** 不通过 WebSocket 推送
+#### Scenario: MCP 状态变更
+- **WHEN** MCP 服务器状态变更
+- **THEN** 系统通过 WebSocket 广播 `mcp:status` 事件
+- **AND** 所有已连接的客户端收到该事件
+
+#### Scenario: Agent 事件双通道推送
+- **WHEN** Agent 产生事件（message、thought、tool-call 等）
+- **THEN** 系统通过 SSE 流推送（主要通道）
+- **AND** 系统同时通过 WebSocket 推送（兼容通道，过渡期）
 
 ### Requirement: 数据库支持增量持久化
-系统 SHALL 在数据库中支持 `isPartial` 字段，用于标记消息是否为部分内容。
+系统 SHALL 在消息 JSON 对象中支持 `isPartial` 字段，用于标记消息是否为部分内容。
 
-#### Scenario: 数据库 schema 更新
+#### Scenario: 消息 JSON 对象更新
 - **WHEN** 实现增量持久化功能
-- **THEN** messages 表添加 `is_partial` 字段（BOOLEAN，默认 FALSE）
-- **AND** Message 类型定义添加 `isPartial?: boolean` 字段
+- **THEN** Message 类型定义添加 `isPartial?: boolean` 字段
+- **AND** 该字段存储在 conversations 表的 messages JSON 数组中的每条消息对象内部
+- **AND** 无需数据库架构迁移
+
+#### Scenario: 消息存储示例
+- **GIVEN** 一条流式生成中的 assistant 消息
+- **WHEN** 系统持久化该消息
+- **THEN** messages JSON 数组中的消息对象包含：
+  ```json
+  {
+    "id": "msg-xxx",
+    "role": "assistant",
+    "content": "已生成的部分文本...",
+    "thoughts": [...],
+    "isPartial": true,
+    "timestamp": 1709123456789
+  }
+  ```
+
+#### Scenario: 旧消息兼容
+- **GIVEN** 历史对话中的消息（无 isPartial 字段）
+- **WHEN** 前端读取对话历史
+- **THEN** 视为 `isPartial: false`（完整消息）
