@@ -83,16 +83,34 @@ export function isGenerating(conversationId: string): boolean {
  * Approve a tool call
  */
 export async function approveTool(conversationId: string, toolId?: string): Promise<void> {
-  // TODO: Implement tool approval logic
   console.log(`[Agent] Tool approved: ${conversationId}, ${toolId}`)
+
+  // 使用新的 resolveUserInput 函数
+  const { resolveUserInput } = await import('./session-manager')
+  const resolved = resolveUserInput(conversationId, { approved: true })
+
+  if (resolved) {
+    console.log(`[Agent] Tool approval resolved for conversation: ${conversationId}`)
+  } else {
+    console.warn(`[Agent] No pending approval found for conversation: ${conversationId}`)
+  }
 }
 
 /**
  * Reject a tool call
  */
 export async function rejectTool(conversationId: string, toolId?: string): Promise<void> {
-  // TODO: Implement tool rejection logic
   console.log(`[Agent] Tool rejected: ${conversationId}, ${toolId}`)
+
+  // 使用新的 resolveUserInput 函数
+  const { resolveUserInput } = await import('./session-manager')
+  const resolved = resolveUserInput(conversationId, { approved: false })
+
+  if (resolved) {
+    console.log(`[Agent] Tool rejection resolved for conversation: ${conversationId}`)
+  } else {
+    console.warn(`[Agent] No pending approval found for conversation: ${conversationId}`)
+  }
 }
 
 /**
@@ -107,8 +125,17 @@ export async function warmSession(spaceId: string, conversationId: string): Prom
  * Answer a question from the agent
  */
 export async function answerQuestion(conversationId: string, questionId: string, answers: any): Promise<void> {
-  // TODO: Implement question answering
   console.log(`[Agent] Question answered: ${conversationId}, ${questionId}`)
+
+  // 使用 permission-handler 的 resolveQuestion 函数
+  const { resolveQuestion } = await import('./permission-handler')
+  const resolved = resolveQuestion(questionId, answers)
+
+  if (resolved) {
+    console.log(`[Agent] Question resolved: ${questionId}`)
+  } else {
+    console.warn(`[Agent] No pending question found: ${questionId}`)
+  }
 }
 
 /**
@@ -144,7 +171,7 @@ export {
   unregisterSSEStream,
   getSSEStream,
   updateSSEActivity,
-  cleanupStaleSSEStreams,
+  cleanupStaleResources,
 
   // Session maps (for advanced use cases)
   activeSessions,

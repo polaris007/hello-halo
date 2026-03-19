@@ -40,6 +40,7 @@ import { broadcastMcpStatus } from './mcp-manager'
 import { logAiRequest, logAiResponse, logAiStreamChunk } from '../../utils/ai-logger.js'
 import type { SseWriter } from '../../utils/sse-writer'
 import { toSSEEventName } from '../../utils/sse-writer'
+import type { IncrementalPersistData } from './types'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -93,6 +94,8 @@ export interface StreamCallbacks {
   onComplete(result: StreamResult): void
   /** Called for each raw SDK message (for JSONL persistence in automation) */
   onRawMessage?(sdkMessage: any): void
+  /** Called at key points during streaming for incremental persistence */
+  onIncrementalPersist?(data: IncrementalPersistData): void
 }
 
 /**
@@ -224,6 +227,57 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   // lastSingleUsage: Last API call usage (single call, represents current context size)
   let lastSingleUsage: SingleCallUsage | null = null
   let tokenUsage: TokenUsage | null = null
+
+  // Incremental persistence state
+  let lastPersistTime = 0
+  const MIN_PERSIST_INTERVAL_MS = 1000  // 最少间隔 1 秒，避免高频写入
+  let thinkingAccumulatedLength = 0  // 用于检测 thinking 累积阈值
+
+  /**
+   * 判断是否为好的持久化时机
+   * @param sdkMessage 当前处理的 SDK 消息（可选）
+   * @returns 是否应该尝试持久化
+   */
+  function shouldTryPersist(sdkMessage?: any): boolean {
+    // text 块结束（用户可见内容增加）
+    if (sdkMessage && sdkMessage.type === 'content_block_stop' && isStreamingTextBlock) {
+      return true
+    }
+    // tool_result 完成
+    if (sdkMessage && sdkMessage.type === 'tool_result') {
+      return true
+    }
+    // thinking 累积超过阈值（基于内部状态，不需要 sdkMessage）
+    if (thinkingAccumulatedLength > 500) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * 增量持久化辅助函数
+   * - 频率限制：最少间隔 1 秒
+   * - 错误隔离：失败不中断主流程
+   */
+  function tryIncrementalPersist(isPartial: boolean = true): void {
+    const now = Date.now()
+    if (now - lastPersistTime < MIN_PERSIST_INTERVAL_MS) return
+
+    try {
+      if (callbacks.onIncrementalPersist) {
+        const data: IncrementalPersistData = {
+          content: lastTextContent || currentStreamingText,
+          thoughts: [...sessionState.thoughts],
+          isPartial
+        }
+        callbacks.onIncrementalPersist(data)
+        lastPersistTime = now
+      }
+    } catch (error) {
+      console.warn(`[Agent][${conversationId}] Incremental persist failed, will retry later:`, error)
+      // 不抛出错误，继续流处理
+    }
+  }
 
   // Token-level streaming state
   let currentStreamingText = ''  // Accumulates text_delta tokens
@@ -418,6 +472,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         if (blockState && blockState.type === 'thinking') {
           const delta = event.delta.thinking || ''
           blockState.content += delta
+          thinkingAccumulatedLength += delta.length
 
           // Send delta to renderer for incremental update
           emitEvent('agent:thought-delta', {
@@ -440,6 +495,12 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             })
           } catch (error) {
             console.error(`[Agent][${conversationId}] Failed to log AI stream chunk:`, error)
+          }
+
+          // 增量持久化触发点：thinking 累积超过阈值（500 字符）
+          if (shouldTryPersist()) {
+            tryIncrementalPersist(true)
+            thinkingAccumulatedLength = 0  // 重置累积长度
           }
         }
       }
@@ -635,6 +696,11 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           // Update lastTextContent for final result
           lastTextContent = currentStreamingText
           console.log(`[Agent][${conversationId}] Text block completed, length: ${currentStreamingText.length}`)
+
+          // 增量持久化触发点：text 块完成
+          if (shouldTryPersist(sdkMessage)) {
+            tryIncrementalPersist(true)
+          }
         }
       }
 
@@ -693,6 +759,11 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           })
 
           console.log(`[Agent][${conversationId}] Tool result merged into thought ${toolUseThoughtId}`)
+
+          // 增量持久化触发点：tool_result 完成
+          if (shouldTryPersist(sdkMessage)) {
+            tryIncrementalPersist(true)
+          }
         } else {
           // No mapping found - fall back to separate thought (shouldn't happen normally)
           sessionState.thoughts.push(thought)
@@ -979,6 +1050,20 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
     })
   } else if (wasAborted) {
     console.log(`[Agent][${conversationId}] User stopped - no error sent`)
+  }
+
+  // 最后一次增量持久化：流结束时设置 isPartial: false
+  try {
+    if (callbacks.onIncrementalPersist) {
+      callbacks.onIncrementalPersist({
+        content: finalContent,
+        thoughts: [...sessionState.thoughts],
+        isPartial: false
+      })
+    }
+  } catch (error) {
+    console.warn(`[Agent][${conversationId}] Final incremental persist failed:`, error)
+    // 不抛出错误，继续返回 result
   }
 
   return result

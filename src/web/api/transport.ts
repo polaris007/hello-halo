@@ -101,9 +101,6 @@ let wsConnection: WebSocket | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
-// Pending subscriptions queue - stores conversation IDs to subscribe when connection is ready
-const pendingSubscriptions = new Set<string>()
-
 // Connection state tracking
 let isConnectionReady = false
 
@@ -141,21 +138,9 @@ export function connectWebSocket(authMode?: string): void {
       if (message.type === 'auth:success') {
         console.log('[WS] Authenticated')
         isConnectionReady = true
-        // Process pending subscriptions
-        if (pendingSubscriptions.size > 0) {
-          console.log(`[WS] Processing ${pendingSubscriptions.size} pending subscriptions`)
-          pendingSubscriptions.forEach(conversationId => {
-            subscribeToConversation(conversationId)
-          })
-          pendingSubscriptions.clear()
-        }
         return
       }
 
-      if (message.type === 'subscribed') {
-        console.log('[WS] Subscribed to conversation:', message.payload?.conversationId)
-        return
-      }
 
       // Handle agent events from backend (format: { type: 'agent:event', payload: { eventType, data } })
       if (message.type === 'agent:event') {
@@ -216,33 +201,6 @@ export function disconnectWebSocket(): void {
   }
 }
 
-export function subscribeToConversation(conversationId: string): void {
-  // If connection is not ready, queue the subscription
-  if (!isConnectionReady || wsConnection?.readyState !== WebSocket.OPEN) {
-    console.log(`[WS] Queueing subscription for conversation: ${conversationId}`)
-    pendingSubscriptions.add(conversationId)
-    return
-  }
-
-  console.log(`[WS] Subscribing to conversation: ${conversationId}`)
-  wsConnection.send(
-    JSON.stringify({
-      type: 'subscribe',
-      payload: { conversationId }
-    })
-  )
-}
-
-export function unsubscribeFromConversation(conversationId: string): void {
-  if (wsConnection?.readyState === WebSocket.OPEN) {
-    wsConnection.send(
-      JSON.stringify({
-        type: 'unsubscribe',
-        payload: { conversationId }
-      })
-    )
-  }
-}
 
 /**
  * Register event listener (WebSocket only in B/S mode)

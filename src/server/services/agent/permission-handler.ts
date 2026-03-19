@@ -82,6 +82,13 @@ export function rejectAllQuestions(): void {
 }
 
 // ============================================
+// Tool Approval Configuration
+// ============================================
+
+/** Tools requiring user approval */
+const TOOLS_REQUIRING_APPROVAL = ['Bash', 'Edit', 'Write', 'NotebookEdit']
+
+// ============================================
 // Permission Handler Factory
 // ============================================
 
@@ -104,76 +111,156 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
     input: Record<string, unknown>,
     options: { signal: AbortSignal }
   ): Promise<PermissionResult> => {
-    // Non-AskUserQuestion tools: auto-allow
-    if (toolName !== 'AskUserQuestion') {
+    // AskUserQuestion: handle with existing logic
+    if (toolName === 'AskUserQuestion') {
+      return handleAskUserQuestion(deps, input, options)
+    }
+
+    // Tools requiring approval: check if we should wait for user approval
+    if (TOOLS_REQUIRING_APPROVAL.includes(toolName)) {
+      return handleToolApproval(deps, toolName, input, options)
+    }
+
+    // All other tools: auto-allow
+    return { behavior: 'allow' as const, updatedInput: input }
+  }
+}
+
+/**
+ * Handle AskUserQuestion tool
+ */
+async function handleAskUserQuestion(
+  deps: CanUseToolDeps | undefined,
+  input: Record<string, unknown>,
+  options: { signal: AbortSignal }
+): Promise<PermissionResult> {
+  // AskUserQuestion: if no deps provided (e.g., warmup), allow with empty answers
+  if (!deps) {
+    console.warn('[PermissionHandler] AskUserQuestion called without deps, auto-allowing')
+    return { behavior: 'allow' as const, updatedInput: { ...input, answers: {} } }
+  }
+
+  const { emitEvent, spaceId, conversationId } = deps
+  const id = `ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const questions = input.questions as Array<{
+    question: string
+    header: string
+    options: Array<{ label: string; description: string }>
+    multiSelect: boolean
+  }>
+
+  console.log(`[PermissionHandler] AskUserQuestion: id=${id}, questions=${questions?.length || 0}`)
+
+  // Create promise that will be resolved by IPC handler
+  const answersPromise = new Promise<Record<string, string>>((resolve, reject) => {
+    pendingQuestions.set(id, { resolve, reject })
+
+    // Clean up on abort (user stops generation)
+    if (options.signal) {
+      const onAbort = () => {
+        if (pendingQuestions.has(id)) {
+          pendingQuestions.delete(id)
+          reject(new Error('Aborted'))
+        }
+      }
+      if (options.signal.aborted) {
+        onAbort()
+      } else {
+        options.signal.addEventListener('abort', onAbort, { once: true })
+      }
+    }
+  })
+
+  // Send questions to renderer via emitEvent (SSE + WebSocket dual channel)
+  emitEvent('agent:ask-question', {
+    id,
+    questions: questions || []
+  })
+
+  // Send waiting-for-input event
+  emitEvent('agent:waiting-for-input', {
+    inputType: 'question',
+    questionId: id,
+    message: '等待用户回答问题'
+  })
+
+  try {
+    // Wait for user answer
+    const answers = await answersPromise
+    console.log(`[PermissionHandler] AskUserQuestion answered: id=${id}`, answers)
+    return {
+      behavior: 'allow' as const,
+      updatedInput: { ...input, answers }
+    }
+  } catch (error) {
+    // Question was cancelled or aborted
+    console.log(`[PermissionHandler] AskUserQuestion cancelled: id=${id}`, (error as Error).message)
+    return {
+      behavior: 'deny' as const,
+      updatedInput: input
+    }
+  }
+}
+
+/**
+ * Handle tool approval for tools requiring user approval
+ */
+async function handleToolApproval(
+  deps: CanUseToolDeps | undefined,
+  toolName: string,
+  input: Record<string, unknown>,
+  options: { signal: AbortSignal }
+): Promise<PermissionResult> {
+  // If no deps provided (e.g., warmup), auto-allow
+  if (!deps) {
+    console.warn(`[PermissionHandler] ${toolName} called without deps, auto-allowing`)
+    return { behavior: 'allow' as const, updatedInput: input }
+  }
+
+  const { emitEvent, spaceId, conversationId } = deps
+  const toolCallId = `tool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+  console.log(`[PermissionHandler] Tool approval required: ${toolName}, id=${toolCallId}`)
+
+  // 1. Send tool-call event with requiresApproval flag
+  emitEvent('agent:tool-call', {
+    id: toolCallId,
+    name: toolName,
+    input,
+    status: 'pending',
+    requiresApproval: true
+  })
+
+  // 2. Send waiting-for-input event
+  emitEvent('agent:waiting-for-input', {
+    inputType: 'tool-approval',
+    toolCallId,
+    toolName,
+    message: `等待审批工具调用: ${toolName}`
+  })
+
+  try {
+    // 3. Wait for user approval (using session-manager's waitForUserInput)
+    // Note: We need to import waitForUserInput from session-manager
+    const { waitForUserInput } = await import('./session-manager')
+    const result = await waitForUserInput(
+      conversationId,
+      'tool-approval',
+      { toolCallId },
+      options.signal,
+      5 * 60 * 1000 // 5 minutes timeout
+    )
+
+    if (result.approved) {
+      console.log(`[PermissionHandler] Tool approved: ${toolName}, id=${toolCallId}`)
       return { behavior: 'allow' as const, updatedInput: input }
+    } else {
+      console.log(`[PermissionHandler] Tool rejected: ${toolName}, id=${toolCallId}`)
+      return { behavior: 'deny' as const, updatedInput: input }
     }
-
-    // AskUserQuestion: if no deps provided (e.g., warmup), allow with empty answers
-    if (!deps) {
-      console.warn('[PermissionHandler] AskUserQuestion called without deps, auto-allowing')
-      return { behavior: 'allow' as const, updatedInput: { ...input, answers: {} } }
-    }
-
-    const { emitEvent, spaceId, conversationId } = deps
-    const id = `ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const questions = input.questions as Array<{
-      question: string
-      header: string
-      options: Array<{ label: string; description: string }>
-      multiSelect: boolean
-    }>
-
-    console.log(`[PermissionHandler] AskUserQuestion: id=${id}, questions=${questions?.length || 0}`)
-
-    // Create promise that will be resolved by IPC handler
-    const answersPromise = new Promise<Record<string, string>>((resolve, reject) => {
-      pendingQuestions.set(id, { resolve, reject })
-
-      // Clean up on abort (user stops generation)
-      if (options.signal) {
-        const onAbort = () => {
-          if (pendingQuestions.has(id)) {
-            pendingQuestions.delete(id)
-            reject(new Error('Aborted'))
-          }
-        }
-        if (options.signal.aborted) {
-          onAbort()
-        } else {
-          options.signal.addEventListener('abort', onAbort, { once: true })
-        }
-      }
-    })
-
-    // Send questions to renderer via emitEvent (SSE + WebSocket dual channel)
-    emitEvent('agent:ask-question', {
-      id,
-      questions: questions || []
-    })
-
-    // Send waiting-for-input event
-    emitEvent('agent:waiting-for-input', {
-      inputType: 'question',
-      questionId: id,
-      message: '等待用户回答问题'
-    })
-
-    try {
-      // Wait for user answer
-      const answers = await answersPromise
-      console.log(`[PermissionHandler] AskUserQuestion answered: id=${id}`, answers)
-      return {
-        behavior: 'allow' as const,
-        updatedInput: { ...input, answers }
-      }
-    } catch (error) {
-      // Question was cancelled or aborted
-      console.log(`[PermissionHandler] AskUserQuestion cancelled: id=${id}`, (error as Error).message)
-      return {
-        behavior: 'deny' as const,
-        updatedInput: input
-      }
-    }
+  } catch (error) {
+    // Timeout or cancellation
+    console.log(`[PermissionHandler] Tool approval cancelled: ${toolName}, id=${toolCallId}`, (error as Error).message)
+    return { behavior: 'deny' as const, updatedInput: input }
   }
 }

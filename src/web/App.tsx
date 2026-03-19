@@ -87,6 +87,7 @@ export default function App() {
     handleAgentThought,
     handleAgentThoughtDelta,
     handleAgentCompact,
+    handleAgentWaitingForInput,
     handleAskQuestion,
     currentSpaceId,
     setCurrentSpace: setChatCurrentSpace,
@@ -261,6 +262,12 @@ export default function App() {
       handleAskQuestion(data as AgentEventBase & { id: string; questions: Question[] })
     })
 
+    // Waiting for input (tool approval or AskUserQuestion)
+    const unsubWaitingForInput = api.onAgentWaitingForInput((data) => {
+      console.log('[App] Received agent:waiting-for-input event:', data)
+      handleAgentWaitingForInput(data as AgentEventBase & { inputType: 'tool-approval' | 'question'; toolCallId?: string; toolName?: string; questionId?: string; message?: string })
+    })
+
     // MCP status updates (global - not per-conversation)
     const unsubMcpStatus = api.onAgentMcpStatus((data) => {
       console.log('[App] Received agent:mcp-status event:', data)
@@ -280,6 +287,7 @@ export default function App() {
       unsubComplete()
       unsubCompact()
       unsubAskQuestion()
+      unsubWaitingForInput()
       unsubMcpStatus()
     }
   }, [
@@ -291,6 +299,7 @@ export default function App() {
     handleAgentThought,
     handleAgentThoughtDelta,
     handleAgentCompact,
+    handleAgentWaitingForInput,
     handleAskQuestion,
     setMcpStatus
   ])

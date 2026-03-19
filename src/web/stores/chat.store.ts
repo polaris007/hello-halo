@@ -166,6 +166,7 @@ interface ChatState {
     isToolResult?: boolean
   }) => void
   handleAgentCompact: (data: AgentEventBase & { trigger: 'manual' | 'auto'; preTokens: number }) => void
+  handleAgentWaitingForInput: (data: AgentEventBase & { inputType: 'tool-approval' | 'question'; toolCallId?: string; toolName?: string; questionId?: string; message?: string }) => void
 
   // AskUserQuestion handlers
   handleAskQuestion: (data: AgentEventBase & { id: string; questions: Question[] }) => void
@@ -394,8 +395,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const conversationMeta = spaceState.conversations.find((c) => c.id === conversationId)
     if (!conversationMeta) return
 
-    // Subscribe to conversation events (for remote mode)
-    api.subscribeToConversation(conversationId)
+    // Note: SSE connection handles conversation-specific events, no WebSocket subscription needed
 
     // Update the pointer + move unseen/error items to readAt grace period
     set((state) => {
@@ -1044,6 +1044,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? { ...session.pendingQuestion, status: 'cancelled' as const }
           : session.pendingQuestion
       })
+      return { sessions: newSessions }
+    })
+  },
+
+  // Handle waiting-for-input event (tool approval or AskUserQuestion)
+  handleAgentWaitingForInput: (data) => {
+    const { conversationId, inputType, toolCallId, toolName, questionId, message } = data
+    console.log(`[ChatStore] handleAgentWaitingForInput [${conversationId}]:`, inputType, toolCallId || questionId)
+
+    // Update session state to indicate waiting for input
+    // The specific UI handling (tool approval vs question) is done in components
+    // based on the inputType
+    set((state) => {
+      const newSessions = new Map(state.sessions)
+      const session = newSessions.get(conversationId) || createEmptySessionState()
+
+      // For tool approval, we need to ensure pendingToolApproval is set
+      // This will be used by ToolCard component to show approval UI
+      const updatedSession = {
+        ...session,
+        // Ensure isGenerating is true while waiting for input
+        isGenerating: true,
+        isThinking: false,
+        isStreaming: false
+      }
+
+      newSessions.set(conversationId, updatedSession)
       return { sessions: newSessions }
     })
   },

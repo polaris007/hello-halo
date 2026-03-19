@@ -350,6 +350,7 @@ export interface Message {
   thoughts?: Thought[] | null;  // null = stored separately (not loaded), undefined = none, Array = loaded
   thoughtsSummary?: ThoughtsSummary;  // Present when thoughts are stored separately
   isStreaming?: boolean;
+  isPartial?: boolean;  // Whether this is a partial message (incremental persistence)
   images?: ImageAttachment[];  // Attached images
   tokenUsage?: TokenUsage;  // Token usage for this assistant message
   metadata?: {

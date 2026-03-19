@@ -16,14 +16,10 @@ interface ClientConnection {
   ws: WebSocket
   userId: string
   authMode: string
-  subscribedConversations: Set<string>  // 用户订阅的对话列表
 }
 
 // 存储所有连接
 const clients: Map<string, Set<ClientConnection>> = new Map()
-
-// 对话到用户的映射（用于快速查找订阅了某个对话的所有用户）
-const conversationSubscriptions: Map<string, Set<string>> = new Map()
 
 /**
  * 初始化 WebSocket 服务器
@@ -52,7 +48,7 @@ export function initializeWebSocket(server: Server) {
       if (!clients.has(userId)) {
         clients.set(userId, new Set())
       }
-      const clientConnection: ClientConnection = { ws, userId, authMode: user.authMode, subscribedConversations: new Set() }
+      const clientConnection: ClientConnection = { ws, userId, authMode: user.authMode }
       clients.get(userId)!.add(clientConnection)
 
       // 发送欢迎消息
@@ -75,10 +71,6 @@ export function initializeWebSocket(server: Server) {
       ws.on('close', () => {
         const userClients = clients.get(userId)
         if (userClients) {
-          // 清理该客户端的所有订阅
-          clientConnection.subscribedConversations.forEach(conversationId => {
-            unsubscribeUserFromConversation(userId, conversationId)
-          })
           userClients.delete(clientConnection)
           if (userClients.size === 0) {
             clients.delete(userId)
@@ -146,19 +138,6 @@ function handleMessage(ws: WebSocket, userId: string, data: any) {
       ws.send(JSON.stringify({ type: 'pong' }))
       break
 
-    case 'subscribe':
-      // 订阅特定对话
-      if (payload?.conversationId) {
-        subscribeUserToConversation(userId, payload.conversationId, ws)
-      }
-      break
-
-    case 'unsubscribe':
-      // 取消订阅
-      if (payload?.conversationId) {
-        unsubscribeUserFromConversation(userId, payload.conversationId)
-      }
-      break
 
     default:
       console.log('Unknown message type:', type)
@@ -168,56 +147,6 @@ function handleMessage(ws: WebSocket, userId: string, data: any) {
 /**
  * 订阅用户到特定对话
  */
-function subscribeUserToConversation(userId: string, conversationId: string, ws: WebSocket): void {
-  // 找到用户的客户端连接
-  const userClients = clients.get(userId)
-  if (!userClients) return
-
-  for (const client of userClients) {
-    if (client.ws === ws) {
-      client.subscribedConversations.add(conversationId)
-      break
-    }
-  }
-
-  // 更新反向映射
-  if (!conversationSubscriptions.has(conversationId)) {
-    conversationSubscriptions.set(conversationId, new Set())
-  }
-  conversationSubscriptions.get(conversationId)!.add(userId)
-
-  console.log(`[WebSocket] User ${userId} subscribed to conversation ${conversationId}`)
-
-  // 发送确认
-  ws.send(JSON.stringify({
-    type: 'subscribed',
-    payload: { conversationId }
-  }))
-}
-
-/**
- * 取消用户订阅
- */
-function unsubscribeUserFromConversation(userId: string, conversationId: string): void {
-  // 从用户的订阅列表中移除
-  const userClients = clients.get(userId)
-  if (userClients) {
-    for (const client of userClients) {
-      client.subscribedConversations.delete(conversationId)
-    }
-  }
-
-  // 从反向映射中移除
-  const subscribers = conversationSubscriptions.get(conversationId)
-  if (subscribers) {
-    subscribers.delete(userId)
-    if (subscribers.size === 0) {
-      conversationSubscriptions.delete(conversationId)
-    }
-  }
-
-  console.log(`[WebSocket] User ${userId} unsubscribed from conversation ${conversationId}`)
-}
 
 /**
  * 向特定用户推送事件
@@ -273,12 +202,6 @@ export function broadcastAgentEvent(eventType: string, data: any): void {
     return
   }
 
-  const subscribers = conversationSubscriptions.get(conversationId)
-  if (!subscribers || subscribers.size === 0) {
-    // No subscribers, skip
-    return
-  }
-
   const event = {
     type: 'agent:event',
     payload: {
@@ -289,16 +212,13 @@ export function broadcastAgentEvent(eventType: string, data: any): void {
 
   const message = JSON.stringify(event)
 
-  subscribers.forEach(userId => {
-    const userClients = clients.get(userId)
-    if (userClients) {
-      userClients.forEach(client => {
-        if (client.ws.readyState === WebSocket.OPEN &&
-            client.subscribedConversations.has(conversationId)) {
-          client.ws.send(message)
-        }
-      })
-    }
+  // 广播给所有连接的客户端（双通道架构）
+  clients.forEach((userClients) => {
+    userClients.forEach(client => {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(message)
+      }
+    })
   })
 }
 

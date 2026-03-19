@@ -355,7 +355,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     allowedTools: [...DEFAULT_ALLOWED_TOOLS],
     // Enable Skills loading from $CLAUDE_CONFIG_DIR/skills/ and <workspace>/.claude/skills/
     settingSources: ['user', 'project'],
-    permissionMode: 'bypassPermissions' as const,
+    permissionMode: 'default' as const,  // 启用工具审批功能
     canUseTool: createCanUseTool(
       emitEvent
         ? { emitEvent, spaceId, conversationId }

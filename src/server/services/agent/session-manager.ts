@@ -44,12 +44,17 @@ export const v2Sessions = new Map<string, V2SessionInfo>()
 /** Active session state for in-flight requests */
 export const activeSessions = new Map<string, SessionState>()
 
-/** Active SSE streams by conversationId */
-export const activeSSEStreams = new Map<string, {
+/** SSE 连接信息 */
+interface SSEStreamEntry {
+  conversationId: string
   controller: AbortController
   connectedAt: number
   lastActivityAt: number
-}>()
+  timeoutId: NodeJS.Timeout
+}
+
+/** Active SSE streams by conversationId */
+export const activeSSEStreams = new Map<string, SSEStreamEntry>()
 
 /** SSE connection timeout (30 minutes) */
 const SSE_TIMEOUT_MS = 30 * 60 * 1000
@@ -58,19 +63,57 @@ const SSE_TIMEOUT_MS = 30 * 60 * 1000
  * Register an active SSE stream
  */
 export function registerSSEStream(conversationId: string, controller: AbortController): void {
+  const now = Date.now()
+
   // 如果已有连接，先取消旧连接
   const existing = activeSSEStreams.get(conversationId)
   if (existing) {
     console.log(`[SSE][${conversationId}] Closing existing SSE connection`)
+    clearTimeout(existing.timeoutId)
     existing.controller.abort()
+    activeSSEStreams.delete(conversationId)
+    // 取消该对话的等待状态
+    cancelPendingInput(conversationId)
   }
 
-  const now = Date.now()
+  // 设置超时定时器
+  const timeoutId = setTimeout(() => {
+    console.log(`[SSE][${conversationId}] SSE timeout after ${SSE_TIMEOUT_MS / 60000} minutes`)
+    const entry = activeSSEStreams.get(conversationId)
+    if (entry) {
+      entry.controller.abort()
+      activeSSEStreams.delete(conversationId)
+      // 同步更新 V2 Session 状态
+      const sessionInfo = v2Sessions.get(conversationId)
+      if (sessionInfo) {
+        sessionInfo.isSSEActive = false
+      }
+      console.log(`[SSE][${conversationId}] SSE stream timed out and cleaned`)
+    }
+  }, SSE_TIMEOUT_MS)
+
+  // 注册新连接
   activeSSEStreams.set(conversationId, {
+    conversationId,
     controller,
     connectedAt: now,
-    lastActivityAt: now
+    lastActivityAt: now,
+    timeoutId
   })
+
+  // 同步更新 V2 Session 状态
+  const sessionInfo = v2Sessions.get(conversationId)
+  if (sessionInfo) {
+    sessionInfo.isSSEActive = true
+  }
+
+  // 同步更新 activeSessions
+  const sessionState = activeSessions.get(conversationId)
+  if (sessionState) {
+    sessionState.sseConnectedAt = now
+    sessionState.lastActivityAt = now
+  }
+
   console.log(`[SSE][${conversationId}] SSE stream registered, active: ${activeSSEStreams.size}`)
 }
 
@@ -78,14 +121,26 @@ export function registerSSEStream(conversationId: string, controller: AbortContr
  * Unregister an active SSE stream
  */
 export function unregisterSSEStream(conversationId: string): void {
-  activeSSEStreams.delete(conversationId)
-  console.log(`[SSE][${conversationId}] SSE stream unregistered, active: ${activeSSEStreams.size}`)
+  const entry = activeSSEStreams.get(conversationId)
+  if (entry) {
+    clearTimeout(entry.timeoutId)
+    // 注意：不调用 controller.abort()，由调用方决定
+    activeSSEStreams.delete(conversationId)
+
+    // 同步更新 V2 Session 状态
+    const sessionInfo = v2Sessions.get(conversationId)
+    if (sessionInfo) {
+      sessionInfo.isSSEActive = false
+    }
+
+    console.log(`[SSE][${conversationId}] SSE stream unregistered, active: ${activeSSEStreams.size}`)
+  }
 }
 
 /**
  * Get active SSE stream
  */
-export function getSSEStream(conversationId: string): { controller: AbortController } | undefined {
+export function getSSEStream(conversationId: string): SSEStreamEntry | undefined {
   return activeSSEStreams.get(conversationId)
 }
 
@@ -99,26 +154,6 @@ export function updateSSEActivity(conversationId: string): void {
   }
 }
 
-/**
- * Clean up stale SSE streams
- */
-export function cleanupStaleSSEStreams(): void {
-  const now = Date.now()
-  let cleaned = 0
-
-  for (const [conversationId, stream] of activeSSEStreams) {
-    if (now - stream.lastActivityAt > SSE_TIMEOUT_MS) {
-      stream.controller.abort()
-      activeSSEStreams.delete(conversationId)
-      cleaned++
-      console.log(`[SSE][${conversationId}] Stream timed out after ${SSE_TIMEOUT_MS / 60000} minutes`)
-    }
-  }
-
-  if (cleaned > 0) {
-    console.log(`[SSE] Cleaned up ${cleaned} stale streams, remaining: ${activeSSEStreams.size}`)
-  }
-}
 
 // ============================================
 // Session State Management
@@ -343,18 +378,56 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
 
 /**
  * Clean up stale sessions
+ * @deprecated Use cleanupStaleResources instead
  */
 export function cleanupStaleSessions(): void {
-  const now = Date.now()
-  let cleaned = 0
+  cleanupStaleResources()
+}
 
-  for (const [conversationId, info] of v2Sessions) {
-    // Skip active sessions
-    if (activeSessions.has(conversationId)) {
+/**
+ * Unified cleanup of stale resources (SSE streams and V2 sessions)
+ */
+export function cleanupStaleResources(): void {
+  const now = Date.now()
+  let sseCleaned = 0
+  let sessionCleaned = 0
+
+  // 1. 清理超时的 SSE 连接
+  for (const [conversationId, entry] of activeSSEStreams) {
+    // 如果正在生成中，跳过
+    const sessionState = activeSessions.get(conversationId)
+    if (sessionState?.isGenerating) {
       continue
     }
 
-    // Check if session has timed out
+    // 检查超时
+    if (now - entry.lastActivityAt > SSE_TIMEOUT_MS) {
+      try {
+        entry.controller.abort()
+      } catch (e) {
+        // ignore
+      }
+      clearTimeout(entry.timeoutId)
+      activeSSEStreams.delete(conversationId)
+
+      // 同步更新 V2 Session
+      const sessionInfo = v2Sessions.get(conversationId)
+      if (sessionInfo) {
+        sessionInfo.isSSEActive = false
+      }
+
+      sseCleaned++
+      console.log(`[Agent][${conversationId}] SSE stream timed out and cleaned`)
+    }
+  }
+
+  // 2. 清理超时的 V2 Session
+  for (const [conversationId, info] of v2Sessions) {
+    // 跳过有活跃 SSE 连接或正在生成的会话
+    if (info.isSSEActive || activeSessions.has(conversationId)) {
+      continue
+    }
+
     if (now - info.lastUsedAt > SESSION_TIMEOUT_MS) {
       try {
         info.session.close()
@@ -362,14 +435,138 @@ export function cleanupStaleSessions(): void {
         console.error(`[Agent][${conversationId}] Error closing stale session:`, error)
       }
       v2Sessions.delete(conversationId)
-      cleaned++
+      sessionCleaned++
     }
   }
 
-  if (cleaned > 0) {
-    console.log(`[Agent] Cleaned up ${cleaned} stale sessions, remaining: ${v2Sessions.size}`)
+  if (sseCleaned > 0 || sessionCleaned > 0) {
+    console.log(`[Agent] Cleaned up: ${sseCleaned} SSE streams, ${sessionCleaned} sessions`)
   }
 }
 
 // Start periodic cleanup
-setInterval(cleanupStaleSessions, 5 * 60 * 1000) // Every 5 minutes
+setInterval(cleanupStaleResources, 5 * 60 * 1000) // Every 5 minutes
+
+// ============================================
+// Pending Input Resolvers (for tool approval and AskUserQuestion)
+// ============================================
+
+interface PendingInputEntry {
+  resolve: (value: { approved?: boolean; answers?: Record<string, string> }) => void
+  reject: (reason: any) => void
+  inputType: 'tool-approval' | 'ask-question'
+  createdAt: number
+  timeoutId?: NodeJS.Timeout
+  toolCallId?: string
+  questionId?: string
+}
+
+/** Map of conversationId -> pending input resolver */
+const pendingInputResolvers = new Map<string, PendingInputEntry>()
+
+/**
+ * Wait for user input (tool approval or question answers)
+ */
+export async function waitForUserInput(
+  conversationId: string,
+  inputType: 'tool-approval' | 'ask-question',
+  metadata: { toolCallId?: string; questionId?: string },
+  signal?: AbortSignal,
+  timeoutMs: number = 5 * 60 * 1000 // 5 minutes default timeout
+): Promise<{ approved?: boolean; answers?: Record<string, string> }> {
+  return new Promise((resolve, reject) => {
+    // Set timeout
+    const timeoutId = setTimeout(() => {
+      const entry = pendingInputResolvers.get(conversationId)
+      if (entry && entry.inputType === inputType) {
+        pendingInputResolvers.delete(conversationId)
+        reject(new Error('User input timeout'))
+      }
+    }, timeoutMs)
+
+    // Store resolver
+    pendingInputResolvers.set(conversationId, {
+      resolve: (value) => {
+        clearTimeout(timeoutId)
+        pendingInputResolvers.delete(conversationId)
+        resolve(value)
+      },
+      reject: (reason) => {
+        clearTimeout(timeoutId)
+        pendingInputResolvers.delete(conversationId)
+        reject(reason)
+      },
+      inputType,
+      createdAt: Date.now(),
+      timeoutId,
+      toolCallId: metadata.toolCallId,
+      questionId: metadata.questionId
+    })
+
+    // Listen for abort signal
+    if (signal) {
+      const onAbort = () => {
+        const entry = pendingInputResolvers.get(conversationId)
+        if (entry && entry.inputType === inputType) {
+          entry.reject(new Error('Aborted'))
+        }
+      }
+      if (signal.aborted) {
+        onAbort()
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true })
+      }
+    }
+  })
+}
+
+/**
+ * Resolve pending user input (called by HTTP endpoints)
+ */
+export function resolveUserInput(
+  conversationId: string,
+  result: { approved?: boolean; answers?: Record<string, string> }
+): boolean {
+  const pending = pendingInputResolvers.get(conversationId)
+  if (pending) {
+    pending.resolve(result)
+    return true
+  }
+  return false
+}
+
+/**
+ * Cancel pending user input (called when SSE connection closes or stop endpoint is called)
+ */
+export function cancelPendingInput(conversationId: string): void {
+  const pending = pendingInputResolvers.get(conversationId)
+  if (pending) {
+    pending.reject(new Error('SSE connection closed'))
+    pendingInputResolvers.delete(conversationId)
+  }
+}
+
+/**
+ * Clean up stale pending inputs
+ */
+function cleanupStalePendingInputs(): void {
+  const now = Date.now()
+  const TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+
+  for (const [conversationId, entry] of pendingInputResolvers) {
+    if (now - entry.createdAt > TIMEOUT_MS) {
+      entry.reject(new Error('Input timeout'))
+      pendingInputResolvers.delete(conversationId)
+    }
+  }
+}
+
+/**
+ * Check if there is pending user input for a conversation
+ */
+export function getPendingInput(conversationId: string): boolean {
+  return pendingInputResolvers.has(conversationId)
+}
+
+// Start periodic cleanup for pending inputs
+setInterval(cleanupStalePendingInputs, 5 * 60 * 1000) // Every 5 minutes

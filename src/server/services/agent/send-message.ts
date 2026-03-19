@@ -252,16 +252,26 @@ export async function sendMessage(
             console.log(`[Agent][${conversationId}] Session ID saved:`, streamResult.capturedSessionId)
           }
 
-          // Persist content to database
+          // Persist content to database (isPartial: false)
           const { finalContent, thoughts, tokenUsage, hasErrorThought, errorThought } = streamResult
           if (finalContent || hasErrorThought) {
             updateAssistantMessage(conversationId, {
               content: finalContent,
               thoughts: thoughts.length > 0 ? [...thoughts] : undefined,
               tokenUsage: tokenUsage || undefined,
-              error: errorThought?.content
+              error: errorThought?.content,
+              isPartial: false  // 最终持久化标记为完整
             })
           }
+        },
+        // 增量持久化回调（流式生成期间实时保存部分内容）
+        onIncrementalPersist: (data) => {
+          const { content, thoughts, isPartial } = data
+          updateAssistantMessage(conversationId, {
+            content,
+            thoughts: thoughts.length > 0 ? [...thoughts] : undefined,
+            isPartial
+          })
         }
       }
     })
@@ -373,7 +383,7 @@ function saveAssistantPlaceholder(spaceId: string, conversationId: string) {
   }
 }
 
-function updateAssistantMessage(conversationId: string, update: { content?: string, thoughts?: any[], tokenUsage?: any, error?: string }) {
+function updateAssistantMessage(conversationId: string, update: { content?: string, thoughts?: any[], tokenUsage?: any, error?: string, isPartial?: boolean }) {
   try {
     const db = getDatabase()
     const conversation = db.prepare('SELECT * FROM conversations WHERE id = ?').get(conversationId) as any
@@ -386,7 +396,13 @@ function updateAssistantMessage(conversationId: string, update: { content?: stri
       if (update.thoughts) lastMessage.thoughts = update.thoughts
       if (update.tokenUsage) lastMessage.tokenUsage = update.tokenUsage
       if (update.error) lastMessage.error = update.error
+      if (update.isPartial !== undefined) lastMessage.isPartial = update.isPartial
       lastMessage.timestamp = Date.now()
+    }
+
+    else if (update.isPartial !== undefined) {
+      // 如果 isPartial 为 true， 添加 isPartial 字段
+      lastMessage.isPartial = update.isPartial
     }
 
     db.prepare('UPDATE conversations SET messages = ?, updated_at = ? WHERE id = ?')
@@ -614,16 +630,25 @@ export async function sendMessageWithSSE(
             saveSessionIdToDb(conversationId, streamResult.capturedSessionId)
           }
 
-          // Persist content to database
+          // Persist content to database (isPartial: false - final persist)
           const { finalContent, thoughts, tokenUsage, hasErrorThought, errorThought } = streamResult
           if (finalContent || hasErrorThought) {
             updateAssistantMessage(conversationId, {
               content: finalContent,
               thoughts: thoughts.length > 0 ? [...thoughts] : undefined,
               tokenUsage: tokenUsage || undefined,
-              error: errorThought?.content
+              error: errorThought?.content,
+              isPartial: false  // 最终持久化标记为完整
             })
           }
+        },
+        // 增量持久化回调（流式生成期间实时保存部分内容）
+        onIncrementalPersist: (data) => {
+          updateAssistantMessage(conversationId, {
+            content: data.content,
+            thoughts: data.thoughts.length > 0 ? [...data.thoughts] : undefined,
+            isPartial: data.isPartial
+          })
         }
       }
     })

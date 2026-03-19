@@ -197,6 +197,8 @@ export interface V2SessionInfo {
   // Credentials generation at session creation time
   // Used to detect stale credentials (session created before config change)
   credentialsGeneration: number
+  /** 是否有活跃的 SSE 连接 */
+  isSSEActive?: boolean
 }
 
 // ============================================
@@ -278,6 +280,20 @@ export interface StreamCallbacks {
   onComplete(result: StreamResult): void
   /** Called for each raw SDK message (for JSONL persistence in automation) */
   onRawMessage?(sdkMessage: any): void
+  /** Called at key points during streaming for incremental persistence */
+  onIncrementalPersist?(data: IncrementalPersistData): void
+}
+
+/**
+ * Data for incremental persistence
+ */
+export interface IncrementalPersistData {
+  /** Current accumulated text content */
+  content: string
+  /** Current accumulated thoughts */
+  thoughts: Thought[]
+  /** Whether this is a partial (incomplete) message */
+  isPartial: boolean
 }
 
 /**

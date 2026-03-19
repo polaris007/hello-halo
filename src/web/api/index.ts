@@ -8,8 +8,6 @@ import {
   onEvent,
   connectWebSocket,
   disconnectWebSocket,
-  subscribeToConversation,
-  unsubscribeFromConversation,
   setAuthToken,
   clearAuthToken,
   getAuthToken,
@@ -647,10 +645,10 @@ export const api = {
     onEvent('agent:compact', callback),
   onAgentAskQuestion: (callback: (data: unknown) => void) =>
     onEvent('agent:ask-question', callback),
+  onAgentWaitingForInput: (callback: (data: unknown) => void) =>
+    onEvent('agent:waiting-for-input', callback),
 
   // ===== WebSocket Control =====
-  subscribeToConversation,
-  unsubscribeFromConversation,
 
   // ===== Browser (not available in B/S mode) =====
   createBrowserView: async (_viewId: string, _url?: string): Promise<ApiResponse> => {
