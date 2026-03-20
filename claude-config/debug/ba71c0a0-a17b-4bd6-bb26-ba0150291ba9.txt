@@ -1,0 +1,67 @@
+2026-03-20T15:10:39.866Z [DEBUG] Watching for changes in setting files G:\Workplace\hello-halo\claude-config...
+2026-03-20T15:10:40.059Z [DEBUG] Using bash path: "d:\Program Files\Git\bin\bash.exe"
+2026-03-20T15:10:40.191Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-03-20T15:10:40.191Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-03-20T15:10:40.191Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-03-20T15:10:40.193Z [DEBUG] LSP server manager initialized successfully
+2026-03-20T15:10:40.193Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-03-20T15:10:40.193Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-03-20T15:10:40.197Z [DEBUG] Stats cache does not exist, returning empty cache
+2026-03-20T15:10:40.197Z [DEBUG] Stats cache empty, processing all historical data in background
+2026-03-20T15:10:40.198Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-03-20T15:10:40.207Z [DEBUG] Loading skills from: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=claude-config\skills, project=[G:\Workplace\hello-halo\.claude\skills]
+2026-03-20T15:10:40.708Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults_DEPRECATED (474.9ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2026-03-20T15:10:40.710Z [DEBUG] installed_plugins.json doesn't exist, returning empty V2 object
+2026-03-20T15:10:40.958Z [DEBUG] Creating shell snapshot for bash (d:\Program Files\Git\bin\bash.exe)
+2026-03-20T15:10:40.958Z [DEBUG] Looking for shell config file: C:\Users\Administrator\.bashrc
+2026-03-20T15:10:40.958Z [DEBUG] Snapshots directory: claude-config\shell-snapshots
+2026-03-20T15:10:40.980Z [DEBUG] Creating snapshot at: claude-config\shell-snapshots\snapshot-bash-1774019440958-tlb9xu.sh
+2026-03-20T15:10:40.980Z [DEBUG] Shell binary exists: true
+2026-03-20T15:10:40.980Z [DEBUG] Execution timeout: 10000ms
+2026-03-20T15:10:41.016Z [DEBUG] Writing to temp file: claude-config\todos\ba71c0a0-a17b-4bd6-bb26-ba0150291ba9-agent-ba71c0a0-a17b-4bd6-bb26-ba0150291ba9.json.tmp.13548.1774019441016
+2026-03-20T15:10:41.084Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (67.9ms)
+2026-03-20T15:10:41.084Z [DEBUG] Temp file written successfully, size: 2 bytes
+2026-03-20T15:10:41.084Z [DEBUG] Renaming claude-config\todos\ba71c0a0-a17b-4bd6-bb26-ba0150291ba9-agent-ba71c0a0-a17b-4bd6-bb26-ba0150291ba9.json.tmp.13548.1774019441016 to claude-config\todos\ba71c0a0-a17b-4bd6-bb26-ba0150291ba9-agent-ba71c0a0-a17b-4bd6-bb26-ba0150291ba9.json
+2026-03-20T15:10:41.085Z [DEBUG] File claude-config\todos\ba71c0a0-a17b-4bd6-bb26-ba0150291ba9-agent-ba71c0a0-a17b-4bd6-bb26-ba0150291ba9.json written atomically
+2026-03-20T15:10:41.087Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-03-20T15:10:41.087Z [DEBUG] Total plugin skills loaded: 0
+2026-03-20T15:10:41.087Z [DEBUG] Total plugin commands loaded: 0
+2026-03-20T15:10:41.087Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-03-20T15:10:41.157Z [DEBUG] Total plugin agents loaded: 0
+2026-03-20T15:10:41.158Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, legacy commands: 0)
+2026-03-20T15:10:41.158Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2026-03-20T15:10:41.237Z [DEBUG] Initialized versioned plugins system with 0 plugins
+2026-03-20T15:10:41.273Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2026-03-20T15:10:41.273Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T15:10:41.273Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2026-03-20T15:10:41.293Z [DEBUG] Total plugin output styles loaded: 0
+2026-03-20T15:10:41.322Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (25.5ms)
+2026-03-20T15:10:41.354Z [DEBUG] Git remote URL: https://github.com/polaris007/hello-halo.git
+2026-03-20T15:10:41.354Z [DEBUG] Parsed repository: polaris007/hello-halo from https://github.com/polaris007/hello-halo.git
+2026-03-20T15:10:41.354Z [DEBUG] Parsed repository: polaris007/hello-halo from URL: https://github.com/polaris007/hello-halo.git
+2026-03-20T15:10:41.355Z [DEBUG] Path G:\Workplace\hello-halo already tracked for repo polaris007/hello-halo
+2026-03-20T15:10:41.460Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=G:\Workplace\hello-halo\node_modules\@anthropic-ai\claude-agent-sdk\vendor\ripgrep\x64-win32\rg.exe)
+2026-03-20T15:10:41.542Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-03-20T15:10:41.542Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-03-20T15:10:41.542Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-03-20T15:10:41.542Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-03-20T15:10:41.544Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-03-20T15:10:41.544Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T15:10:41.544Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-03-20T15:10:41.554Z [DEBUG] Skills and commands included in Skill tool:
+2026-03-20T15:10:42.282Z [DEBUG] Shell snapshot created successfully (2308 bytes)
+2026-03-20T15:10:43.122Z [DEBUG] Stream started - received first chunk
+2026-03-20T15:10:45.905Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-03-20T15:10:45.905Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T15:10:45.905Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-03-20T15:11:04.594Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-03-20T15:11:04.594Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-03-20T15:11:04.594Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-03-20T15:11:04.594Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-03-20T15:11:04.594Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-03-20T15:11:04.594Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T15:11:04.594Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-03-20T15:11:06.108Z [DEBUG] Stream started - received first chunk
+2026-03-20T15:11:10.336Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-03-20T15:11:10.336Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T15:11:10.336Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)

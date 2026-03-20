@@ -1,0 +1,104 @@
+2026-03-20T14:39:31.148Z [DEBUG] Watching for changes in setting files G:\Workplace\hello-halo\claude-config...
+2026-03-20T14:39:31.153Z [ERROR] Failed to save config with lock: Error: ENOENT: no such file or directory, lstat 'G:\Workplace\hello-halo\claude-config\.claude.json'
+2026-03-20T14:39:31.153Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017571153
+2026-03-20T14:39:31.153Z [DEBUG] Setting permissions for new file: 600
+2026-03-20T14:39:31.203Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (49.3ms)
+2026-03-20T14:39:31.203Z [DEBUG] Temp file written successfully, size: 50 bytes
+2026-03-20T14:39:31.203Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017571153 to claude-config\.claude.json
+2026-03-20T14:39:31.204Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:31.401Z [DEBUG] Using bash path: "d:\Program Files\Git\bin\bash.exe"
+2026-03-20T14:39:31.532Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017571532
+2026-03-20T14:39:31.533Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:31.590Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (57.1ms)
+2026-03-20T14:39:31.590Z [DEBUG] Temp file written successfully, size: 87 bytes
+2026-03-20T14:39:31.590Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:31.590Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017571532 to claude-config\.claude.json
+2026-03-20T14:39:31.591Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:31.599Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017571599
+2026-03-20T14:39:31.600Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:31.645Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (45.5ms)
+2026-03-20T14:39:31.645Z [DEBUG] Temp file written successfully, size: 122 bytes
+2026-03-20T14:39:31.646Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:31.646Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017571599 to claude-config\.claude.json
+2026-03-20T14:39:31.648Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:31.658Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017571658
+2026-03-20T14:39:31.658Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:31.700Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (42.2ms)
+2026-03-20T14:39:31.700Z [DEBUG] Temp file written successfully, size: 159 bytes
+2026-03-20T14:39:31.701Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:31.701Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017571658 to claude-config\.claude.json
+2026-03-20T14:39:31.701Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:31.706Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-03-20T14:39:31.706Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-03-20T14:39:31.706Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-03-20T14:39:31.709Z [DEBUG] LSP server manager initialized successfully
+2026-03-20T14:39:31.709Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-03-20T14:39:31.709Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-03-20T14:39:31.716Z [DEBUG] Plugin autoupdate: skipped (auto-updater disabled)
+2026-03-20T14:39:31.723Z [DEBUG] Loading skills from: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=claude-config\skills, project=[G:\Workplace\hello-halo\.claude\skills]
+2026-03-20T14:39:32.258Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults_DEPRECATED (511.0ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2026-03-20T14:39:32.259Z [DEBUG] installed_plugins.json doesn't exist, returning empty V2 object
+2026-03-20T14:39:32.537Z [DEBUG] Creating shell snapshot for bash (d:\Program Files\Git\bin\bash.exe)
+2026-03-20T14:39:32.538Z [DEBUG] Looking for shell config file: C:\Users\Administrator\.bashrc
+2026-03-20T14:39:32.538Z [DEBUG] Snapshots directory: claude-config\shell-snapshots
+2026-03-20T14:39:32.560Z [DEBUG] Creating snapshot at: claude-config\shell-snapshots\snapshot-bash-1774017572538-j8tjap.sh
+2026-03-20T14:39:32.560Z [DEBUG] Shell binary exists: true
+2026-03-20T14:39:32.560Z [DEBUG] Execution timeout: 10000ms
+2026-03-20T14:39:32.616Z [DEBUG] Writing to temp file: claude-config\todos\77840a42-14a6-40e4-9bb6-f7a432a736df-agent-77840a42-14a6-40e4-9bb6-f7a432a736df.json.tmp.26976.1774017572616
+2026-03-20T14:39:32.662Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (46.5ms)
+2026-03-20T14:39:32.662Z [DEBUG] Temp file written successfully, size: 2 bytes
+2026-03-20T14:39:32.662Z [DEBUG] Renaming claude-config\todos\77840a42-14a6-40e4-9bb6-f7a432a736df-agent-77840a42-14a6-40e4-9bb6-f7a432a736df.json.tmp.26976.1774017572616 to claude-config\todos\77840a42-14a6-40e4-9bb6-f7a432a736df-agent-77840a42-14a6-40e4-9bb6-f7a432a736df.json
+2026-03-20T14:39:32.663Z [DEBUG] File claude-config\todos\77840a42-14a6-40e4-9bb6-f7a432a736df-agent-77840a42-14a6-40e4-9bb6-f7a432a736df.json written atomically
+2026-03-20T14:39:32.666Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-03-20T14:39:32.666Z [DEBUG] Total plugin skills loaded: 0
+2026-03-20T14:39:32.666Z [DEBUG] Total plugin commands loaded: 0
+2026-03-20T14:39:32.666Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-03-20T14:39:32.946Z [DEBUG] Total plugin agents loaded: 0
+2026-03-20T14:39:32.946Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, legacy commands: 0)
+2026-03-20T14:39:32.946Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2026-03-20T14:39:33.023Z [DEBUG] Initialized versioned plugins system with 0 plugins
+2026-03-20T14:39:33.032Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017573032
+2026-03-20T14:39:33.032Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:33.071Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (39.2ms)
+2026-03-20T14:39:33.071Z [DEBUG] Temp file written successfully, size: 227 bytes
+2026-03-20T14:39:33.072Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:33.072Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017573032 to claude-config\.claude.json
+2026-03-20T14:39:33.073Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:33.091Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2026-03-20T14:39:33.091Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T14:39:33.091Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2026-03-20T14:39:33.115Z [DEBUG] Total plugin output styles loaded: 0
+2026-03-20T14:39:33.145Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (26.0ms)
+2026-03-20T14:39:33.240Z [DEBUG] Git remote URL: https://github.com/polaris007/hello-halo.git
+2026-03-20T14:39:33.240Z [DEBUG] Parsed repository: polaris007/hello-halo from https://github.com/polaris007/hello-halo.git
+2026-03-20T14:39:33.240Z [DEBUG] Parsed repository: polaris007/hello-halo from URL: https://github.com/polaris007/hello-halo.git
+2026-03-20T14:39:33.247Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017573247
+2026-03-20T14:39:33.248Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:33.282Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (33.7ms)
+2026-03-20T14:39:33.282Z [DEBUG] Temp file written successfully, size: 326 bytes
+2026-03-20T14:39:33.282Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:33.282Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017573247 to claude-config\.claude.json
+2026-03-20T14:39:33.283Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:33.284Z [DEBUG] Added G:\Workplace\hello-halo to tracked paths for repo polaris007/hello-halo
+2026-03-20T14:39:33.411Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=G:\Workplace\hello-halo\node_modules\@anthropic-ai\claude-agent-sdk\vendor\ripgrep\x64-win32\rg.exe)
+2026-03-20T14:39:33.489Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-03-20T14:39:33.489Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-03-20T14:39:33.490Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-03-20T14:39:33.490Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-03-20T14:39:33.491Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2026-03-20T14:39:33.491Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T14:39:33.491Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-03-20T14:39:33.504Z [DEBUG] Skills and commands included in Skill tool:
+2026-03-20T14:39:33.516Z [DEBUG] Writing to temp file: claude-config\.claude.json.tmp.26976.1774017573516
+2026-03-20T14:39:33.516Z [DEBUG] Preserving file permissions: 100666
+2026-03-20T14:39:33.656Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (140.4ms)
+2026-03-20T14:39:33.656Z [DEBUG] Temp file written successfully, size: 406 bytes
+2026-03-20T14:39:33.657Z [DEBUG] Applied original permissions to temp file
+2026-03-20T14:39:33.657Z [DEBUG] Renaming claude-config\.claude.json.tmp.26976.1774017573516 to claude-config\.claude.json
+2026-03-20T14:39:33.659Z [DEBUG] File claude-config\.claude.json written atomically
+2026-03-20T14:39:33.888Z [ERROR] Error streaming, falling back to non-streaming mode: 404 {"timestamp":"2026-03-20T14:39:35.634+00:00","status":404,"error":"Not Found","path":"/v1/chat/completions/v1/messages"}
+2026-03-20T14:39:34.010Z [ERROR] Error in non-streaming fallback: 404 {"timestamp":"2026-03-20T14:39:35.757+00:00","status":404,"error":"Not Found","path":"/v1/chat/completions/v1/messages"}
+2026-03-20T14:39:34.120Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2026-03-20T14:39:34.120Z [DEBUG] Found 0 hook matchers in settings
+2026-03-20T14:39:34.120Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2026-03-20T14:39:34.394Z [DEBUG] Shell snapshot created successfully (2308 bytes)

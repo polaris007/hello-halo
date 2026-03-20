@@ -8,9 +8,7 @@
 
 import path from 'path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
-// Removed: import { app } from 'electron'
-// Note: OpenAI compat router is Electron-specific, simplified for server-side
-// import { ensureOpenAICompatRouter, encodeBackendConfig } from '../../../main/openai-compat-router'
+import { ensureOpenAICompatRouter, encodeBackendConfig } from './openai-compat-router'
 import type { ApiCredentials } from './types'
 import { inferOpenAIWireApi } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
@@ -108,23 +106,41 @@ export interface BaseSdkOptionsParams {
 export async function resolveCredentialsForSdk(
   credentials: ApiCredentials
 ): Promise<ResolvedSdkCredentials> {
-  // ── Simplified logic for server-side ──
+  // Experimental: route Anthropic through local router for interceptor coverage
+  if (PROXY_ANTHROPIC && credentials.provider === 'anthropic') {
+    return resolveAnthropicPassthrough(credentials)
+  }
+
+  // ── Original logic (identical to pre-optimization code) ──
   // Start with direct values
   let anthropicBaseUrl = credentials.baseUrl
   let anthropicApiKey = credentials.apiKey
   let sdkModel = credentials.model || 'claude-opus-4-5-20251101'
   const displayModel = credentials.displayModel || credentials.model
 
-  // For non-Anthropic providers (openai or OAuth), we would need OpenAI compat router
-  // For now, just use direct connection (server-side simplified)
+  // For non-Anthropic providers (openai or OAuth), use the OpenAI compat router
   if (credentials.provider !== 'anthropic') {
-    // Use apiType from credentials, fallback to inference
+    const router = await ensureOpenAICompatRouter({ debug: false })
+    anthropicBaseUrl = router.baseUrl
+
+    // Use apiType from credentials (set by provider), fallback to inference
     const apiType = credentials.apiType
       || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
-    console.log(`[SDK Config] ${credentials.provider} provider: using direct connection, apiType=${apiType}`)
-    // Note: In a full implementation, we would use an OpenAI compat router here
-    // For now, we pass through the credentials directly
+    anthropicApiKey = encodeBackendConfig({
+      url: credentials.baseUrl,
+      key: credentials.apiKey,
+      model: credentials.model,
+      headers: credentials.customHeaders,
+      apiType,
+      forceStream: credentials.forceStream,
+      filterContent: credentials.filterContent
+    })
+
+    // Pass a fake Claude model to CC for normal request handling
+    sdkModel = 'claude-sonnet-4-20250514'
+
+    console.log(`[SDK Config] ${credentials.provider} provider: routing via ${anthropicBaseUrl}, apiType=${apiType}`)
   }
 
   return {
@@ -132,6 +148,36 @@ export async function resolveCredentialsForSdk(
     anthropicApiKey,
     sdkModel,
     displayModel
+  }
+}
+
+/**
+ * Resolve Anthropic credentials via local router passthrough (experimental).
+ * Isolated from the main path — only called when PROXY_ANTHROPIC = true.
+ */
+async function resolveAnthropicPassthrough(
+  credentials: ApiCredentials
+): Promise<ResolvedSdkCredentials> {
+  const router = await ensureOpenAICompatRouter({ debug: false })
+  const configUrl = credentials.baseUrl.replace(/\/+$/, '') + '/v1/messages'
+
+  const anthropicApiKey = encodeBackendConfig({
+    url: configUrl,
+    key: credentials.apiKey,
+    model: credentials.model,
+    headers: credentials.customHeaders,
+    apiType: 'anthropic_passthrough',
+    forceStream: credentials.forceStream,
+    filterContent: credentials.filterContent
+  })
+
+  console.log(`[SDK Config] Anthropic passthrough: routing via ${router.baseUrl}`)
+
+  return {
+    anthropicBaseUrl: router.baseUrl,
+    anthropicApiKey,
+    sdkModel: credentials.model || 'claude-opus-4-5-20251101',
+    displayModel: credentials.displayModel || credentials.model
   }
 }
 
