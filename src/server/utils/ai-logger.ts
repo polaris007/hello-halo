@@ -14,10 +14,27 @@ function getAiLogDir(): string {
   return logDir
 }
 
-// 获取当前日期的AI日志文件路径
+// 格式化本地时间戳（与API日志一致）
+function formatLocalTimestamp(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  const ms = String(now.getMilliseconds()).padStart(3, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${ms}`
+}
+
+// 获取当前日期的AI日志文件路径（使用本地时间，与API日志一致）
 function getAiLogFilePath(): string {
   const logDir = getAiLogDir()
-  const currentDate = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const currentDate = `${year}-${month}-${day}`
 
   // 确保目录存在
   if (!existsSync(logDir)) {
@@ -296,30 +313,32 @@ export function logUserMessage(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
-
     // 脱敏用户消息内容
     const sanitizedContent = sanitizeTextContent(params.messageContent)
 
     // 截断大内容
     const truncatedContent = truncateContent(sanitizedContent)
 
-    const logEntry: UserMessageLog = {
-      timestamp,
-      type: 'user_message',
-      requestId,
-      userId: params.userId,
-      spaceId: params.spaceId,
-      conversationId: params.conversationId,
-      message: {
-        content: truncatedContent,
-        images: params.imageCount || 0
-      }
+    // 格式化日志（与API日志格式一致）
+    const timestamp = formatLocalTimestamp()
+    const logLines: string[] = []
+
+    // 主日志行：[timestamp] [INFO] AI 用户消息: {requestId} - {type} - {conversationId}
+    logLines.push(`[${timestamp}] [INFO] AI 用户消息: ${requestId} - user_message - ${params.conversationId || 'no-conversation'}`)
+
+    // 详细信息在单独行记录
+    if (params.userId) {
+      logLines.push(`[${timestamp}] [INFO]   用户ID: ${params.userId}`)
     }
+    if (params.spaceId) {
+      logLines.push(`[${timestamp}] [INFO]   空间ID: ${params.spaceId}`)
+    }
+    logLines.push(`[${timestamp}] [INFO]   消息内容: ${truncatedContent}`)
+    logLines.push(`[${timestamp}] [INFO]   图片数量: ${params.imageCount || 0}`)
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 
@@ -355,30 +374,38 @@ export function logAiConfig(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
+    const logLines: string[] = []
 
-    const logEntry: AiConfigLog = {
-      timestamp,
-      type: 'ai_config',
-      requestId: params.requestId,
-      conversationId: params.conversationId,
-      config: {
-        provider: params.config.provider,
-        model: params.config.model,
-        displayModel: params.config.displayModel,
-        baseUrl: params.config.baseUrl,
-        apiType: params.config.apiType,
-        customHeaders: params.config.customHeaders,
-        forceStream: params.config.forceStream,
-        filterContent: params.config.filterContent,
-        // 不记录实际的apiKey值，只记录是否存在
-        hasApiKey: !!params.config.apiKey
-      }
+    // 主日志行：[timestamp] [INFO] AI 配置: {requestId} - {type} - {conversationId}
+    logLines.push(`[${timestamp}] [INFO] AI 配置: ${params.requestId} - ai_config - ${params.conversationId || 'no-conversation'}`)
+
+    // 配置详情
+    logLines.push(`[${timestamp}] [INFO]   提供商: ${params.config.provider}`)
+    logLines.push(`[${timestamp}] [INFO]   模型: ${params.config.model}`)
+    if (params.config.displayModel) {
+      logLines.push(`[${timestamp}] [INFO]   显示模型: ${params.config.displayModel}`)
     }
+    if (params.config.baseUrl) {
+      logLines.push(`[${timestamp}] [INFO]   API地址: ${params.config.baseUrl}`)
+    }
+    if (params.config.apiType) {
+      logLines.push(`[${timestamp}] [INFO]   API类型: ${params.config.apiType}`)
+    }
+    if (params.config.customHeaders && Object.keys(params.config.customHeaders).length > 0) {
+      logLines.push(`[${timestamp}] [INFO]   自定义头: ${JSON.stringify(params.config.customHeaders)}`)
+    }
+    if (params.config.forceStream !== undefined) {
+      logLines.push(`[${timestamp}] [INFO]   强制流式: ${params.config.forceStream}`)
+    }
+    if (params.config.filterContent !== undefined) {
+      logLines.push(`[${timestamp}] [INFO]   过滤内容: ${params.config.filterContent}`)
+    }
+    logLines.push(`[${timestamp}] [INFO]   有API密钥: ${!!params.config.apiKey}`)
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 
@@ -403,22 +430,19 @@ export function logAiConfigError(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
+    const logLines: string[] = []
 
-    const logEntry: AiConfigErrorLog = {
-      timestamp,
-      type: 'ai_config_error',
-      requestId: params.requestId,
-      conversationId: params.conversationId,
-      error: {
-        type: params.errorType,
-        message: params.errorMessage
-      }
-    }
+    // 主日志行：[timestamp] [INFO] AI 配置错误: {requestId} - {type} - {conversationId}
+    logLines.push(`[${timestamp}] [INFO] AI 配置错误: ${params.requestId} - ai_config_error - ${params.conversationId || 'no-conversation'}`)
+
+    // 错误详情
+    logLines.push(`[${timestamp}] [INFO]   错误类型: ${params.errorType}`)
+    logLines.push(`[${timestamp}] [INFO]   错误信息: ${params.errorMessage}`)
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 
@@ -466,7 +490,7 @@ export function logAiRequest(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
     const sanitizedRequest = sanitizeAiRequest(params.requestContent)
 
     // 将请求内容转换为字符串并截断
@@ -475,25 +499,27 @@ export function logAiRequest(params: {
     const sanitizedRequestStr = JSON.stringify(sanitizedRequest)
     const truncatedSanitizedRequest = truncateContent(sanitizedRequestStr)
 
-    const logEntry: AiRequestLog = {
-      timestamp,
-      type: 'ai_request',
-      requestId,
-      model: params.model,
-      userId: params.userId,
-      spaceId: params.spaceId,
-      conversationId: params.conversationId,
-      request: {
-        content: truncatedRequestContent,
-        sanitizedContent: truncatedSanitizedRequest,
-        length: requestContentStr.length
-      },
-      status: 'sent'
+    const logLines: string[] = []
+
+    // 主日志行：[timestamp] [INFO] AI 请求: {requestId} - {type} - {conversationId}
+    logLines.push(`[${timestamp}] [INFO] AI 请求: ${requestId} - ai_request - ${params.conversationId || 'no-conversation'}`)
+
+    // 请求详情
+    logLines.push(`[${timestamp}] [INFO]   模型: ${params.model}`)
+    if (params.userId) {
+      logLines.push(`[${timestamp}] [INFO]   用户ID: ${params.userId}`)
     }
+    if (params.spaceId) {
+      logLines.push(`[${timestamp}] [INFO]   空间ID: ${params.spaceId}`)
+    }
+    logLines.push(`[${timestamp}] [INFO]   请求内容长度: ${requestContentStr.length}`)
+    logLines.push(`[${timestamp}] [INFO]   请求内容(原始): ${truncatedRequestContent}`)
+    logLines.push(`[${timestamp}] [INFO]   请求内容(脱敏): ${truncatedSanitizedRequest}`)
+    logLines.push(`[${timestamp}] [INFO]   状态: sent`)
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 
@@ -530,7 +556,7 @@ export function logAiResponse(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
     const sanitizedResponse = sanitizeAiRequest(params.responseContent)
 
     // 将响应内容转换为字符串并截断
@@ -539,28 +565,38 @@ export function logAiResponse(params: {
     const sanitizedResponseStr = JSON.stringify(sanitizedResponse)
     const truncatedSanitizedResponse = truncateContent(sanitizedResponseStr)
 
-    const logEntry: AiResponseLog = {
-      timestamp,
-      type: 'ai_response',
-      requestId: params.requestId,
-      model: params.model,
-      userId: params.userId,
-      spaceId: params.spaceId,
-      conversationId: params.conversationId,
-      response: {
-        content: truncatedResponseContent,
-        sanitizedContent: truncatedSanitizedResponse,
-        length: responseContentStr.length
-      },
-      tokenUsage: params.tokenUsage,
-      duration: params.duration,
-      status: params.status,
-      error: params.error
+    const logLines: string[] = []
+
+    // 主日志行：[timestamp] [INFO] AI 响应: {requestId} - {type} - {conversationId}
+    logLines.push(`[${timestamp}] [INFO] AI 响应: ${params.requestId} - ai_response - ${params.conversationId || 'no-conversation'}`)
+
+    // 响应详情
+    logLines.push(`[${timestamp}] [INFO]   模型: ${params.model}`)
+    if (params.userId) {
+      logLines.push(`[${timestamp}] [INFO]   用户ID: ${params.userId}`)
+    }
+    if (params.spaceId) {
+      logLines.push(`[${timestamp}] [INFO]   空间ID: ${params.spaceId}`)
+    }
+    logLines.push(`[${timestamp}] [INFO]   响应内容长度: ${responseContentStr.length}`)
+    logLines.push(`[${timestamp}] [INFO]   响应内容(原始): ${truncatedResponseContent}`)
+    logLines.push(`[${timestamp}] [INFO]   响应内容(脱敏): ${truncatedSanitizedResponse}`)
+    logLines.push(`[${timestamp}] [INFO]   持续时间: ${params.duration}ms`)
+    logLines.push(`[${timestamp}] [INFO]   状态: ${params.status}`)
+
+    if (params.tokenUsage) {
+      logLines.push(`[${timestamp}] [INFO]   输入tokens: ${params.tokenUsage.input}`)
+      logLines.push(`[${timestamp}] [INFO]   输出tokens: ${params.tokenUsage.output}`)
+      logLines.push(`[${timestamp}] [INFO]   总tokens: ${params.tokenUsage.total}`)
+    }
+
+    if (params.error) {
+      logLines.push(`[${timestamp}] [INFO]   错误: ${params.error}`)
     }
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 
@@ -591,7 +627,7 @@ export function logAiStreamChunk(params: {
   }
 
   try {
-    const timestamp = new Date().toISOString()
+    const timestamp = formatLocalTimestamp()
     const sanitizedChunk = sanitizeAiRequest(params.chunkContent)
 
     // 将chunk内容转换为字符串并截断
@@ -600,27 +636,33 @@ export function logAiStreamChunk(params: {
     const sanitizedChunkStr = JSON.stringify(sanitizedChunk)
     const truncatedSanitizedChunk = truncateContent(sanitizedChunkStr)
 
-    const logEntry: AiStreamChunkLog = {
-      timestamp,
-      type: 'ai_stream_chunk',
-      requestId: params.requestId,
-      model: params.model,
-      userId: params.userId,
-      spaceId: params.spaceId,
-      conversationId: params.conversationId,
-      chunk: {
-        type: params.chunkType,
-        content: truncatedChunkContent,
-        sanitizedContent: truncatedSanitizedChunk,
-        length: chunkContentStr.length
-      },
-      chunkIndex: params.chunkIndex,
-      totalChunks: params.totalChunks
+    const logLines: string[] = []
+
+    // 主日志行：[timestamp] [INFO] AI 流式chunk: {requestId} - {type} - {chunkIndex}
+    logLines.push(`[${timestamp}] [INFO] AI 流式chunk: ${params.requestId} - ai_stream_chunk - chunk ${params.chunkIndex}`)
+
+    // chunk详情
+    logLines.push(`[${timestamp}] [INFO]   模型: ${params.model}`)
+    if (params.userId) {
+      logLines.push(`[${timestamp}] [INFO]   用户ID: ${params.userId}`)
+    }
+    if (params.spaceId) {
+      logLines.push(`[${timestamp}] [INFO]   空间ID: ${params.spaceId}`)
+    }
+    if (params.conversationId) {
+      logLines.push(`[${timestamp}] [INFO]   会话ID: ${params.conversationId}`)
+    }
+    logLines.push(`[${timestamp}] [INFO]   chunk类型: ${params.chunkType}`)
+    logLines.push(`[${timestamp}] [INFO]   chunk内容长度: ${chunkContentStr.length}`)
+    logLines.push(`[${timestamp}] [INFO]   chunk内容(原始): ${truncatedChunkContent}`)
+    logLines.push(`[${timestamp}] [INFO]   chunk内容(脱敏): ${truncatedSanitizedChunk}`)
+    if (params.totalChunks !== undefined) {
+      logLines.push(`[${timestamp}] [INFO]   总chunks: ${params.totalChunks}`)
     }
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
-    const logContent = JSON.stringify(logEntry) + '\n'
+    const logContent = logLines.join('\n') + '\n'
 
     appendFileSync(logFilePath, logContent, 'utf-8')
 

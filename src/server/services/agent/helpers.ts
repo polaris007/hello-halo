@@ -9,7 +9,7 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
 import { getDatabase } from '../../utils/database'
-import { getLLMConfig, getCurrentLLMSourceFromConfig } from '../llm-config.service'
+import { getLLMConfig, getCurrentLLMSourceFromConfig, clearLLMConfigCache } from '../llm-config.service'
 import { getConfig } from '../config.service'
 
 // ============================================
@@ -107,7 +107,6 @@ export function clearConfigCache(): void {
   configCacheTime = 0
   // Also clear LLM config cache to pick up file changes
   try {
-    const { clearLLMConfigCache } = require('../llm-config.service')
     clearLLMConfigCache()
   } catch (error) {
     console.warn('[Agent] Failed to clear LLM config cache:', error)

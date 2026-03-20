@@ -40,3 +40,45 @@
 [2026-03-20T20:24:00.431] [INFO] 
 Shutting down gracefully...
 [2026-03-20T20:24:00.511] [INFO] Server closed
+[2026-03-20T22:23:42.946] [INFO] [Config] Loaded from G:\Workplace\hello-halo\server.json
+[2026-03-20T22:23:42.948] [INFO] [Config] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-20T22:23:42.949] [INFO] 
+[2026-03-20T22:23:42.949] [INFO] ========================================
+[2026-03-20T22:23:42.950] [INFO] [Migration] Legacy data directory detected!
+[2026-03-20T22:23:42.950] [INFO] [Migration] Found existing data at: C:\Users\Administrator\.halo
+[2026-03-20T22:23:42.951] [INFO] [Migration] To migrate your data to the new location, run:
+[2026-03-20T22:23:42.951] [INFO]   node scripts/migrate-data-dir.js
+[2026-03-20T22:23:42.952] [INFO] 
+[2026-03-20T22:23:42.952] [INFO] [Migration] Or use the old data directory by setting:
+[2026-03-20T22:23:42.953] [INFO]   HALO_DATA_DIR=C:\Users\Administrator\.halo
+[2026-03-20T22:23:42.953] [INFO] ========================================
+[2026-03-20T22:23:42.954] [INFO] 
+[2026-03-20T22:23:42.966] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-20T22:23:42.968] [INFO] [LLMConfig] Loaded from G:\Workplace\hello-halo\llm-config.json
+[2026-03-20T22:23:42.988] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-20T22:23:42.989] [INFO] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-20T22:23:42.989] [INFO] Auth mode: normal
+[2026-03-20T22:23:42.990] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-20T22:23:43.065] [INFO] [Auth] Default user "admin@halo.local" password updated from config
+[2026-03-20T22:24:16.904] [INFO] Unknown message type: auth
+[2026-03-20T22:24:20.302] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:24:27.422] [INFO] [SSE][6e822f1f-2c24-4169-9d3f-47830c645beb] SSE stream registered, active: 1
+[2026-03-20T22:24:27.424] [INFO] [Agent] sendMessageWithSSE: conv=6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:24:27.426] [INFO] [AI Logger] User message logged: ai-1774016667424-rvq6qou, conversationId: 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:24:27.426] [INFO] [Agent] getWorkingDir called with spaceId: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T22:24:27.427] [ERROR] [Agent] SSE processing error: {}
+[2026-03-20T22:24:27.433] [ERROR] [Agent] SSE processing stack: TypeError: Cannot read properties of undefined (reading 'basePath')
+    at getHaloDataDir (G:\Workplace\hello-halo\src\server\services\agent\helpers.ts:25:22)
+    at getWorkingDir (G:\Workplace\hello-halo\src\server\services\agent\helpers.ts:36:19)
+    at Module.sendMessageWithSSE (G:\Workplace\hello-halo\src\server\services\agent\send-message.ts:508:19)
+    at <anonymous> (G:\Workplace\hello-halo\src\server\routes\agent.routes.ts:114:24)
+    at Layer.handleRequest (G:\Workplace\hello-halo\node_modules\router\lib\layer.js:152:17)
+    at next (G:\Workplace\hello-halo\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (G:\Workplace\hello-halo\node_modules\router\lib\route.js:117:3)
+    at handle (G:\Workplace\hello-halo\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (G:\Workplace\hello-halo\node_modules\router\lib\layer.js:152:17)
+    at G:\Workplace\hello-halo\node_modules\router\index.js:295:15
+[2026-03-20T22:24:27.434] [INFO] [SSE][6e822f1f-2c24-4169-9d3f-47830c645beb] SSE stream unregistered, active: 0
+[2026-03-20T22:25:32.522] [INFO] 
+Shutting down gracefully...
+[2026-03-20T22:25:32.579] [INFO] Server closed

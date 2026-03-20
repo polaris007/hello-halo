@@ -520,11 +520,14 @@ export async function sendMessageWithSSE(
   saveAssistantPlaceholder(spaceId, conversationId)
 
   try {
+    console.log(`[Agent][${conversationId}] Step 1: Getting API credentials...`)
     // Get API credentials
     let credentials
     try {
       credentials = await getApiCredentials()
+      console.log(`[Agent][${conversationId}] Step 1 done: credentials obtained, provider=${credentials?.provider}`)
     } catch (credError: unknown) {
+      console.error(`[Agent][${conversationId}] Step 1 failed:`, credError)
       const credErr = credError as Error
       logAiConfigError({
         conversationId,
@@ -535,6 +538,7 @@ export async function sendMessageWithSSE(
       throw credError
     }
 
+    console.log(`[Agent][${conversationId}] Step 2: Logging AI config...`)
     logAiConfig({
       conversationId,
       requestId,
@@ -553,15 +557,22 @@ export async function sendMessageWithSSE(
 
     console.log(`[Agent][${conversationId}] SSE message: model=${credentials.displayModel}`)
 
+    console.log(`[Agent][${conversationId}] Step 3: Resolving credentials for SDK...`)
     // Resolve credentials for SDK
     const resolvedCredentials = await resolveCredentialsForSdk(credentials)
+    console.log(`[Agent][${conversationId}] Step 3 done: resolvedCredentials.sdkModel=${resolvedCredentials.sdkModel}`)
 
+    console.log(`[Agent][${conversationId}] Step 4: Getting session ID from DB...`)
     // Get session ID from database if resuming
     const sessionId = await getSessionIdFromDb(conversationId)
+    console.log(`[Agent][${conversationId}] Step 4 done: sessionId=${sessionId}`)
 
+    console.log(`[Agent][${conversationId}] Step 5: Getting node path...`)
     // Use Node.js executable path
     const nodePath = getNodePath()
+    console.log(`[Agent][${conversationId}] Step 5 done: nodePath=${nodePath}`)
 
+    console.log(`[Agent][${conversationId}] Step 6: Building SDK options...`)
     // Build base SDK options
     const sdkOptions = buildBaseSdkOptions({
       credentials: resolvedCredentials,
@@ -588,6 +599,7 @@ export async function sendMessageWithSSE(
         }
       }
     })
+    console.log(`[Agent][${conversationId}] Step 6 done`)
 
     // Apply thinking mode
     if (thinkingEnabled) {
@@ -596,6 +608,7 @@ export async function sendMessageWithSSE(
 
     const t0 = Date.now()
 
+    console.log(`[Agent][${conversationId}] Step 7: Getting or creating V2 session...`)
     // Session config
     const sessionConfig: SessionConfig = {
       aiBrowserEnabled: !!aiBrowserEnabled
@@ -603,10 +616,14 @@ export async function sendMessageWithSSE(
 
     // Get or create V2 session
     const v2Session = await getOrCreateV2Session(spaceId, conversationId, sdkOptions, sessionId, sessionConfig, workDir)
+    console.log(`[Agent][${conversationId}] Step 7 done: V2 session created/retrieved`)
 
+    console.log(`[Agent][${conversationId}] Step 8: Registering active session...`)
     // Register as active
     registerActiveSession(conversationId, sessionState)
+    console.log(`[Agent][${conversationId}] Step 8 done`)
 
+    console.log(`[Agent][${conversationId}] Step 9: Setting dynamic params...`)
     // Set dynamic params
     try {
       if (v2Session.setModel) {
@@ -618,14 +635,18 @@ export async function sendMessageWithSSE(
     } catch (e) {
       console.error(`[Agent][${conversationId}] Failed to set dynamic params:`, e)
     }
+    console.log(`[Agent][${conversationId}] Step 9 done`)
 
     console.log(`[Agent][${conversationId}] V2 session ready: ${Date.now() - t0}ms`)
 
+    console.log(`[Agent][${conversationId}] Step 10: Preparing message content...`)
     // Prepare message content
     const canvasPrefix = formatCanvasContext(canvasContext)
     const messageWithContext = canvasPrefix + message
     const messageContent = buildMessageContent(messageWithContext, images)
+    console.log(`[Agent][${conversationId}] Step 10 done`)
 
+    console.log(`[Agent][${conversationId}] Step 11: Calling processStream...`)
     // Process the stream with SSE writer
     await processStream({
       v2Session,

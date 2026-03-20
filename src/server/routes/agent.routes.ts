@@ -124,6 +124,7 @@ router.post('/message', async (req, res) => {
     })
   } catch (error: any) {
     console.error('[Agent] SSE processing error:', error)
+    console.error('[Agent] SSE processing stack:', error.stack)
     // 发送错误事件
     if (!sseWriter.isClosed()) {
       sseWriter.writeEvent('error', {

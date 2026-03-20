@@ -1,1 +1,5 @@
 {"timestamp":"2026-03-20T12:13:53.821Z","type":"user_message","requestId":"ai-1774008833821-zyedyrv","spaceId":"a13c464c-910c-46c0-b430-f16702da7d78","conversationId":"6e822f1f-2c24-4169-9d3f-47830c645beb","message":{"content":"你好","images":0}}
+[2026-03-20T22:24:27.425] [INFO] AI 用户消息: ai-1774016667424-rvq6qou - user_message - 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:24:27.425] [INFO]   空间ID: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T22:24:27.425] [INFO]   消息内容: 你好
+[2026-03-20T22:24:27.425] [INFO]   图片数量: 0
