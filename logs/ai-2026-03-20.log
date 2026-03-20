@@ -3,3 +3,34 @@
 [2026-03-20T22:24:27.425] [INFO]   空间ID: a13c464c-910c-46c0-b430-f16702da7d78
 [2026-03-20T22:24:27.425] [INFO]   消息内容: 你好
 [2026-03-20T22:24:27.425] [INFO]   图片数量: 0
+[2026-03-20T22:39:29.887] [INFO] AI 用户消息: ai-1774017569887-iklah5g - user_message - 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:39:29.887] [INFO]   空间ID: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T22:39:29.887] [INFO]   消息内容: 你好
+[2026-03-20T22:39:29.887] [INFO]   图片数量: 0
+[2026-03-20T22:39:29.894] [INFO] AI 配置: ai-1774017569887-iklah5g - ai_config - 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:39:29.894] [INFO]   提供商: openai
+[2026-03-20T22:39:29.894] [INFO]   模型: DeepSeek-V3.2-Standard
+[2026-03-20T22:39:29.894] [INFO]   显示模型: 天翼云
+[2026-03-20T22:39:29.894] [INFO]   API地址: https://wishub-x6.ctyun.cn/v1/chat/completions
+[2026-03-20T22:39:29.894] [INFO]   强制流式: false
+[2026-03-20T22:39:29.894] [INFO]   过滤内容: false
+[2026-03-20T22:39:29.894] [INFO]   有API密钥: true
+[2026-03-20T22:39:29.952] [INFO] AI 请求: ai-1774017569887-iklah5g - ai_request - 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:39:29.952] [INFO]   模型: 天翼云
+[2026-03-20T22:39:29.952] [INFO]   空间ID: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T22:39:29.952] [INFO]   请求内容长度: 30
+[2026-03-20T22:39:29.952] [INFO]   请求内容(原始): {"type":"text","content":"你好"}
+[2026-03-20T22:39:29.952] [INFO]   请求内容(脱敏): {"type":"text","content":"你好"}
+[2026-03-20T22:39:29.952] [INFO]   状态: sent
+[2026-03-20T22:39:34.128] [INFO] AI 响应: ai-1774017569887-iklah5g - ai_response - 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T22:39:34.128] [INFO]   模型: 天翼云
+[2026-03-20T22:39:34.128] [INFO]   空间ID: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T22:39:34.128] [INFO]   响应内容长度: 692
+[2026-03-20T22:39:34.128] [INFO]   响应内容(原始): {"finalContent":"","thoughts":[{"id":"thought-1774017573494-widxj7k53","type":"system","content":"Connected | Model: 天翼云","timestamp":"2026-03-20T14:39:33.494Z"},{"id":"thought-1774017574121-hnoe8nlpm","type":"error","content":"API Error: 404 {\"timestamp\":\"2026-03-20T14:39:35.757+00:00\",\"status\":404,\"error\":\"Not Found\",\"path\":\"/v1/chat/completions/v1/messages\"}","timestamp":"2026-03-20T14:39:34.121Z","isError":true,"errorCode":"success","duration":972}],"tokenUsage":{"inputTokens":0,"outputTokens":0,"cacheReadTokens":0,"cacheCreationTokens":0,"totalCostUsd":0,"contextWindow":200000},"isInterrupted":false,"wasAborted":false,"hasErrorThought":true,"reachedMaxTurns":false}
+[2026-03-20T22:39:34.128] [INFO]   响应内容(脱敏): {"finalContent":"","thoughts":[{"id":"thought-1774017573494-widxj7k53","type":"system","content":"Connected | Model: 天翼云","timestamp":"2026-03-20T14:39:33.494Z"},{"id":"thought-1774017574121-hnoe8nlpm","type":"error","content":"API Error: 404 {\"timestamp\":\"2026-03-20T14:39:35.757+00:00\",\"status\":404,\"error\":\"Not Found\",\"path\":\"/v1/chat/completions/v1/messages\"}","timestamp":"2026-03-20T14:39:34.121Z","isError":true,"errorCode":"success","duration":972}],"tokenUsage":{"inputTokens":0,"outputTokens":0,"cacheReadTokens":0,"cacheCreationTokens":0,"totalCostUsd":0,"contextWindow":200000},"isInterrupted":false,"wasAborted":false,"hasErrorThought":true,"reachedMaxTurns":false}
+[2026-03-20T22:39:34.128] [INFO]   持续时间: 4180ms
+[2026-03-20T22:39:34.128] [INFO]   状态: error
+[2026-03-20T22:39:34.128] [INFO]   输入tokens: 0
+[2026-03-20T22:39:34.128] [INFO]   输出tokens: 0
+[2026-03-20T22:39:34.128] [INFO]   总tokens: 0
+[2026-03-20T22:39:34.128] [INFO]   错误: API Error: 404 {"timestamp":"2026-03-20T14:39:35.757+00:00","status":404,"error":"Not Found","path":"/v1/chat/completions/v1/messages"}

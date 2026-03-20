@@ -10,7 +10,7 @@ import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
 import { getDatabase } from '../../utils/database'
 import { getLLMConfig, getCurrentLLMSourceFromConfig, clearLLMConfigCache } from '../llm-config.service'
-import { getConfig } from '../config.service'
+import { resolveDataDir } from '../config.service'
 
 // ============================================
 // Working Directory Management
@@ -21,8 +21,7 @@ import { getConfig } from '../config.service'
  * Uses config service to get the configured data directory
  */
 export function getHaloDataDir(): string {
-  const config = getConfig()
-  return config.data.basePath
+  return resolveDataDir()
 }
 
 /**
