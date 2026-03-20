@@ -100,7 +100,7 @@ router.post('/message', async (req, res) => {
   const abortController = new AbortController()
 
   // 注册 SSE 流
-  registerSSEStream(conversationId, abortController)
+  registerSSEStream(conversationId, sseWriter, abortController)
 
   // 处理连接断开
   req.on('close', () => {

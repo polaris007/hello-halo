@@ -53,6 +53,8 @@ interface SessionState {
   textBlockVersion: number
   // Pending question from AskUserQuestion tool
   pendingQuestion: PendingQuestion | null
+  // AbortController for SSE request cancellation
+  abortController: AbortController | null
 }
 
 // Create empty session state
@@ -68,7 +70,8 @@ function createEmptySessionState(): SessionState {
     errorType: null,
     compactInfo: null,
     textBlockVersion: 0,
-    pendingQuestion: null
+    pendingQuestion: null,
+    abortController: null
   }
 }
 
@@ -750,6 +753,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     try {
+      // 创建 AbortController 用于取消 SSE 请求
+      const abortController = new AbortController()
+
       // Initialize/reset session state for this conversation
       set((state) => {
         const newSessions = new Map(state.sessions)
@@ -764,7 +770,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           errorType: null,
           compactInfo: null,
           textBlockVersion: 0,
-          pendingQuestion: null
+          pendingQuestion: null,
+          abortController
         })
         return { sessions: newSessions }
       })
@@ -845,7 +852,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         aiBrowserEnabled,  // Pass AI Browser state to API
         thinkingEnabled,  // Pass thinking mode to API
         canvasContext: buildCanvasContext()  // Pass canvas context for AI awareness
-      })
+      }, abortController.signal)
     } catch (error) {
       console.error('Failed to send message:', error)
       // Update session error state
@@ -866,6 +873,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Stop generation for a specific conversation
   stopGeneration: async (conversationId?: string) => {
     const targetId = conversationId || get().getCurrentSpaceState().currentConversationId || undefined
+
+    // 立即取消前端 SSE 请求（无需等待后端响应）
+    if (targetId) {
+      const session = get().sessions.get(targetId)
+      if (session?.abortController) {
+        console.log(`[ChatStore] Aborting SSE request for ${targetId}`)
+        session.abortController.abort()
+      }
+    }
+
     try {
       await api.stopGeneration(targetId)
 
@@ -878,6 +895,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               ...session,
               isGenerating: false,
               isThinking: false,
+              abortController: null,  // 清除已使用的 abortController
               // Mark pending question as cancelled on stop
               pendingQuestion: session.pendingQuestion?.status === 'active'
                 ? { ...session.pendingQuestion, status: 'cancelled' as const }
@@ -1037,6 +1055,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         errorType: errorType || null,
         isGenerating: false,
         isThinking: false,
+        abortController: null,  // Clear abort controller
         // Only add error thought for non-interrupted errors
         thoughts: errorType === 'interrupted' ? session.thoughts : [...session.thoughts, errorThought],
         // Mark pending question as cancelled on error
@@ -1172,7 +1191,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               compactInfo: null,  // Clear temporary compact notification
               pendingQuestion: null,  // Clear pending question
               error: null,  // Clear session error — now persisted in message.error
-              errorType: null
+              errorType: null,
+              abortController: null  // Clear abort controller
             })
           }
 

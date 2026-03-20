@@ -16,6 +16,7 @@ import type {
   SessionState,
   Thought
 } from './types'
+import type { SseWriter } from '../../utils/sse-writer'
 import {
   getNodePath,
   getWorkingDir,
@@ -47,6 +48,7 @@ export const activeSessions = new Map<string, SessionState>()
 /** SSE 连接信息 */
 interface SSEStreamEntry {
   conversationId: string
+  sseWriter?: SseWriter
   controller: AbortController
   connectedAt: number
   lastActivityAt: number
@@ -62,7 +64,11 @@ const SSE_TIMEOUT_MS = 30 * 60 * 1000
 /**
  * Register an active SSE stream
  */
-export function registerSSEStream(conversationId: string, controller: AbortController): void {
+export function registerSSEStream(
+  conversationId: string,
+  sseWriter: SseWriter | undefined,
+  controller: AbortController
+): void {
   const now = Date.now()
 
   // 如果已有连接，先取消旧连接
@@ -95,6 +101,7 @@ export function registerSSEStream(conversationId: string, controller: AbortContr
   // 注册新连接
   activeSSEStreams.set(conversationId, {
     conversationId,
+    sseWriter,
     controller,
     connectedAt: now,
     lastActivityAt: now,

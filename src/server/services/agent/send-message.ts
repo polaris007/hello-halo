@@ -314,7 +314,7 @@ export async function sendMessage(
     }
 
     sendToRenderer('agent:error', spaceId, conversationId, {
-      type: 'error',
+      type: 'agent:error',
       error: errorMessage,
       errorType,
       errorCode
@@ -391,19 +391,34 @@ function updateAssistantMessage(conversationId: string, update: { content?: stri
 
     const messages = JSON.parse(conversation.messages || '[]')
     const lastMessage = messages[messages.length - 1]
+
     if (lastMessage && lastMessage.role === 'assistant') {
+      // 更新现有的 assistant 消息
       lastMessage.content = update.content || ''
       if (update.thoughts) lastMessage.thoughts = update.thoughts
       if (update.tokenUsage) lastMessage.tokenUsage = update.tokenUsage
       if (update.error) lastMessage.error = update.error
       if (update.isPartial !== undefined) lastMessage.isPartial = update.isPartial
       lastMessage.timestamp = Date.now()
-    }
+    } else if (update.isPartial !== undefined && update.isPartial === true) {
+      // 如果 isPartial 为 true，但最后一条消息不是 assistant 消息，我们需要创建一个新的 assistant 消息占位符
+      // 这通常发生在流式响应开始时，还没有 assistant 消息的情况下
+      const newAssistantMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: update.content || '',
+        thoughts: update.thoughts || [],
+        timestamp: Date.now(),
+        isPartial: true
+      }
+      if (update.tokenUsage) newAssistantMessage.tokenUsage = update.tokenUsage
+      if (update.error) newAssistantMessage.error = update.error
 
-    else if (update.isPartial !== undefined) {
-      // 如果 isPartial 为 true， 添加 isPartial 字段
-      lastMessage.isPartial = update.isPartial
+      messages.push(newAssistantMessage)
     }
+    // 注意：如果 update.isPartial 为 false 且没有 assistant 消息，我们不应该创建新消息
+    // 因为 isPartial: false 表示最终持久化，应该在流结束时调用
+    // 此时应该已经有 assistant 消息了（由 saveAssistantPlaceholder 创建）
 
     db.prepare('UPDATE conversations SET messages = ?, updated_at = ? WHERE id = ?')
       .run(JSON.stringify(messages), Date.now(), conversationId)

@@ -426,7 +426,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         // 🔑 Send precise signal for new text block (fixes truncation bug)
         // This is 100% reliable - comes directly from SDK's content_block_start event
         emitEvent('agent:message', {
-          type: 'message',
+          type: 'agent:message',
           content: '',
           isComplete: false,
           isStreaming: false,
@@ -461,7 +461,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         sessionState.thoughts.push(thought)
 
         // Send to renderer for immediate display
-        emitEvent('agent:thought', { thought })
+        emitEvent('agent:thought', { type: 'agent:thought', thought })
       }
 
       // Thinking delta - append to thought content
@@ -476,6 +476,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
           // Send delta to renderer for incremental update
           emitEvent('agent:thought-delta', {
+            type: 'agent:thought-delta',
             thoughtId: blockState.thoughtId,
             delta,
             content: blockState.content  // Also send full content for fallback
@@ -512,7 +513,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
         // Send delta immediately without throttling
         emitEvent('agent:message', {
-          type: 'message',
+          type: 'agent:message',
           delta,
           isComplete: false,
           isStreaming: true
@@ -571,7 +572,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         sessionState.thoughts.push(thought)
 
         // Send to renderer for immediate display (shows tool name, "准备中...")
-        emitEvent('agent:thought', { thought })
+        emitEvent('agent:thought', { type: 'agent:thought', thought })
       }
 
       // Tool use input JSON delta - accumulate partial JSON
@@ -585,6 +586,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
           // Send delta to renderer (for progress indication, not for parsing)
           emitEvent('agent:thought-delta', {
+            type: 'agent:thought-delta',
             thoughtId: blockState.thoughtId,
             delta: partialJson,
             isToolInput: true  // Flag: this is tool input JSON, not thinking text
@@ -618,6 +620,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           if (blockState.type === 'thinking') {
             // Thinking block complete - send final state
             emitEvent('agent:thought-delta', {
+              type: 'agent:thought-delta',
               thoughtId: blockState.thoughtId,
               content: blockState.content,
               isComplete: true  // Signal: thinking is complete
@@ -649,6 +652,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
             // Send complete signal with parsed input
             emitEvent('agent:thought-delta', {
+              type: 'agent:thought-delta',
               thoughtId: blockState.thoughtId,
               toolInput,
               isComplete: true,  // Signal: tool params are complete
@@ -672,7 +676,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
               status: 'running',
               input: toolInput
             }
-            emitEvent('agent:tool-call', toolCall as unknown as Record<string, unknown>)
+            emitEvent('agent:tool-call', { type: 'agent:tool-call', toolCall })
 
             if (isDev) {
               console.log(`[Agent][${conversationId}] Tool block complete [${blockState.toolName}], input: ${JSON.stringify(toolInput).substring(0, 100)}`)
@@ -688,7 +692,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           isStreamingTextBlock = false
           // Send final content of this block
           emitEvent('agent:message', {
-            type: 'message',
+            type: 'agent:message',
             content: currentStreamingText,
             isComplete: false,
             isStreaming: false
@@ -745,6 +749,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
           // Send thought-delta to merge result into tool_use on frontend
           emitEvent('agent:thought-delta', {
+            type: 'agent:thought-delta',
             thoughtId: toolUseThoughtId,
             toolResult,
             isToolResult: true  // Flag: this is a tool result merge
@@ -752,7 +757,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
           // Still send tool-result event for any listeners
           emitEvent('agent:tool-result', {
-            type: 'tool_result',
+            type: 'agent:tool-result',
             toolId: thought.id,
             result: thought.toolOutput || '',
             isError: thought.isError || false
@@ -767,9 +772,9 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         } else {
           // No mapping found - fall back to separate thought (shouldn't happen normally)
           sessionState.thoughts.push(thought)
-          emitEvent('agent:thought', { thought })
+          emitEvent('agent:thought', { type: 'agent:thought', thought })
           emitEvent('agent:tool-result', {
-            type: 'tool_result',
+            type: 'agent:tool-result',
             toolId: thought.id,
             result: thought.toolOutput || '',
             isError: thought.isError || false
@@ -783,7 +788,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
         // Send ALL thoughts to renderer for real-time display in thought process area
         // This includes text blocks - they appear in the timeline during generation
-        emitEvent('agent:thought', { thought })
+        emitEvent('agent:thought', { type: 'agent:thought', thought })
 
         // Handle specific thought types
         if (thought.type === 'text') {
@@ -794,7 +799,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
           // Send streaming update - frontend shows this during generation
           emitEvent('agent:message', {
-            type: 'message',
+            type: 'agent:message',
             content: lastTextContent,
             isComplete: false
           })
@@ -806,7 +811,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             status: 'running',
             input: thought.toolInput || {}
           }
-          emitEvent('agent:tool-call', toolCall as unknown as Record<string, unknown>)
+          emitEvent('agent:tool-call', { type: 'agent:tool-call', toolCall })
         } else if (thought.type === 'error') {
           // SDK reported an error (rate_limit, authentication_failed, etc.)
           // Send error to frontend - user should see the actual error from provider
@@ -819,7 +824,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             false  // isInterrupted
           )
           emitEvent('agent:error', {
-            type: 'error',
+            type: 'agent:error',
             error: thought.content,
             errorType,
             errorCode: thought.errorCode  // Preserve error code for debugging
@@ -828,7 +833,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           // Final result - use the last text block as the final reply
           const finalContent = lastTextContent || thought.content
           emitEvent('agent:message', {
-            type: 'message',
+            type: 'agent:message',
             content: finalContent,
             isComplete: true
           })
@@ -860,7 +865,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
           console.log(`[Agent][${conversationId}] Context compressed: trigger=${compactMetadata.trigger}, pre_tokens=${compactMetadata.pre_tokens}`)
           // Send compact notification to renderer
           emitEvent('agent:compact', {
-            type: 'compact',
+            type: 'agent:compact',
             trigger: compactMetadata.trigger,
             preTokens: compactMetadata.pre_tokens
           })
@@ -1003,7 +1008,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
   // Always send complete event to unblock frontend
   emitEvent('agent:complete', {
-    type: 'complete',
+    type: 'agent:complete',
     duration: 0,
     tokenUsage
   })
@@ -1043,7 +1048,7 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
     )
 
     emitEvent('agent:error', {
-      type: 'error',
+      type: 'agent:error',
       errorType,
       error: errorMessage,
       errorCode: errorThought?.errorCode

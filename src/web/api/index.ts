@@ -365,7 +365,7 @@ export const api = {
         isActive: boolean
       }>
     }
-  }): Promise<ApiResponse> => {
+  }, signal?: AbortSignal): Promise<ApiResponse> => {
     // 构建 SSE 请求参数
     const sseParams: SendMessageParams = {
       spaceId: request.spaceId,
@@ -395,7 +395,9 @@ export const api = {
       // onError: 处理错误
       (error: Error) => {
         console.error('[SSE] Error:', error.message)
-      }
+      },
+      // signal: 用于取消请求
+      signal
     )
 
     if (result.success) {

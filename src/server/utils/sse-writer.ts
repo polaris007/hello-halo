@@ -129,8 +129,8 @@ export function createSseWriter(res: Response, options: SseWriterOptions = {}): 
       closed = true
 
       try {
-        // 发送结束标记（可选，帮助客户端识别流结束）
-        res.write('event: done\ndata: {}\n\n')
+        // 直接关闭连接，不再发送额外的 done 事件
+        // 流结束由 agent:complete 事件表示（符合 OpenSpec 规范）
         res.end()
       } catch (error) {
         // 忽略结束时的错误（客户端可能已断开）
@@ -189,5 +189,11 @@ export function toSSEEventName(eventName: string): string {
   if (eventName.startsWith('agent:')) {
     return eventName.substring(6)
   }
+
+  // 如果事件名没有 agent: 前缀，记录警告（这可能是未来的事件类型）
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`[SSE] Event name "${eventName}" does not have 'agent:' prefix. This is unexpected.`)
+  }
+
   return eventName
 }

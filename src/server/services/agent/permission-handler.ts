@@ -173,12 +173,14 @@ async function handleAskUserQuestion(
 
   // Send questions to renderer via emitEvent (SSE + WebSocket dual channel)
   emitEvent('agent:ask-question', {
+    type: 'agent:ask-question',
     id,
     questions: questions || []
   })
 
   // Send waiting-for-input event
   emitEvent('agent:waiting-for-input', {
+    type: 'agent:waiting-for-input',
     inputType: 'question',
     questionId: id,
     message: '等待用户回答问题'
@@ -224,15 +226,19 @@ async function handleToolApproval(
 
   // 1. Send tool-call event with requiresApproval flag
   emitEvent('agent:tool-call', {
-    id: toolCallId,
-    name: toolName,
-    input,
-    status: 'pending',
-    requiresApproval: true
+    type: 'agent:tool-call',
+    toolCall: {
+      id: toolCallId,
+      name: toolName,
+      input,
+      status: 'pending',
+      requiresApproval: true
+    }
   })
 
   // 2. Send waiting-for-input event
   emitEvent('agent:waiting-for-input', {
+    type: 'agent:waiting-for-input',
     inputType: 'tool-approval',
     toolCallId,
     toolName,
