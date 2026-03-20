@@ -1,0 +1,42 @@
+[2026-03-20T20:10:52.835] [INFO] [Config] Loaded from G:\Workplace\hello-halo\server.json
+[2026-03-20T20:10:52.838] [INFO] [Config] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-20T20:10:52.839] [INFO] 
+[2026-03-20T20:10:52.839] [INFO] ========================================
+[2026-03-20T20:10:52.840] [INFO] [Migration] Legacy data directory detected!
+[2026-03-20T20:10:52.841] [INFO] [Migration] Found existing data at: C:\Users\Administrator\.halo
+[2026-03-20T20:10:52.841] [INFO] [Migration] To migrate your data to the new location, run:
+[2026-03-20T20:10:52.841] [INFO]   node scripts/migrate-data-dir.js
+[2026-03-20T20:10:52.842] [INFO] 
+[2026-03-20T20:10:52.843] [INFO] [Migration] Or use the old data directory by setting:
+[2026-03-20T20:10:52.843] [INFO]   HALO_DATA_DIR=C:\Users\Administrator\.halo
+[2026-03-20T20:10:52.844] [INFO] ========================================
+[2026-03-20T20:10:52.844] [INFO] 
+[2026-03-20T20:10:53.144] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-20T20:10:53.147] [INFO] [LLMConfig] Loaded from G:\Workplace\hello-halo\llm-config.json
+[2026-03-20T20:10:53.166] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-20T20:10:53.166] [INFO] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-20T20:10:53.167] [INFO] Auth mode: normal
+[2026-03-20T20:10:53.168] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-20T20:10:53.203] [INFO] [Auth] Default user "admin@halo.local" password updated from config
+[2026-03-20T20:12:44.233] [INFO] Unknown message type: auth
+[2026-03-20T20:12:58.585] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, af9b45ba-5e7a-4b7d-916f-1a20fb073f43
+[2026-03-20T20:13:29.989] [INFO] [LLMConfig] Backup created: G:\Workplace\hello-halo\llm-config.json.bak
+[2026-03-20T20:13:29.991] [INFO] [LLMConfig] Saved to G:\Workplace\hello-halo\llm-config.json
+[2026-03-20T20:13:29.993] [WARN] [Agent] Failed to clear LLM config cache: {}
+[2026-03-20T20:13:30.002] [INFO] [LLMConfig] Backup created: G:\Workplace\hello-halo\llm-config.json.bak
+[2026-03-20T20:13:30.004] [INFO] [LLMConfig] Saved to G:\Workplace\hello-halo\llm-config.json
+[2026-03-20T20:13:30.005] [WARN] [Agent] Failed to clear LLM config cache: {}
+[2026-03-20T20:13:36.627] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:13:53.819] [INFO] [SSE][6e822f1f-2c24-4169-9d3f-47830c645beb] SSE stream registered, active: 1
+[2026-03-20T20:13:53.820] [INFO] [Agent] sendMessageWithSSE: conv=6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:13:53.824] [INFO] [AI Logger] User message logged: ai-1774008833821-zyedyrv, conversationId: 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:13:53.825] [INFO] [Agent] getWorkingDir called with spaceId: a13c464c-910c-46c0-b430-f16702da7d78
+[2026-03-20T20:13:53.826] [ERROR] [Agent] SSE processing error: {}
+[2026-03-20T20:13:53.827] [INFO] [SSE][6e822f1f-2c24-4169-9d3f-47830c645beb] SSE stream unregistered, active: 0
+[2026-03-20T20:14:46.209] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:15:12.067] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, af9b45ba-5e7a-4b7d-916f-1a20fb073f43
+[2026-03-20T20:15:13.043] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:15:14.187] [INFO] [Agent] Session warmed: a13c464c-910c-46c0-b430-f16702da7d78, 6e822f1f-2c24-4169-9d3f-47830c645beb
+[2026-03-20T20:24:00.431] [INFO] 
+Shutting down gracefully...
+[2026-03-20T20:24:00.511] [INFO] Server closed
