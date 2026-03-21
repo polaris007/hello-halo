@@ -135,10 +135,8 @@ export function SettingsPage() {
               {/* Appearance Section */}
               <AppearanceSection config={config} setConfig={setConfig} />
 
-              {/* System Section - Desktop only */}
-              {!isRemoteMode && (
-                <SystemSection config={config} setConfig={setConfig} />
-              )}
+              {/* Agent Settings Section - Show maxTurns config in all modes */}
+              <SystemSection config={config} setConfig={setConfig} isRemoteMode={isRemoteMode} />
 
               {/* Remote Access Section - Desktop only */}
               {!isRemoteMode && (

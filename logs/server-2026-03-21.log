@@ -1,0 +1,24 @@
+[2026-03-21T09:35:23.624] [INFO] [Config] Loaded from G:\Workplace\hello-halo\server.json
+[2026-03-21T09:35:23.626] [INFO] [Config] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-21T09:35:23.627] [INFO] 
+[2026-03-21T09:35:23.627] [INFO] ========================================
+[2026-03-21T09:35:23.628] [INFO] [Migration] Legacy data directory detected!
+[2026-03-21T09:35:23.629] [INFO] [Migration] Found existing data at: C:\Users\Administrator\.halo
+[2026-03-21T09:35:23.629] [INFO] [Migration] To migrate your data to the new location, run:
+[2026-03-21T09:35:23.630] [INFO]   node scripts/migrate-data-dir.js
+[2026-03-21T09:35:23.631] [INFO] 
+[2026-03-21T09:35:23.631] [INFO] [Migration] Or use the old data directory by setting:
+[2026-03-21T09:35:23.632] [INFO]   HALO_DATA_DIR=C:\Users\Administrator\.halo
+[2026-03-21T09:35:23.632] [INFO] ========================================
+[2026-03-21T09:35:23.633] [INFO] 
+[2026-03-21T09:35:24.017] [INFO] [Auth] Cleaned up expired sessions and tokens
+[2026-03-21T09:35:24.020] [INFO] [LLMConfig] Loaded from G:\Workplace\hello-halo\llm-config.json
+[2026-03-21T09:35:24.040] [INFO] Halo server running at http://127.0.0.1:3000
+[2026-03-21T09:35:24.041] [INFO] Data directory: G:\Workplace\hello-halo\data (from default (cwd/data))
+[2026-03-21T09:35:24.041] [INFO] Auth mode: normal
+[2026-03-21T09:35:24.042] [INFO] WebSocket available at ws://127.0.0.1:3000/ws
+[2026-03-21T09:35:24.160] [INFO] [Auth] Default user "admin@halo.local" password updated from config
+[2026-03-21T09:35:43.093] [INFO] Unknown message type: auth
+[2026-03-21T12:08:51.681] [INFO] 
+Shutting down gracefully...
+[2026-03-21T12:08:51.752] [INFO] Server closed
