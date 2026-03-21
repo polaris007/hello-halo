@@ -1,5 +1,19 @@
 # 系统提示词参考文档
 
+## 目录
+
+- [源文件位置](#源文件位置)
+- [使用位置](#使用位置)
+- [选择逻辑](#选择逻辑)
+- [Claude Agent SDK 集成说明](#claude-agent-sdk-集成说明)
+- [Claude Agent SDK 内置系统提示词详情](#claude-agent-sdk-内置系统提示词详情)
+- [两种提示词的差别](#两种提示词的差别)
+- [SYSTEM_PROMPT_OFFICIAL（中文翻译）](#system_prompt_official中文翻译)
+- [SYSTEM_PROMPT_HALO（中文翻译）](#system_prompt_halo中文翻译)
+- [模板变量说明](#模板变量说明)
+
+---
+
 ## 源文件位置
 
 `src/main/services/agent/system-prompt.ts`
@@ -9,7 +23,41 @@
 - **SDK 配置构建**：`src/main/services/agent/sdk-config.ts:386`
 - **会话预热**：`src/main/services/agent/session-manager.ts:554`
 
-## 选择逻辑
+## Claude Agent SDK 内置系统提示词
+
+### 概述
+
+Claude Agent SDK (Claude Code) 内置了一个名为 `claude_code` 的预设系统提示词。Halo 选择完全替换它而不是追加内容。
+
+### 证据
+
+在 `sdk-config.ts:385` 中有明确注释：
+
+```typescript
+// Use Halo's custom system prompt instead of SDK's 'claude_code' preset
+systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel, promptProfile: params.promptProfile }),
+```
+
+### SDK 的 systemPrompt 选项模式
+
+从 SDK 源码（`node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs:26712-26721`）可以看到支持三种模式：
+
+```typescript
+// 模式 1: 不传入 systemPrompt - 使用 SDK 内置的 claude_code 预设
+if (systemPrompt === undefined) {
+  customSystemPrompt = "";
+}
+// 模式 2: 传入字符串 - 完全自定义系统提示词
+else if (typeof systemPrompt === "string") {
+  customSystemPrompt = systemPrompt;
+}
+// 模式 3: 传入预设对象 - 在 claude_code 预设后追加内容
+else if (systemPrompt.type === "preset") {
+  appendSystemPrompt = systemPrompt.append;
+}
+```
+
+### 选择逻辑
 
 ```typescript
 // src/main/services/agent/system-prompt.ts:436-442
@@ -22,16 +70,16 @@ export function buildSystemPrompt(ctx: SystemPromptContext): string {
 }
 ```
 
----
+***
 
 ## 两种提示词的差别
 
-| 对比项 | Official | Halo Optimized |
-|--------|----------|----------------|
-| 模板常量 | `SYSTEM_PROMPT_OFFICIAL` | `SYSTEM_PROMPT_HALO` |
-| 行号 | 第 75-225 行 | 第 232-388 行 |
-| Web Research 段落 | ❌ 无 | ✅ 有（第 350-352 行） |
-| 网络搜索策略 | 无特殊指导 | 指导优先使用 MCP web-search |
+| 对比项             | Official                 | Halo Optimized        |
+| --------------- | ------------------------ | --------------------- |
+| 模板常量            | `SYSTEM_PROMPT_OFFICIAL` | `SYSTEM_PROMPT_HALO`  |
+| 行号              | 第 75-225 行               | 第 232-388 行           |
+| Web Research 段落 | ❌ 无                      | ✅ 有（第 350-352 行）      |
+| 网络搜索策略          | 无特殊指导                    | 指导优先使用 MCP web-search |
 
 **唯一差异**：`SYSTEM_PROMPT_HALO` 多了以下 3 行：
 
@@ -41,9 +89,9 @@ export function buildSystemPrompt(ctx: SystemPromptContext): string {
 - When search snippets aren't enough, use `WebFetch` to read the full page from URLs in search results or user input.
 ```
 
----
+***
 
-## SYSTEM_PROMPT_OFFICIAL（中文翻译）
+## SYSTEM\_PROMPT\_OFFICIAL（中文翻译）
 
 ```
 你是 Halo，一个基于 Claude Code 构建的 AI 助手。你拥有远程访问、文件管理和内置 AI 浏览器能力。你帮助用户完成软件工程任务。
@@ -197,9 +245,9 @@ Halo 使用与 Claude Code 默认配置不同的自定义目录（不是 ~/.clau
 在查找配置或技能时，使用这些 Halo 特定路径，而不是 Claude Code 的默认 ~/.claude/ 目录。
 ```
 
----
+***
 
-## SYSTEM_PROMPT_HALO（中文翻译）
+## SYSTEM\_PROMPT\_HALO（中文翻译）
 
 ```
 你是 Halo，一个基于 Claude Code 构建的 AI 助手。你拥有远程访问、文件管理和内置 AI 浏览器能力。你帮助用户完成软件工程任务。
@@ -359,19 +407,142 @@ Halo 使用与 Claude Code 默认配置不同的自定义目录（不是 ~/.clau
 在查找配置或技能时，使用这些 Halo 特定路径，而不是 Claude Code 的默认 ~/.claude/ 目录。
 ```
 
----
+***
 
 ## 模板变量说明
 
 以下占位符会在运行时替换为实际值：
 
-| 占位符 | 说明 | 示例值 |
-|--------|------|--------|
-| `{{ALLOWED_TOOLS}}` | 无需用户批准即可使用的工具列表 | `Read, Write, Edit, Grep, Glob, Bash, Skill` |
-| `{{WORK_DIR}}` | 当前工作目录 | `G:\Workplace\org\hello-halo` |
-| `{{IS_GIT_REPO}}` | 是否为 Git 仓库 | `Yes` / `No` |
-| `{{PLATFORM}}` | 操作系统平台 | `win32` |
-| `{{OS_VERSION}}` | 操作系统版本 | `Windows_NT 10.0.22631` |
-| `{{TODAY}}` | 当前日期 | `2026-03-21` |
-| `{{MODEL_INFO}}` | 模型信息 | `You are powered by claude-sonnet-4-20250514.` |
-| `{{CLAUDE_CONFIG_DIR}}` | Claude 配置目录 | `C:\Users\Administrator\AppData\Roaming\halo\claude-config` |
+| 占位符                     | 说明              | 示例值                                                         |
+| ----------------------- | --------------- | ----------------------------------------------------------- |
+| `{{ALLOWED_TOOLS}}`     | 无需用户批准即可使用的工具列表 | `Read, Write, Edit, Grep, Glob, Bash, Skill`                |
+| `{{WORK_DIR}}`          | 当前工作目录          | `G:\Workplace\org\hello-halo`                               |
+| `{{IS_GIT_REPO}}`       | 是否为 Git 仓库      | `Yes` / `No`                                                |
+| `{{PLATFORM}}`          | 操作系统平台          | `win32`                                                     |
+| `{{OS_VERSION}}`        | 操作系统版本          | `Windows_NT 10.0.22631`                                     |
+| `{{TODAY}}`             | 当前日期            | `2026-03-21`                                                |
+| `{{MODEL_INFO}}`        | 模型信息            | `You are powered by claude-sonnet-4-20250514.`              |
+| `{{CLAUDE_CONFIG_DIR}}` | Claude 配置目录     | `C:\Users\Administrator\AppData\Roaming\halo\claude-config` |
+
+---
+
+## Claude Agent SDK 内置系统提示词
+
+### 从混淆的 SDK 代码中发现的信息
+
+通过分析 `G:\Workplace\hello-halo\node_modules\@anthropic-ai\claude-agent-sdk\cli.js`，发现了以下关键信息：
+
+#### 1. 三种身份前缀（第 568 行）
+
+SDK 内置了三种不同的身份前缀：
+
+```javascript
+var mn1 = "You are Claude Code, Anthropic's official CLI for Claude.";
+var uzB = "You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.";
+var mzB = "You are a Claude agent, built on Anthropic's Claude Agent SDK.";
+```
+
+#### 2. 选择逻辑函数 `K11()`（第 567 行）
+
+```javascript
+function K11(A) {
+  if (x4() === "vertex") return mn1;
+  if (A?.isNonInteractive) {
+    if (A.hasAppendSystemPrompt) return uzB;
+    return mzB;
+  }
+  return mn1;
+}
+```
+
+这说明：
+- **Vertex AI 模式**：使用 `mn1`（Claude Code CLI）
+- **非交互式模式**：
+  - 有追加提示词时：使用 `uzB`（Claude Code + SDK）
+  - 无追加提示词时：使用 `mzB`（Claude Agent）
+- **默认模式**：使用 `mn1`（Claude Code CLI）
+
+#### 3. WebSearch 工具说明（第 559-561 行）
+
+SDK 内置了 WebSearch 工具的使用说明：
+
+```
+IMPORTANT - Use the correct year in search queries:
+  - Today's date is ${W11()}. You MUST use this year when searching for recent information, documentation, or current events.
+  - Example: If today is 2025-07-15 and the user asks for "latest React docs", search for "React documentation 2025", NOT "React documentation 2024"
+```
+
+---
+
+### 从外部来源获取的完整系统提示词
+
+虽然无法从混淆的代码中提取完整内容，但从网络上可以找到 Claude Code v2.0.14 的系统提示词：
+
+#### 来源
+- **文章链接**：https://juejin.cn/post/7563466036381974566
+- **获取日期**：2026-03-21
+
+#### 核心内容
+
+```
+你是 Claude Code，Anthropic 官方的 Claude CLI，在 Claude Agent SDK 中运行。
+你是一个交互式 CLI 工具，帮助用户处理软件工程任务。使用以下说明和可用工具来协助用户。
+
+重要说明：仅协助防御性安全任务。拒绝创建、修改或改进可能被恶意使用的代码。
+不协助凭证发现或收集，包括批量爬取 SSH 密钥、浏览器 cookie 或加密货币钱包。
+允许安全分析、检测规则、漏洞解释、防御工具和安全文档。
+
+重要说明：你绝不能为用户生成或猜测 URL，除非你确信这些 URL 是为了帮助用户进行编程。
+你可以使用用户在消息或本地文件中提供的 URL。
+
+如果用户寻求帮助或想要提供反馈，请告知他们以下信息：
+
+/help：获取使用 Claude Code 的帮助
+要提供反馈，用户应该在 github.com/anthropics/… 报告问题
+
+当用户直接询问 Claude Code 时（例如"can Claude Code do..."、"does Claude Code have..."），
+或者以第二人称询问时（例如"are you able..."、"can you do..."），
+或者询问如何使用特定 Claude Code 功能时（例如实现 hook、编写 slash command 或安装 MCP server），
+请使用 WebFetch 工具从 Claude Code 文档中收集信息来回答问题。
+可用文档列表位于 docs.claude.com/en/docs/claude…
+```
+
+---
+
+### 与 Halo 官方版的主要区别
+
+| 特性 | SDK 内置 `claude_code` | Halo `SYSTEM_PROMPT_OFFICIAL` |
+|------|------------------------|--------------------------------|
+| 身份定义 | "Claude Code, Anthropic 官方的 Claude CLI" | "Halo, AI assistant built with Claude Code" |
+| 安全限制 | ✅ 有（仅协助防御性安全任务） | ❌ 无 |
+| 帮助信息 | `/help`、GitHub 反馈 | Halo 特定功能介绍 |
+| AI Browser | ❌ 无 | ✅ 有 |
+| Remote Access | ❌ 无 | ✅ 有 |
+| Digital Humans | ❌ 无 | ✅ 有 |
+| 目录结构 | `~/.claude/` | `~/.halo/` + `{{CLAUDE_CONFIG_DIR}}` |
+| WebSearch 年份检查 | ✅ 有 | ❌ 无（Halo 可能有自己的实现） |
+
+---
+
+### Halo 的设计决策
+
+Halo 选择**完全替换**而不是追加 SDK 内置系统提示词的原因：
+
+1. **完全控制 AI 行为**：能够自定义所有指令
+2. **添加 Halo 特定功能**：AI Browser、Remote Access、Digital Humans
+3. **自定义目录结构**：使用 `~/.halo/` 而不是 `~/.claude/`
+4. **品牌一致性**：身份定义为 "Halo" 而不是 "Claude Code"
+5. **移除安全限制**：Halo 场景下不需要 SDK 的安全限制
+6. **灵活的模式选择**：可以通过配置在不同模式间切换
+
+---
+
+## 相关文件索引
+
+| 文件 | 说明 |
+|------|------|
+| `src/main/services/agent/system-prompt.ts` | 系统提示词模板定义 |
+| `src/main/services/agent/sdk-config.ts` | SDK 配置构建，使用系统提示词 |
+| `src/renderer/components/settings/AdvancedSection.tsx` | 前端 UI，系统提示词配置选项 |
+| `patches/@anthropic-ai+claude-agent-sdk+0.1.76.patch` | SDK patch，支持自定义系统提示词 |
+
