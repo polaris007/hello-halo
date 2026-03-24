@@ -341,8 +341,7 @@ export function runMigrations(): void {
   // 迁移空间目录到用户隔离结构
   // 将 {data-dir}/spaces/{id} 迁移到 {data-dir}/users/{user_id}/spaces/{id}
   // ========================================
-  const config = getConfig()
-  const dataDir = config.data.basePath
+  const dataDir = resolveDataDir()
   const allSpaces = database.prepare('SELECT id, user_id, path FROM spaces').all() as any[]
   for (const space of allSpaces) {
     const expectedPath = join(dataDir, 'users', space.user_id, 'spaces', space.id)

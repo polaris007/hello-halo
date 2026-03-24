@@ -15,7 +15,7 @@ import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
 // Note: sendToRenderer is no longer used directly in this file
 // emitEvent is passed as a parameter from callers
-import { getConfig } from '../config.service'
+import { getConfig, resolveDataDir } from '../config.service'
 
 // ============================================
 // Configuration
@@ -191,8 +191,7 @@ async function resolveAnthropicPassthrough(
  * Uses config service to get the configured data directory.
  */
 function getUserDataPath(): string {
-  const config = getConfig()
-  return config.data.basePath
+  return resolveDataDir()
 }
 
 // ============================================

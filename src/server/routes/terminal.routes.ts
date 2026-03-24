@@ -6,8 +6,10 @@
 import { Router, Request, Response } from 'express'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { join, isAbsolute } from 'path'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { getDatabase } from '../utils/database'
+import { resolveDataDir } from '../services/config.service'
 
 const router = Router()
 const execAsync = promisify(exec)
@@ -79,14 +81,26 @@ router.post('/execute', async (req: Request, res: Response) => {
     let targetDir = workingDir
     if (spaceId) {
       const db = getDatabase()
-      const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+      const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId) as any
       if (!space) {
         return res.status(404).json({
           success: false,
           error: { code: 'NOT_FOUND', message: 'Space not found' }
         })
       }
-      targetDir = targetDir || (space as any).working_dir || (space as any).path
+
+      // Resolve working directory with proper path handling
+      // Priority: workingDir param > space.working_dir > space.path
+      if (!targetDir) {
+        if (space.working_dir) {
+          targetDir = space.working_dir
+        } else if (space.path) {
+          // Handle relative paths: resolve against data directory
+          targetDir = isAbsolute(space.path)
+            ? space.path
+            : join(resolveDataDir(), space.path)
+        }
+      }
     }
 
     // Build full command

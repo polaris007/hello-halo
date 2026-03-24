@@ -5,7 +5,8 @@
  * Server-side version - removed Electron dependencies.
  */
 
-import { join } from 'path'
+import { join, isAbsolute } from 'path'
+import * as path from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { ApiCredentials } from './types'
 import { getDatabase } from '../../utils/database'
@@ -26,21 +27,60 @@ export function getHaloDataDir(): string {
 
 /**
  * Get working directory for a space
+ *
+ * Priority:
+ * 1. Space's working_dir (user-defined custom path)
+ * 2. Space's path (from database, user-isolated: data/users/{userId}/spaces/{spaceId})
+ * 3. Fallback to legacy path (data/spaces/{spaceId})
+ *
+ * Note: Database path may be relative (e.g., "users/xxx/spaces/xxx") or absolute.
+ * Relative paths are resolved against the data directory.
  */
 export function getWorkingDir(spaceId: string): string {
   console.log(`[Agent] getWorkingDir called with spaceId: ${spaceId}`)
-
-  // For now, use a simple directory structure based on spaceId
-  // In a full implementation, this would query the database for the space's working directory
   const haloDir = getHaloDataDir()
-  const spacesDir = join(haloDir, 'spaces')
-  const workDir = join(spacesDir, spaceId)
+
+  try {
+    const db = getDatabase()
+    const space = db.prepare('SELECT path, working_dir, user_id FROM spaces WHERE id = ?').get(spaceId) as any
+
+    if (space) {
+      // 优先使用用户自定义的工作目录
+      if (space.working_dir) {
+        const workDir = space.working_dir
+        if (!existsSync(workDir)) {
+          mkdirSync(workDir, { recursive: true })
+        }
+        console.log(`[Agent] Using custom working_dir: ${workDir}`)
+        return workDir
+      }
+
+      // 使用数据库中的 path 字段（用户隔离路径）
+      if (space.path) {
+        // 检查是否为绝对路径，如果不是则相对于数据目录解析
+        const workDir = path.isAbsolute(space.path)
+          ? space.path
+          : join(haloDir, space.path)
+
+        if (!existsSync(workDir)) {
+          mkdirSync(workDir, { recursive: true })
+        }
+        console.log(`[Agent] Using space path from database: ${workDir}`)
+        return workDir
+      }
+    }
+  } catch (error) {
+    console.warn(`[Agent] Failed to query space from database, falling back to legacy path:`, error)
+  }
+
+  // Fallback: legacy path (data/spaces/{spaceId})
+  const workDir = join(haloDir, 'spaces', spaceId)
 
   if (!existsSync(workDir)) {
     mkdirSync(workDir, { recursive: true })
   }
 
-  console.log(`[Agent] Resolved working dir: ${workDir}`)
+  console.log(`[Agent] Using fallback working dir: ${workDir}`)
   return workDir
 }
 

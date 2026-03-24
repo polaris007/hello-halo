@@ -6,8 +6,9 @@ import { Router, Request, Response } from 'express'
 import { getDatabase } from '../utils/database'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from 'fs'
-import { join, basename } from 'path'
+import { join, basename, isAbsolute } from 'path'
 import multer from 'multer'
+import { resolveDataDir } from '../services/config.service'
 
 const router = Router()
 
@@ -74,7 +75,11 @@ router.post('/spaces/:spaceId/files', upload.single('file'), handleMulterError, 
     const fileName = req.query.filename as string || file.originalname
 
     // 构建文件路径
-    const spacePath = (space as any).path
+    let spacePath = (space as any).path
+    // 检查是否为绝对路径，如果不是则相对于数据目录解析
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
     const filePath = join(spacePath, subPath, fileName)
 
     // 确保目录存在
@@ -130,7 +135,11 @@ router.get(/^\/spaces\/([^\/]+)\/files\/(.+)$/, (req: Request, res: Response) =>
     }
 
     // 构建完整文件路径
-    const spacePath = (space as any).path
+    let spacePath = (space as any).path
+    // 检查是否为绝对路径，如果不是则相对于数据目录解析
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
     const fullPath = join(spacePath, filePath)
 
     // 检查文件是否存在
@@ -179,7 +188,11 @@ router.get('/spaces/:spaceId/files', (req: Request, res: Response) => {
     }
 
     // 构建目录路径
-    const spacePath = (space as any).path
+    let spacePath = (space as any).path
+    // 检查是否为绝对路径，如果不是则相对于数据目录解析
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
     const fullPath = join(spacePath, dirPath)
 
     // 检查目录是否存在

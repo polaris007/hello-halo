@@ -8,7 +8,7 @@ import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middl
 import { existsSync, mkdirSync, accessSync, statSync, constants } from 'fs'
 import { join, resolve } from 'path'
 import { randomUUID } from 'crypto'
-import { getConfig } from '../services/config.service'
+import { getConfig, resolveDataDir } from '../services/config.service'
 
 const router = Router()
 
@@ -50,7 +50,8 @@ router.get('/halo', (req, res) => {
     if (!haloSpace) {
       // Create halo temp space
       const id = randomUUID()
-      const spacePath = join(config.data.basePath, 'users', userId, 'spaces', id)
+      const dataDir = resolveDataDir()
+      const spacePath = join(dataDir, 'users', userId, 'spaces', id)
       if (!existsSync(spacePath)) {
         mkdirSync(spacePath, { recursive: true })
       }
@@ -90,8 +91,8 @@ router.get('/halo', (req, res) => {
  */
 router.get('/default-path', (req, res) => {
   try {
-    const config = getConfig()
-    const defaultPath = join(config.data.basePath, 'spaces')
+    const dataDir = resolveDataDir()
+    const defaultPath = join(dataDir, 'spaces')
     res.json({
       success: true,
       data: defaultPath
@@ -216,8 +217,8 @@ router.post('/', (req, res) => {
     const db = getDatabase()
     const id = randomUUID()
     // 按用户隔离文件系统：{data-dir}/users/{user_id}/spaces/{space_id}/
-    const config = getConfig()
-    const spacePath = join(config.data.basePath, 'users', userId, 'spaces', id)
+    const dataDir = resolveDataDir()
+    const spacePath = join(dataDir, 'users', userId, 'spaces', id)
 
     // 确保空间目录存在
     if (!existsSync(spacePath)) {

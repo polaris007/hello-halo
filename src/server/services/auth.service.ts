@@ -8,7 +8,7 @@ import { hash, compare } from '@node-rs/bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getDatabase } from '../utils/database'
-import { getConfig } from './config.service'
+import { getConfig, resolveDataDir } from './config.service'
 import {
   hashPassword,
   verifyPassword,
@@ -55,8 +55,8 @@ export async function register(params: { email: string; password: string; name?:
     `).run(id, email, email, passwordHash, name || null, 'user', now, now)
 
     // Create user directory structure: {data-dir}/users/{user_id}/spaces/
-    const config = getConfig()
-    const userSpacesDir = join(config.data.basePath, 'users', id, 'spaces')
+    const dataDir = resolveDataDir()
+    const userSpacesDir = join(dataDir, 'users', id, 'spaces')
     if (!existsSync(userSpacesDir)) {
       mkdirSync(userSpacesDir, { recursive: true })
     }
@@ -318,7 +318,8 @@ export async function initializeDefaultUser() {
   `).run(id, 'admin@halo.local', 'admin', await hash(defaultPassword, SALT_ROUNDS), 'Admin', 'admin', 1, now, now)
 
   // Create user directory: {data-dir}/users/{user_id}/spaces/
-  const userSpacesDir = join(config.data.basePath, 'users', id, 'spaces')
+  const dataDir = resolveDataDir()
+  const userSpacesDir = join(dataDir, 'users', id, 'spaces')
   if (!existsSync(userSpacesDir)) {
     mkdirSync(userSpacesDir, { recursive: true })
   }

@@ -24,15 +24,14 @@ import {
   getEnabledMcpServers
 } from './helpers'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
-import { getConfig } from '../config.service'
+import { getConfig, resolveDataDir } from '../config.service'
 
 // ============================================
 // User Data Path (Server-side replacement for app.getPath('userData'))
 // ============================================
 
 function getUserDataPath(): string {
-  const config = getConfig()
-  return config.data.basePath
+  return resolveDataDir()
 }
 
 // ============================================
