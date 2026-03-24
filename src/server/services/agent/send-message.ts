@@ -187,7 +187,7 @@ export async function sendMessage(
         stderrBuffer += data
       },
       mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : null,
-      maxTurns: 50,
+      maxTurns: getMaxTurnsFromConfig(),
       // WebSocket-only emitEvent (for backward compatibility)
       emitEvent: (eventName: string, data: Record<string, unknown>) => {
         sendToRenderer(eventName, spaceId, conversationId, data)
@@ -586,7 +586,7 @@ export async function sendMessageWithSSE(
         stderrBuffer += data
       },
       mcpServers: null,
-      maxTurns: 50,
+      maxTurns: getMaxTurnsFromConfig(),
       // SSE + WebSocket dual-channel emitEvent
       emitEvent: (eventName: string, data: Record<string, unknown>) => {
         // Send to WebSocket (for backward compatibility)
@@ -761,3 +761,32 @@ export async function sendMessageWithSSE(
 // Import crypto for UUID generation
 import { randomUUID as cryptoRandomUUID } from 'crypto'
 const crypto = { randomUUID: cryptoRandomUUID }
+
+// ============================================
+// Config Helper Functions
+// ============================================
+
+/**
+ * 从数据库读取 agent.maxTurns 配置值
+ * @returns 配置的 maxTurns 值，默认 50
+ */
+function getMaxTurnsFromConfig(): number {
+  try {
+    const db = getDatabase()
+    const config = db.prepare(`
+      SELECT value FROM configs
+      WHERE key = 'agent'
+      LIMIT 1
+    `).get() as any
+
+    if (config?.value) {
+      const parsed = JSON.parse(config.value)
+      if (typeof parsed?.maxTurns === 'number' && parsed.maxTurns >= 10) {
+        return parsed.maxTurns
+      }
+    }
+  } catch (error) {
+    console.error('[Agent] Failed to read maxTurns from config:', error)
+  }
+  return 50 // 默认值
+}
