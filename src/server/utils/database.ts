@@ -4,7 +4,7 @@
  */
 
 import Database from 'better-sqlite3'
-import { join } from 'path'
+import { join, isAbsolute } from 'path'
 import { existsSync, mkdirSync, renameSync } from 'fs'
 import { randomUUID } from 'crypto'
 import { getConfig, resolveDataDir } from '../services/config.service.js'
@@ -351,13 +351,19 @@ export function runMigrations(): void {
       if (!existsSync(userSpacesDir)) {
         mkdirSync(userSpacesDir, { recursive: true })
       }
+
+      // 解析旧路径（处理相对路径情况）
+      const oldPath = isAbsolute(space.path)
+        ? space.path
+        : join(dataDir, space.path)
+
       // 如果旧路径存在且新路径不存在，移动目录
-      if (existsSync(space.path) && !existsSync(expectedPath)) {
+      if (existsSync(oldPath) && !existsSync(expectedPath)) {
         try {
-          renameSync(space.path, expectedPath)
-          console.log(`Migrated space directory: ${space.path} -> ${expectedPath}`)
+          renameSync(oldPath, expectedPath)
+          console.log(`Migrated space directory: ${oldPath} -> ${expectedPath}`)
         } catch (err) {
-          console.warn(`Failed to migrate space directory ${space.path}:`, err)
+          console.warn(`Failed to migrate space directory ${oldPath}:`, err)
         }
       }
       // 更新数据库中的路径
