@@ -6,7 +6,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { join, resolve } from 'path'
-import { homedir } from 'os'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 
 // 模拟 process.cwd()
@@ -70,14 +69,6 @@ describe('数据目录配置', () => {
 
       expect(process.env.HALO_CONFIG_PATH).toBe(configPath)
     })
-
-    it('配置文件搜索应包含旧数据目录（向后兼容）', () => {
-      const legacyConfigPath = join(homedir(), '.halo', 'server.json')
-
-      // 验证向后兼容路径格式
-      expect(legacyConfigPath).toContain('.halo')
-      expect(legacyConfigPath).toContain('server.json')
-    })
   })
 
   describe('数据目录结构', () => {
@@ -124,22 +115,6 @@ describe('数据目录配置', () => {
       process.env.HALO_PORT = port
 
       expect(process.env.HALO_PORT).toBe(port)
-    })
-  })
-
-  describe('旧数据目录检测', () => {
-    it('旧数据目录路径应为 ~/.halo', () => {
-      const legacyDir = join(homedir(), '.halo')
-
-      expect(legacyDir).toContain('.halo')
-      expect(legacyDir).toContain(homedir())
-    })
-
-    it('应在使用默认目录时检测旧数据', () => {
-      // 这个测试验证检测逻辑的概念
-      const legacyDir = join(homedir(), '.halo')
-      // 实际检测在 config.service.ts 的 checkLegacyDataDir() 中实现
-      expect(legacyDir).toBeDefined()
     })
   })
 })

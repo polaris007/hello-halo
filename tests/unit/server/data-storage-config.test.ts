@@ -110,14 +110,4 @@ describe('数据存储路径配置', () => {
     })
   })
 
-  describe('checkLegacyDataDir', () => {
-    it('函数应当存在并可调用', async () => {
-      vi.resetModules()
-      const { checkLegacyDataDir } = await import('../../../src/server/services/config.service')
-
-      expect(typeof checkLegacyDataDir).toBe('function')
-      // 不应当抛出错误
-      expect(() => checkLegacyDataDir()).not.toThrow()
-    })
-  })
 })

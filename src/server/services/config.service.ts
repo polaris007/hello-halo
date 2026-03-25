@@ -3,9 +3,8 @@
  * 读取和管理 server.json 配置文件
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, readdirSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
-import { homedir } from 'os'
 
 export interface ServerConfig {
   server: {
@@ -113,41 +112,6 @@ export function ensureDataDir(dataDir: string): void {
 }
 
 /**
- * 检查旧数据目录是否存在并输出迁移提示
- */
-export function checkLegacyDataDir(): void {
-  // 只有在使用默认数据目录时才提示
-  if (dataDirSource !== 'default (cwd/data)') {
-    return
-  }
-
-  const legacyDataDir = join(homedir(), '.halo')
-
-  // 检查旧数据目录是否存在
-  if (existsSync(legacyDataDir)) {
-    // 检查是否有实际内容（不仅仅是空目录）
-    try {
-      const entries = readdirSync(legacyDataDir)
-      if (entries.length > 0) {
-        console.log('')
-        console.log('========================================')
-        console.log('[Migration] Legacy data directory detected!')
-        console.log(`[Migration] Found existing data at: ${legacyDataDir}`)
-        console.log('[Migration] To migrate your data to the new location, run:')
-        console.log('  node scripts/migrate-data-dir.js')
-        console.log('')
-        console.log('[Migration] Or use the old data directory by setting:')
-        console.log('  HALO_DATA_DIR=' + legacyDataDir)
-        console.log('========================================')
-        console.log('')
-      }
-    } catch {
-      // Ignore errors when checking legacy directory
-    }
-  }
-}
-
-/**
  * 加载配置文件
  */
 export function loadConfig(customPath?: string): ServerConfig {
@@ -159,13 +123,12 @@ export function loadConfig(customPath?: string): ServerConfig {
   let dataDir = resolveDataDir()
 
   // 尝试从自定义路径或默认路径加载
-  // 优先级：HALO_CONFIG_PATH > {data-dir}/server.json > {cwd}/server.json > ~/.halo/server.json
+  // 优先级：HALO_CONFIG_PATH > {data-dir}/server.json > {cwd}/server.json
   const pathsToTry = [
     customPath,
     process.env.HALO_CONFIG_PATH,
     join(dataDir, 'server.json'),
-    join(process.cwd(), 'server.json'),
-    join(homedir(), '.halo', 'server.json') // 向后兼容
+    join(process.cwd(), 'server.json')
   ].filter(Boolean) as string[]
 
   for (const path of pathsToTry) {

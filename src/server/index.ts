@@ -56,7 +56,7 @@ const __dirname = dirname(__filename)
 import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from './utils/database'
 import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service'
 import { loadAuthConfig } from './middleware/auth.middleware'
-import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource, checkLegacyDataDir } from './services/config.service'
+import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource } from './services/config.service'
 
 // ========================================
 // LOGGER INITIALIZATION (must be first to capture all logs)
@@ -79,9 +79,6 @@ overrideConsole()
 // Load configuration
 loadConfig()
 applyEnvOverrides()
-
-// Check for legacy data directory and prompt for migration
-checkLegacyDataDir()
 
 // Get resolved data directory
 const HALO_DATA_DIR = resolveDataDir()
