@@ -59,7 +59,7 @@ The system SHALL open selected files in the ContentCanvas with appropriate viewe
 The system SHALL provide an API endpoint to retrieve file text content for frontend display.
 
 #### Scenario: Get file content successfully
-- **WHEN** client requests GET /api/v1/spaces/:spaceId/files/content?path=<path>
+- **WHEN** client requests GET /api/v1/spaces/:spaceId/files/:path/content
 - **THEN** system returns file content as text with metadata (mimeType, size, language)
 
 #### Scenario: Handle file not found

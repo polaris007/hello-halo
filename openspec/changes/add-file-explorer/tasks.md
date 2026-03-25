@@ -1,6 +1,6 @@
 ## 1. Backend - File Content API
 
-- [ ] 1.1 Add GET /api/v1/spaces/:spaceId/files/content endpoint in files.routes.ts
+- [ ] 1.1 Add GET /api/v1/spaces/:spaceId/files/:path/content endpoint in files.routes.ts
 - [ ] 1.2 Implement file size check (reject files > 1MB with 413 error)
 - [ ] 1.3 Add mimeType detection based on file extension
 - [ ] 1.4 Add language detection for code files
@@ -8,7 +8,7 @@
 
 ## 2. Frontend - API Client
 
-- [ ] 2.1 Add fetchFileContent API method in src/web/api/index.ts
+- [ ] 2.1 Add fetchFileContent API method in src/web/api/client.ts
 - [ ] 2.2 Add TypeScript types for FileContentResponse
 
 ## 3. Frontend - FileExplorer Components
@@ -21,9 +21,8 @@
 
 ## 4. Frontend - Canvas Integration
 
-- [ ] 4.1 Add openFile method to useCanvasLifecycle hook (call openCodeFile/openMarkdownFile etc.)
-- [ ] 4.2 Create file type to viewer mapping utilities
-- [ ] 4.3 Handle unsupported file types with error toast
+- [ ] 4.1 Wire FileExplorer to existing canvasLifecycle.openFile() method
+- [ ] 4.2 Handle unsupported file types with error toast
 
 ## 5. Frontend - Layout Integration
 

@@ -7,7 +7,7 @@ BS 架构重构后，SpacePage 布局为：左侧 ChatView + 右侧 ContentCanva
 - `ContentCanvas`：内容展示区，支持标签页
 - `CodeViewer`：CodeMirror 6 代码查看器，支持 20+ 语言语法高亮
 - `MarkdownViewer`：Streamdown Markdown 渲染器
-- `CanvasLifecycle`：管理 canvas tab 的打开、关闭、切换
+- `CanvasLifecycle`：管理 canvas tab 的打开、关闭、切换，**已有 `openFile()` 方法**
 
 ## Goals / Non-Goals
 
@@ -66,7 +66,7 @@ src/web/components/file-explorer/
 新增文件内容读取 API：
 
 ```
-GET /api/v1/spaces/:spaceId/files/content?path=<relativePath>
+GET /api/v1/spaces/:spaceId/files/:path/content
 
 Response:
 {
@@ -80,29 +80,20 @@ Response:
 }
 ```
 
-**理由**：现有下载 API 返回文件流，前端需要文本内容用于 viewer 展示。
+**理由**：现有下载 API (`GET /spaces/:spaceId/files/*`) 返回文件流用于下载。前端需要一个专门返回 JSON 格式的 API 用于 viewer 展示。
 
-**替代方案**：前端使用 fetch + text() 解析下载响应 - 额外网络请求，不够高效
+**替代方案**：复用下载 API，前端解析响应 - 需要处理二进制文件，不够优雅
 
 ### 4. 文件类型检测
 
-使用文件扩展名映射到 viewer 类型：
+**重要发现**：`canvasLifecycle.openFile()` 已经实现了完整的文件类型检测逻辑（见 `src/web/services/canvas-lifecycle.ts` 第 88-287 行）：
 
-```typescript
-const FILE_TYPE_MAP: Record<string, { viewer: string; language?: string }> = {
-  '.md': { viewer: 'markdown' },
-  '.ts': { viewer: 'code', language: 'typescript' },
-  '.tsx': { viewer: 'code', language: 'typescript' },
-  '.js': { viewer: 'code', language: 'javascript' },
-  '.json': { viewer: 'json' },
-  '.css': { viewer: 'code', language: 'css' },
-  '.html': { viewer: 'html' },
-  '.png': { viewer: 'image' },
-  // ...
-}
-```
+- 支持 50+ 语言扩展名映射
+- 支持特殊文件名（Dockerfile, Makefile 等）
+- 支持二进制文件检测（调用系统打开）
+- 支持后端文件类型检测（未知扩展名时）
 
-**理由**：简单直接，复用现有的 file-types.ts 常量。
+FileExplorer 只需调用现有方法，无需重复实现。
 
 ### 5. 布局集成
 
