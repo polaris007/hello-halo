@@ -224,9 +224,9 @@ async function getMcpConfig(): Promise<any> {
   try {
     const { join } = await import('path')
     const { readFileSync, existsSync } = await import('fs')
-    const { getConfig: getAppConfig } = await import('../config.service')
-    const appConfig = getAppConfig()
-    const configPath = join(appConfig.data.basePath, 'config.json')
+    const { resolveDataDir } = await import('../config.service')
+    const dataDir = resolveDataDir()
+    const configPath = join(dataDir, 'config.json')
     if (existsSync(configPath)) {
       return JSON.parse(readFileSync(configPath, 'utf-8'))
     }
