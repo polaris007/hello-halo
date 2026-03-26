@@ -78,7 +78,7 @@ The system SHALL provide an API endpoint to retrieve file text content for front
 - **THEN** system returns 404 error with appropriate message
 
 #### Scenario: Handle file too large
-- **WHEN** client requests a file larger than 1MB
+- **WHEN** client requests a file larger than 2MB
 - **THEN** system returns 413 error indicating file is too large for preview
 
 #### Scenario: Handle binary file

@@ -516,14 +516,54 @@ export const api = {
     return httpRequest('POST', '/api/v1/artifacts/save', { path: filePath, content })
   },
 
-  detectFileType: async (filePath: string): Promise<ApiResponse<{
-    isText: boolean
-    canViewInCanvas: boolean
-    contentType: 'code' | 'markdown' | 'html' | 'image' | 'pdf' | 'text' | 'json' | 'csv' | 'binary'
-    language?: string
+  /**
+   * 读取空间文件内容
+   * @param spaceId 空间 ID
+   * @param filePath 文件相对路径
+   */
+  readFileContent: async (spaceId: string, filePath: string): Promise<ApiResponse<{
+    content?: string
+    path: string
     mimeType: string
+    size: number
+    language?: string
+    isBinary: boolean
   }>> => {
-    return httpRequest('GET', `/api/v1/artifacts/detect-type?path=${encodeURIComponent(filePath)}`)
+    const encodedPath = encodeURIComponent(filePath)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/files/${encodedPath}/content`)
+  },
+
+  /**
+   * 检测文件类型
+   * @param spaceId 空间 ID
+   * @param filePath 文件相对路径
+   */
+  detectFileType: async (spaceId: string, filePath: string): Promise<ApiResponse<{
+    type: 'code' | 'markdown' | 'image' | 'json' | 'text' | 'binary' | 'unknown'
+    mimeType: string
+    language?: string
+  }>> => {
+    const encodedPath = encodeURIComponent(filePath)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/files/${encodedPath}/detect-type`)
+  },
+
+  /**
+   * 列出空间文件目录
+   * @param spaceId 空间 ID
+   * @param dirPath 目录路径（可选，默认为根目录）
+   */
+  listFiles: async (spaceId: string, dirPath?: string): Promise<ApiResponse<{
+    path: string
+    files: Array<{
+      name: string
+      path: string
+      isDirectory: boolean
+      size: number
+      modifiedAt: string
+    }>
+  }>> => {
+    const params = dirPath ? `?path=${encodeURIComponent(dirPath)}` : ''
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/files${params}`)
   },
 
   // ===== Onboarding =====

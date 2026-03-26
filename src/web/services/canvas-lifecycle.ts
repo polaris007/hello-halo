@@ -441,23 +441,31 @@ class CanvasLifecycle {
     let { type, language, needsBackendDetection } = detectContentType(path)
 
     // For unknown extensions, use backend detection
-    if (needsBackendDetection) {
+    if (needsBackendDetection && this.currentSpaceId) {
       console.log(`[CanvasLifecycle] Unknown extension: ${ext}, using backend detection`)
       try {
-        const response = await api.detectFileType(path)
+        const response = await api.detectFileType(this.currentSpaceId, path)
         if (response.success && response.data) {
           const info = response.data
           console.log(`[CanvasLifecycle] Backend detection result:`, info)
 
-          // If backend says it's binary, open with system app
-          if (!info.canViewInCanvas) {
-            console.log(`[CanvasLifecycle] File is binary, opening with system`)
+          // If backend says it's binary or unknown, open with system app
+          if (info.type === 'binary' || info.type === 'unknown') {
+            console.log(`[CanvasLifecycle] File is binary/unknown, opening with system`)
             await api.openArtifact(path)
             return ''
           }
 
           // Use backend-detected content type
-          type = info.contentType as ContentType
+          // Map backend type to ContentType
+          const typeMap: Record<string, ContentType> = {
+            code: 'code',
+            markdown: 'markdown',
+            image: 'image',
+            json: 'json',
+            text: 'text',
+          }
+          type = typeMap[info.type] || 'text'
           language = info.language
         }
       } catch (error) {
@@ -546,17 +554,31 @@ class CanvasLifecycle {
     }
 
     try {
-      const response = await api.readArtifactContent(path)
+      // Use new space-aware API if spaceId is available
+      let response
+      if (this.currentSpaceId) {
+        response = await api.readFileContent(this.currentSpaceId, path)
+      } else {
+        // Fallback to old artifact API for backward compatibility
+        response = await api.readArtifactContent(path)
+      }
 
       // Tab might have been closed during async operation
       if (!this.tabs.has(tabId)) return
 
       if (response.success && response.data) {
-        const data = response.data as { content: string; mimeType?: string }
-        tab.content = data.content
-        tab.mimeType = data.mimeType
-        tab.isLoading = false
-        tab.error = undefined
+        const data = response.data
+        // Handle new API response format
+        if ('isBinary' in data && data.isBinary) {
+          // Binary file - should have been caught earlier, but handle gracefully
+          tab.isLoading = false
+          tab.error = 'Cannot display binary file'
+        } else if ('content' in data) {
+          tab.content = data.content
+          tab.mimeType = data.mimeType
+          tab.isLoading = false
+          tab.error = undefined
+        }
       } else {
         throw new Error(response.error || 'Failed to read file')
       }

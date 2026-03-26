@@ -37,6 +37,8 @@ import { SearchIcon } from '../components/search/SearchIcon'
 import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { FileExplorer } from '../components/file-explorer/FileExplorer'
+import { MobileFileExplorerButton } from '../components/file-explorer/MobileFileExplorerButton'
 import type { LayoutConfig } from '../types'
 
 /** Persist a partial layout update to backend config + sync in-memory store */
@@ -110,6 +112,9 @@ export function SpacePage() {
   const [isDraggingChat, setIsDraggingChat] = useState(false)
   const [dragChatWidth, setDragChatWidth] = useState(effectiveChatWidth)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // FileExplorer collapse state
+  const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false)
 
   // Search UI state
   const { openSearch } = useSearchStore()
@@ -451,6 +456,15 @@ export function SpacePage() {
             >
               {(isCanvasOpen || isCanvasMaximized || isCanvasTransitioning) && <ContentCanvas />}
             </div>
+
+            {/* FileExplorer - right sidebar, hidden when canvas maximized */}
+            {!isCanvasMaximized && (
+              <FileExplorer
+                spaceId={currentSpace.id}
+                isCollapsed={isFileExplorerCollapsed}
+                onCollapsedChange={setIsFileExplorerCollapsed}
+              />
+            )}
           </>
         )}
 
@@ -458,6 +472,8 @@ export function SpacePage() {
         {isMobile && (
           <div className="flex-1 flex flex-col min-w-0">
             <ChatView isCompact={false} />
+            {/* Mobile floating button for FileExplorer */}
+            <MobileFileExplorerButton spaceId={currentSpace.id} />
           </div>
         )}
 
