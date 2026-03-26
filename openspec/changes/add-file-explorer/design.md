@@ -61,9 +61,38 @@ src/web/components/file-explorer/
 
 **理由**：文件浏览状态不需要跨组件共享，canvas 状态已有全局管理。
 
-### 3. API 设计
+### 3. 安全设计：路径边界验证
 
-新增文件内容读取 API：
+**问题**：现有 `files.routes.ts` 存在路径遍历漏洞，用户可通过 `../../etc/passwd` 访问空间目录外的文件。
+
+**解决方案**：在所有文件操作前验证路径边界：
+
+```typescript
+/**
+ * 验证路径是否在空间目录边界内，防止路径遍历攻击
+ */
+function validatePathBoundary(spacePath: string, targetPath: string): boolean {
+  const resolvedSpacePath = resolve(spacePath)
+  const resolvedTargetPath = resolve(spacePath, targetPath)
+  return resolvedTargetPath.startsWith(resolvedSpacePath + sep) ||
+         resolvedTargetPath === resolvedSpacePath
+}
+```
+
+**应用范围**：所有现有端点（上传、下载、列表）和新增端点。
+
+### 4. API 设计
+
+扩展 `files.routes.ts`，新增两个端点：
+
+**注意**：新端点必须放在现有 regex 路由之前，确保 Express 优先匹配。
+
+```
+GET /api/v1/spaces/:spaceId/files/:path/content
+GET /api/v1/spaces/:spaceId/files/:path/detect-type
+```
+
+#### 4.1 文件内容 API
 
 ```
 GET /api/v1/spaces/:spaceId/files/:path/content
@@ -75,16 +104,41 @@ Response:
     "content": "文件文本内容",
     "mimeType": "text/markdown",
     "size": 1234,
-    "language": "markdown"
+    "language": "markdown",
+    "isBinary": false
   }
 }
 ```
 
-**理由**：现有下载 API (`GET /spaces/:spaceId/files/*`) 返回文件流用于下载。前端需要一个专门返回 JSON 格式的 API 用于 viewer 展示。
+- 文件超过 1MB 返回 413 错误
+- 二进制文件（图片等）返回 `isBinary: true`，不包含 content 字段
 
-**替代方案**：复用下载 API，前端解析响应 - 需要处理二进制文件，不够优雅
+#### 4.2 文件类型检测 API
 
-### 4. 文件类型检测
+```
+GET /api/v1/spaces/:spaceId/files/:path/detect-type
+
+Response:
+{
+  "success": true,
+  "data": {
+    "type": "code",
+    "mimeType": "text/typescript",
+    "language": "typescript"
+  }
+}
+```
+
+**理由**：
+- 现有下载 API (`GET /spaces/:spaceId/files/*`) 返回文件流用于下载
+- 前端需要 JSON 格式 API 用于 viewer 展示和类型检测
+- 扩展现有 `files.routes.ts` 而非创建新文件，保持代码内聚
+
+**替代方案**：
+- 创建新的 `artifacts.routes.ts` - 增加文件数量，降低内聚性
+- 复用下载 API - 需要前端处理二进制流，不够优雅
+
+### 5. 文件类型检测
 
 **重要发现**：`canvasLifecycle.openFile()` 已经实现了完整的文件类型检测逻辑（见 `src/web/services/canvas-lifecycle.ts` 第 88-287 行）：
 
@@ -95,7 +149,7 @@ Response:
 
 FileExplorer 只需调用现有方法，无需重复实现。
 
-### 5. 布局集成
+### 6. 布局集成
 
 FileExplorer 放置在 SpacePage 右侧，与 ChatView 并列：
 
