@@ -23,12 +23,21 @@ export interface FileExplorerProps {
   isCollapsed?: boolean
   /** Callback when collapse state changes */
   onCollapsedChange?: (collapsed: boolean) => void
+  /** Width of the file explorer */
+  width?: number
+  /** Ref for the container element */
+  containerRef?: React.RefObject<HTMLDivElement>
+  /** Callback for drag start */
+  onDragStart?: (e: React.MouseEvent) => void
 }
 
 export function FileExplorer({
   spaceId,
   isCollapsed = false,
-  onCollapsedChange
+  onCollapsedChange,
+  width = 240,
+  containerRef,
+  onDragStart
 }: FileExplorerProps) {
   const { t } = useTranslation()
   const {
@@ -121,7 +130,25 @@ export function FileExplorer({
 
   // Expanded state
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border min-w-[200px] max-w-[300px]">
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full bg-background border-l border-border relative"
+      style={{
+        width: `${width}px`,
+        minWidth: '200px',
+        maxWidth: '400px'
+      }}
+    >
+      {/* Drag handle */}
+      <div
+        className={`
+          absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-20
+          hover:bg-primary/50 transition-colors
+        `}
+        onMouseDown={onDragStart}
+        title={t('Drag to resize')}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">

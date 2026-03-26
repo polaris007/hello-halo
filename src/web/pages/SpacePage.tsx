@@ -116,6 +116,12 @@ export function SpacePage() {
   // FileExplorer collapse state
   const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false)
 
+  // FileExplorer width state
+  const [fileExplorerWidth, setFileExplorerWidth] = useState(240) // Default width
+  const [isDraggingFileExplorer, setIsDraggingFileExplorer] = useState(false)
+  const [dragFileExplorerWidth, setDragFileExplorerWidth] = useState(240)
+  const fileExplorerRef = useRef<HTMLDivElement>(null)
+
   // Search UI state
   const { openSearch } = useSearchStore()
 
@@ -126,10 +132,23 @@ export function SpacePage() {
     }
   }, [effectiveChatWidth, isDraggingChat])
 
+  // Sync FileExplorer drag width
+  useEffect(() => {
+    if (!isDraggingFileExplorer) {
+      setDragFileExplorerWidth(fileExplorerWidth)
+    }
+  }, [fileExplorerWidth, isDraggingFileExplorer])
+
   // Handle chat width drag
   const handleChatDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setIsDraggingChat(true)
+  }, [])
+
+  // Handle FileExplorer width drag start
+  const handleFileExplorerDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDraggingFileExplorer(true)
   }, [])
 
   // Chat drag move/end handlers
@@ -162,6 +181,39 @@ export function SpacePage() {
       document.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isDraggingChat, dragChatWidth, chatWidthMin, chatWidthMax, setChatWidth])
+
+  // FileExplorer drag move/end handlers
+  useEffect(() => {
+    if (!isDraggingFileExplorer) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!fileExplorerRef.current) return
+
+      // Calculate width from left edge of file explorer container to mouse position
+      const containerRect = fileExplorerRef.current.getBoundingClientRect()
+      const newWidth = containerRect.right - e.clientX
+
+      // Clamp to constraints
+      const minWidth = 200
+      const maxWidth = 400
+      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+      setDragFileExplorerWidth(clampedWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingFileExplorer(false)
+      // Persist the final width
+      setFileExplorerWidth(dragFileExplorerWidth)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDraggingFileExplorer, dragFileExplorerWidth])
 
   // Close canvas when switching to mobile with canvas open
   useEffect(() => {
@@ -463,6 +515,9 @@ export function SpacePage() {
                 spaceId={currentSpace.id}
                 isCollapsed={isFileExplorerCollapsed}
                 onCollapsedChange={setIsFileExplorerCollapsed}
+                width={isDraggingFileExplorer ? dragFileExplorerWidth : fileExplorerWidth}
+                containerRef={fileExplorerRef}
+                onDragStart={handleFileExplorerDragStart}
               />
             )}
           </>
