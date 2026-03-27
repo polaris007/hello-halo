@@ -6,8 +6,8 @@
 
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { RouterServerInfo, RouterOptions } from '../types'
-import { createApp } from './router'
+import type { RouterServerInfo, RouterOptions } from '../types/index.js'
+import { createApp } from './router.js'
 
 // Singleton state
 let server: Server | null = null
@@ -102,9 +102,9 @@ export function isRouterRunning(): boolean {
 }
 
 // Re-export components
-export { createApp } from './router'
-export { handleMessagesRequest, handleCountTokensRequest } from './request-handler'
-export { withRequestQueue, generateQueueKey, clearRequestQueues, getPendingRequestCount } from './request-queue'
-export { shouldForceStream } from './api-type'
-export { applyProviderAdapter, findAdapter } from './provider-adapters'
-export type { ProviderAdapter } from './provider-adapters'
+export { createApp } from './router.js'
+export { handleMessagesRequest, handleCountTokensRequest } from './request-handler.js'
+export { withRequestQueue, generateQueueKey, clearRequestQueues, getPendingRequestCount } from './request-queue.js'
+export { shouldForceStream } from './api-type.js'
+export { applyProviderAdapter, findAdapter } from './provider-adapters.js'
+export type { ProviderAdapter } from './provider-adapters.js'

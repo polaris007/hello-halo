@@ -2,13 +2,13 @@
  * Request Converter: Anthropic -> OpenAI Chat Completions
  */
 
-import type { AnthropicRequest, OpenAIChatRequest } from '../../types'
-import { convertAnthropicMessagesToOpenAIChat } from '../messages'
+import type { AnthropicRequest, OpenAIChatRequest } from '../../types/index.js'
+import { convertAnthropicMessagesToOpenAIChat } from '../messages.js'
 import {
   convertAnthropicToolsToOpenAIChat,
   convertAnthropicToolChoiceToOpenAIChat,
   convertAnthropicThinkingToOpenAIReasoning
-} from '../tools'
+} from '../tools.js'
 
 export interface ConversionResult {
   request: OpenAIChatRequest

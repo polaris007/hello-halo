@@ -8,16 +8,16 @@
  */
 
 import { Router, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware'
-import { getDatabase } from '../utils/database'
+import { authMiddleware } from '../middleware/auth.middleware.js'
+import { getDatabase } from '../utils/database.js'
 import { randomUUID } from 'crypto'
-import * as agentService from '../services/agent'
-import { createSseWriter, setSSEHeaders, SseWriter } from '../utils/sse-writer'
+import * as agentService from '../services/agent/index.js'
+import { createSseWriter, setSSEHeaders, SseWriter } from '../utils/sse-writer.js'
 import {
   registerSSEStream,
   unregisterSSEStream,
   getSSEStream
-} from '../services/agent/session-manager'
+} from '../services/agent/session-manager.js'
 
 const router = Router()
 

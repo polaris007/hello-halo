@@ -8,14 +8,14 @@
 
 import path from 'path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
-import { ensureOpenAICompatRouter, encodeBackendConfig } from './openai-compat-router'
-import type { ApiCredentials } from './types'
-import { inferOpenAIWireApi } from './helpers'
-import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
-import { createCanUseTool } from './permission-handler'
+import { ensureOpenAICompatRouter, encodeBackendConfig } from './openai-compat-router/index.js'
+import type { ApiCredentials } from './types.js'
+import { inferOpenAIWireApi } from './helpers.js'
+import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt.js'
+import { createCanUseTool } from './permission-handler.js'
 // Note: sendToRenderer is no longer used directly in this file
 // emitEvent is passed as a parameter from callers
-import { getConfig, resolveDataDir } from '../config.service'
+import { getConfig, resolveDataDir } from '../config.service.js'
 
 // ============================================
 // Configuration

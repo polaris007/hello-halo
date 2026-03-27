@@ -157,8 +157,8 @@ function writeSSE(res: Response, event: string, data: unknown, flush: boolean): 
   res.write(sseMessage)
 
   // 刷新缓冲区，确保数据立即发送
-  if (flush && typeof res.flush === 'function') {
-    res.flush()
+  if (flush && typeof (res as any).flush === 'function') {
+    (res as any).flush()
   }
 }
 

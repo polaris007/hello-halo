@@ -10,20 +10,72 @@
 import type {
   AnthropicTool,
   AnthropicToolChoice,
+  AnthropicJSONSchemaProperty,
   OpenAIChatTool,
   OpenAIChatToolChoice,
+  OpenAIChatJSONSchemaProperty,
   OpenAIResponsesFunctionTool,
   OpenAIResponsesToolChoice
-} from '../types'
+} from '../types/index.js'
 
 // ============================================================================
 // Tool Definition Conversion
 // ============================================================================
 
 /**
+ * Convert Anthropic JSON Schema Property to OpenAI Chat JSON Schema Property
+ */
+function convertAnthropicPropertyToOpenAIChatProperty(property: AnthropicJSONSchemaProperty): OpenAIChatJSONSchemaProperty {
+  // Convert type to OpenAI compatible type
+  let openaiType: OpenAIChatJSONSchemaProperty['type'] = 'string';
+  const propertyType = property.type.toLowerCase();
+  
+  if (['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'].includes(propertyType)) {
+    openaiType = propertyType as OpenAIChatJSONSchemaProperty['type'];
+  }
+
+  const convertedProperty: OpenAIChatJSONSchemaProperty = {
+    type: openaiType,
+    description: property.description,
+    enum: property.enum,
+    additionalProperties: property.additionalProperties as boolean
+  };
+
+  // Recursively convert items and properties
+  if (property.items) {
+    convertedProperty.items = convertAnthropicPropertyToOpenAIChatProperty(property.items);
+  }
+
+  if (property.properties) {
+    convertedProperty.properties = Object.entries(property.properties).reduce(
+      (acc, [key, value]) => {
+        acc[key] = convertAnthropicPropertyToOpenAIChatProperty(value);
+        return acc;
+      },
+      {} as Record<string, OpenAIChatJSONSchemaProperty>
+    );
+  }
+
+  if (property.required) {
+    convertedProperty.required = property.required;
+  }
+
+  return convertedProperty;
+}
+
+/**
  * Convert Anthropic tool to OpenAI Chat tool
  */
 export function anthropicToolToOpenAIChatTool(tool: AnthropicTool): OpenAIChatTool {
+  const properties = tool.input_schema?.properties || {};
+  const convertedProperties = Object.entries(properties).reduce(
+    (acc, [key, value]) => {
+      acc[key] = convertAnthropicPropertyToOpenAIChatProperty(value);
+      return acc;
+    },
+    {} as Record<string, OpenAIChatJSONSchemaProperty>
+  );
+
   return {
     type: 'function',
     function: {
@@ -31,7 +83,7 @@ export function anthropicToolToOpenAIChatTool(tool: AnthropicTool): OpenAIChatTo
       description: tool.description || '',
       parameters: {
         type: 'object',
-        properties: tool.input_schema?.properties || {},
+        properties: convertedProperties,
         required: tool.input_schema?.required
       },
       strict: tool.strict
@@ -44,13 +96,22 @@ export function anthropicToolToOpenAIChatTool(tool: AnthropicTool): OpenAIChatTo
  * Uses the flat format (top-level name, description, parameters)
  */
 export function anthropicToolToResponsesTool(tool: AnthropicTool): OpenAIResponsesFunctionTool {
+  const properties = tool.input_schema?.properties || {};
+  const convertedProperties = Object.entries(properties).reduce(
+    (acc, [key, value]) => {
+      acc[key] = convertAnthropicPropertyToOpenAIChatProperty(value);
+      return acc;
+    },
+    {} as Record<string, OpenAIChatJSONSchemaProperty>
+  );
+
   return {
     type: 'function',
     name: tool.name,
     description: tool.description || '',
     parameters: {
       type: 'object',
-      properties: tool.input_schema?.properties || {},
+      properties: convertedProperties,
       required: tool.input_schema?.required
     },
     strict: tool.strict

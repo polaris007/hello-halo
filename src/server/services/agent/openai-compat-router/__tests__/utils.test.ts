@@ -19,7 +19,7 @@ import {
   isNonEmptyArray,
   extractTextContent,
   mapValue
-} from '../utils'
+} from '../utils/index.js'
 
 describe('ID Generation', () => {
   describe('generateId', () => {

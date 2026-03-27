@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware'
-import { getDatabase } from '../utils/database'
+import { authMiddleware } from '../middleware/auth.middleware.js'
+import { getDatabase } from '../utils/database.js'
 
 const router = Router()
 

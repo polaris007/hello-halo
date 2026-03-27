@@ -22,8 +22,8 @@
  * Background: https://github.com/anthropics/claude-code/issues/1249
  */
 
-import type { AnthropicRequest, AnthropicSystemBlock } from '../types'
-import type { RequestInterceptor, InterceptorContext, InterceptorResult } from './types'
+import type { AnthropicRequest, AnthropicSystemBlock } from '../types/index.js'
+import type { RequestInterceptor, InterceptorContext, InterceptorResult } from './types.js'
 
 // ============================================================================
 // Fingerprint Definitions

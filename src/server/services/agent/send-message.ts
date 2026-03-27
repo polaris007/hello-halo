@@ -13,16 +13,18 @@ import type {
   AgentRequest,
   SessionConfig,
   SessionState,
-  Thought
-} from './types'
+  Thought,
+  CanvasContext,
+  ImageAttachment
+} from './types.js'
 import {
   getNodePath,
   getWorkingDir,
   getApiCredentials,
   getEnabledMcpServers,
   sendToRenderer
-} from './helpers'
-import { buildSystemPromptWithAIBrowser } from './system-prompt'
+} from './helpers.js'
+import { buildSystemPromptWithAIBrowser } from './system-prompt.js'
 import {
   getOrCreateV2Session,
   closeV2Session,
@@ -30,21 +32,21 @@ import {
   registerActiveSession,
   unregisterActiveSession,
   v2Sessions
-} from './session-manager'
+} from './session-manager.js'
 import {
   formatCanvasContext,
   buildMessageContent,
-} from './message-utils'
-import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
-import { processStream } from './stream-processor'
-import { getDatabase } from '../../utils/database'
+} from './message-utils.js'
+import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config.js'
+import { processStream } from './stream-processor.js'
+import { getDatabase } from '../../utils/database.js'
 import {
   logUserMessage,
   logAiConfig,
   logAiConfigError
-} from '../../utils/ai-logger'
-import type { SseWriter } from '../../utils/sse-writer'
-import { toSSEEventName } from '../../utils/sse-writer'
+} from '../../utils/ai-logger.js'
+import type { SseWriter } from '../../utils/sse-writer.js'
+import { toSSEEventName } from '../../utils/sse-writer.js'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
@@ -409,10 +411,10 @@ function updateAssistantMessage(conversationId: string, update: { content?: stri
         content: update.content || '',
         thoughts: update.thoughts || [],
         timestamp: Date.now(),
-        isPartial: true
+        isPartial: true,
+        tokenUsage: update.tokenUsage,
+        error: update.error
       }
-      if (update.tokenUsage) newAssistantMessage.tokenUsage = update.tokenUsage
-      if (update.error) newAssistantMessage.error = update.error
 
       messages.push(newAssistantMessage)
     }
@@ -641,9 +643,9 @@ export async function sendMessageWithSSE(
 
     console.log(`[Agent][${conversationId}] Step 10: Preparing message content...`)
     // Prepare message content
-    const canvasPrefix = formatCanvasContext(canvasContext)
+    const canvasPrefix = formatCanvasContext(canvasContext as CanvasContext | undefined)
     const messageWithContext = canvasPrefix + message
-    const messageContent = buildMessageContent(messageWithContext, images)
+    const messageContent = buildMessageContent(messageWithContext, images as ImageAttachment[] | undefined)
     console.log(`[Agent][${conversationId}] Step 10 done`)
 
     console.log(`[Agent][${conversationId}] Step 11: Calling processStream...`)

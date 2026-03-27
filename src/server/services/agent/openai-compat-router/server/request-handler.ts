@@ -12,21 +12,21 @@
  */
 
 import type { Response as ExpressResponse } from 'express'
-import type { AnthropicRequest, BackendConfig } from '../types'
+import type { AnthropicRequest, BackendConfig } from '../types/index.js'
 import {
   convertAnthropicToOpenAIChat,
   convertAnthropicToOpenAIResponses,
   convertOpenAIChatToAnthropic,
   convertOpenAIResponsesToAnthropic
-} from '../converters'
+} from '../converters/index.js'
 import {
   streamOpenAIChatToAnthropic,
   streamOpenAIResponsesToAnthropic
-} from '../stream'
-import { getApiTypeFromUrl, isValidEndpointUrl, getEndpointUrlError, shouldForceStream } from './api-type'
-import { withRequestQueue, generateQueueKey } from './request-queue'
-import { runInterceptors } from '../interceptors'
-import { applyProviderAdapter } from './provider-adapters'
+} from '../stream/index.js'
+import { getApiTypeFromUrl, isValidEndpointUrl, getEndpointUrlError, shouldForceStream } from './api-type.js'
+import { withRequestQueue, generateQueueKey } from './request-queue.js'
+import { runInterceptors } from '../interceptors/index.js'
+import { applyProviderAdapter } from './provider-adapters.js'
 
 export interface RequestHandlerOptions {
   debug?: boolean
@@ -205,7 +205,7 @@ async function fetchAnthropicUpstream(
     return await fetch(targetUrl, {
       method: 'POST',
       headers,
-      body: Buffer.isBuffer(bodyOrBuffer) ? bodyOrBuffer : JSON.stringify(bodyOrBuffer),
+      body: Buffer.isBuffer(bodyOrBuffer) ? bodyOrBuffer as any : JSON.stringify(bodyOrBuffer),
       signal: controller.signal
     })
   } finally {
@@ -408,7 +408,7 @@ async function handleOpenAIConversion(
       // Apply provider-specific transformations (e.g., Groq temperature fix, OpenRouter headers)
       const adapter = applyProviderAdapter(
         backendUrl,
-        openaiRequest as Record<string, unknown>,
+        openaiRequest as unknown as Record<string, unknown>,
         requestHeaders
       )
       if (adapter && debug) {
@@ -440,7 +440,7 @@ async function handleOpenAIConversion(
             : convertAnthropicToOpenAIChat({ ...anthropicRequest, stream: true }).request
 
           // Re-apply provider adapter to retry request (reuse same headers)
-          applyProviderAdapter(backendUrl, retryRequest as Record<string, unknown>, requestHeaders)
+          applyProviderAdapter(backendUrl, retryRequest as unknown as Record<string, unknown>, requestHeaders)
 
           upstreamResp = await fetchUpstream(backendUrl, apiKey, retryRequest, timeoutMs, undefined, requestHeaders)
 

@@ -3,13 +3,13 @@
  */
 
 import { Router } from 'express'
-import { getDatabase } from '../utils/database'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
+import { getDatabase } from '../utils/database.js'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { randomUUID } from 'crypto'
-import type { AISourcesConfig } from '../../shared/types/ai-sources'
-import { createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
-import { getLLMConfig } from '../services/llm-config.service'
-import type { AISource } from '../../shared/types/ai-sources'
+import type { AISourcesConfig } from '@shared/types/ai-sources'
+import { createEmptyAISourcesConfig } from '@shared/types/ai-sources'
+import { getLLMConfig } from '../services/llm-config.service.js'
+import type { AISource } from '@shared/types/ai-sources'
 
 const router = Router()
 

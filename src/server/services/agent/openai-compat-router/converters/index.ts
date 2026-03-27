@@ -11,12 +11,12 @@
 export {
   convertAnthropicToOpenAIChat,
   convertRequest as convertRequestToChat
-} from './request/anthropic-to-openai-chat'
+} from './request/anthropic-to-openai-chat.js'
 
 export {
   convertAnthropicToOpenAIResponses,
   convertRequest as convertRequestToResponses
-} from './request/anthropic-to-openai-responses'
+} from './request/anthropic-to-openai-responses.js'
 
 // Response converters
 export {
@@ -24,33 +24,33 @@ export {
   convertResponse as convertChatResponseToAnthropic,
   createAnthropicErrorResponse,
   mapFinishReasonToStopReason
-} from './response/openai-chat-to-anthropic'
+} from './response/openai-chat-to-anthropic.js'
 
 export {
   convertOpenAIResponsesToAnthropic,
   convertResponse as convertResponsesResponseToAnthropic,
   mapStatusToStopReason
-} from './response/openai-responses-to-anthropic'
+} from './response/openai-responses-to-anthropic.js'
 
 // Content block converters
-export * from './content-blocks'
+export * from './content-blocks.js'
 
 // Message converters
-export * from './messages'
+export * from './messages.js'
 
 // Tool converters
-export * from './tools'
+export * from './tools.js'
 
 // ============================================================================
 // Backward Compatibility Aliases
 // ============================================================================
 
-import { convertAnthropicToOpenAIChat } from './request/anthropic-to-openai-chat'
-import { convertAnthropicToOpenAIResponses } from './request/anthropic-to-openai-responses'
-import { convertOpenAIChatToAnthropic } from './response/openai-chat-to-anthropic'
-import { convertOpenAIResponsesToAnthropic } from './response/openai-responses-to-anthropic'
+import { convertAnthropicToOpenAIChat } from './request/anthropic-to-openai-chat.js'
+import { convertAnthropicToOpenAIResponses } from './request/anthropic-to-openai-responses.js'
+import { convertOpenAIChatToAnthropic } from './response/openai-chat-to-anthropic.js'
+import { convertOpenAIResponsesToAnthropic } from './response/openai-responses-to-anthropic.js'
 
-import type { AnthropicRequest, OpenAIChatRequest, OpenAIResponsesRequest } from '../types'
+import type { AnthropicRequest, OpenAIChatRequest, OpenAIResponsesRequest } from '../types/index.js'
 
 /**
  * @deprecated Use convertAnthropicToOpenAIChat instead

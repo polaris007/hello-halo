@@ -4,11 +4,11 @@
  */
 
 import { Router } from 'express'
-import { getDatabase, logActivity } from '../utils/database'
-import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware'
+import { getDatabase, logActivity } from '../utils/database.js'
+import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js'
 import { hash } from '@node-rs/bcrypt'
 import { randomUUID } from 'crypto'
-import { getConfig, saveConfig } from '../services/config.service'
+import { getConfig, saveConfig } from '../services/config.service.js'
 
 const router = Router()
 

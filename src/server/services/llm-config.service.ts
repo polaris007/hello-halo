@@ -22,7 +22,7 @@ import {
   validateLLMConfigFile,
   validateLLMConfigSource,
   LLM_CONFIG_FILENAME
-} from '../../shared/types/llm-config'
+} from '@shared/types/llm-config'
 
 // ============================================================================
 // Configuration Cache

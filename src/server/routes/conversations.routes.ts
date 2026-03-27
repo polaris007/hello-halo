@@ -4,8 +4,8 @@
  */
 
 import { Router } from 'express'
-import { getDatabase } from '../utils/database'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { getDatabase } from '../utils/database.js'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 import { randomUUID } from 'crypto'
 
 const router = Router()

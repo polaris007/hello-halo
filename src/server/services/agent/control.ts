@@ -7,7 +7,7 @@
  * - Question answering
  */
 
-import { activeSessions, getSSEStream, cancelPendingInput } from './session-manager'
+import { activeSessions, getSSEStream, cancelPendingInput } from './session-manager.js'
 
 /**
  * Stop generation for a conversation

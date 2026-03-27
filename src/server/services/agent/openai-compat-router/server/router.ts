@@ -5,9 +5,9 @@
  */
 
 import express, { type Express, type Request, type Response } from 'express'
-import type { AnthropicRequest } from '../types'
-import { decodeBackendConfig } from '../utils'
-import { handleMessagesRequest, handleCountTokensRequest } from './request-handler'
+import type { AnthropicRequest } from '../types/index.js'
+import { decodeBackendConfig } from '../utils/index.js'
+import { handleMessagesRequest, handleCountTokensRequest } from './request-handler.js'
 
 export interface RouterOptions {
   debug?: boolean

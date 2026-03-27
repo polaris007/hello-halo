@@ -2,7 +2,7 @@
  * Backend Configuration Utilities
  */
 
-import type { BackendConfig } from '../types'
+import type { BackendConfig } from '../types/index.js'
 
 /**
  * Encode backend configuration to base64 string

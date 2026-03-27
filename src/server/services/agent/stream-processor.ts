@@ -29,18 +29,18 @@ import type {
   TokenUsage,
   SingleCallUsage,
   SessionState
-} from './types'
-import { sendToRenderer } from './helpers'
+} from './types.js'
+import { sendToRenderer } from './helpers.js'
 import {
   parseSDKMessage,
   extractSingleUsage,
   extractResultUsage
-} from './message-utils'
-import { broadcastMcpStatus } from './mcp-manager'
+} from './message-utils.js'
+import { broadcastMcpStatus } from './mcp-manager.js'
 import { logAiRequest, logAiResponse, logAiStreamChunk } from '../../utils/ai-logger.js'
-import type { SseWriter } from '../../utils/sse-writer'
-import { toSSEEventName } from '../../utils/sse-writer'
-import type { IncrementalPersistData } from './types'
+import type { SseWriter } from '../../utils/sse-writer.js'
+import { toSSEEventName } from '../../utils/sse-writer.js'
+import type { IncrementalPersistData } from './types.js'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'

@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express'
 import { createRequire } from 'module'
 import os from 'os'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 
 const require = createRequire(import.meta.url)
 const router = Router()

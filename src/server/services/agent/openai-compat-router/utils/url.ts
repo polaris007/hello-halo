@@ -50,3 +50,63 @@ export function normalizeApiUrl(apiUrl: string, provider: 'anthropic' | 'openai'
 
   return `${normalized}/chat/completions`
 }
+
+/**
+ * Normalize OpenAI Chat Completions URL
+ */
+export function normalizeOpenAIChatCompletionsUrl(apiUrl: string): string {
+  const trimSlash = (s: string) => s.replace(/\/+$/, '')
+  let normalized = trimSlash(apiUrl)
+
+  // Already has full endpoint? Return as-is
+  if (normalized.endsWith('/chat/completions')) {
+    return normalized
+  }
+
+  // Strip incomplete path suffix
+  if (normalized.endsWith('/chat')) {
+    normalized = normalized.slice(0, -5)
+  }
+
+  // Host-only URL defaults to OpenAI's /v1 API base.
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/]+$/.test(normalized)) {
+    normalized = `${normalized}/v1`
+  }
+
+  return `${normalized}/chat/completions`
+}
+
+/**
+ * Normalize OpenAI Responses URL
+ */
+export function normalizeOpenAIResponsesUrl(apiUrl: string): string {
+  const trimSlash = (s: string) => s.replace(/\/+$/, '')
+  let normalized = trimSlash(apiUrl)
+
+  // Already has full endpoint? Return as-is
+  if (normalized.endsWith('/responses')) {
+    return normalized
+  }
+
+  // Host-only URL defaults to OpenAI's /v1 API base.
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/]+$/.test(normalized)) {
+    normalized = `${normalized}/v1`
+  }
+
+  return `${normalized}/responses`
+}
+
+/**
+ * Normalize Anthropic Messages URL
+ */
+export function normalizeAnthropicMessagesUrl(apiUrl: string): string {
+  const trimSlash = (s: string) => s.replace(/\/+$/, '')
+  let normalized = trimSlash(apiUrl)
+
+  // Already has full endpoint? Return as-is
+  if (normalized.endsWith('/v1/messages')) {
+    return normalized
+  }
+
+  return `${normalized}/v1/messages`
+}

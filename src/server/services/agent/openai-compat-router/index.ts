@@ -14,7 +14,7 @@
  *
  * Usage:
  * ```typescript
- * import { ensureOpenAICompatRouter, encodeBackendConfig } from './openai-compat-router'
+ * import { ensureOpenAICompatRouter, encodeBackendConfig } from './openai-compat-router.js'
  *
  * // Start the router
  * const { baseUrl, port } = await ensureOpenAICompatRouter({ debug: true })
@@ -40,7 +40,7 @@ export {
   getRouterInfo,
   isRouterRunning,
   createApp
-} from './server'
+} from './server/index.js'
 
 // ============================================================================
 // Converters
@@ -57,7 +57,7 @@ export {
   // Backward compatibility
   convertAnthropicToOpenAI,
   convertOpenAIToAnthropic
-} from './converters'
+} from './converters/index.js'
 
 // ============================================================================
 // Stream Handlers
@@ -73,7 +73,7 @@ export {
   BaseStreamHandler,
   OpenAIChatStreamHandler,
   OpenAIResponsesStreamHandler
-} from './stream'
+} from './stream/index.js'
 
 // ============================================================================
 // Utilities
@@ -94,7 +94,7 @@ export {
   // JSON helpers
   safeJsonParse,
   deepClone
-} from './utils'
+} from './utils/index.js'
 
 // ============================================================================
 // URL Validation (from server/api-type)
@@ -104,7 +104,7 @@ export {
   isValidEndpointUrl,
   getApiTypeFromUrl,
   getEndpointUrlError
-} from './server/api-type'
+} from './server/api-type.js'
 
 // ============================================================================
 // Types
@@ -148,4 +148,4 @@ export type {
   OpenAIResponsesOutputItem,
   OpenAIResponsesTool,
   OpenAIResponsesStreamEvent
-} from './types'
+} from './types/index.js'

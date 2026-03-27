@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { logger } from '../utils/logger.js'
 
 const router = Router()

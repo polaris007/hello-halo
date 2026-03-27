@@ -8,13 +8,13 @@ import {
   isValidEndpointUrl,
   getEndpointUrlError,
   shouldForceStream
-} from '../server/api-type'
+} from '../server/api-type.js'
 import {
   withRequestQueue,
   generateQueueKey,
   clearRequestQueues,
   getPendingRequestCount
-} from '../server/request-queue'
+} from '../server/request-queue.js'
 
 describe('API Type Resolution', () => {
   describe('getApiTypeFromUrl', () => {

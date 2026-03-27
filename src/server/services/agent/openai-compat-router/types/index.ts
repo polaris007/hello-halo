@@ -7,12 +7,12 @@
  * - OpenAI Responses API
  */
 
-import type { BackendRequestConfig } from '../../../shared/types/ai-sources'
+import type { BackendRequestConfig } from '../../../../../shared/types/ai-sources.js'
 
 // Re-export all types
-export * from './anthropic'
-export * from './openai-chat'
-export * from './openai-responses'
+export * from './anthropic.js'
+export * from './openai-chat.js'
+export * from './openai-responses.js'
 
 // ============================================================================
 // Shared Types

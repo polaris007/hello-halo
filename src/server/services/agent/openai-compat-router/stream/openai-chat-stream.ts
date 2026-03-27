@@ -9,9 +9,9 @@ import {
   BaseStreamHandler,
   OPENAI_CHAT_STOP_REASON_MAP,
   type StreamHandlerOptions
-} from './base-stream-handler'
-import { safeJsonParse } from '../utils'
-import type { OpenAIChatChunk, OpenAIChatAnnotation, AnthropicStopReason } from '../types'
+} from './base-stream-handler.js'
+import { safeJsonParse } from '../utils/index.js'
+import type { OpenAIChatChunk, OpenAIChatAnnotation, AnthropicStopReason } from '../types/index.js'
 
 export class OpenAIChatStreamHandler extends BaseStreamHandler {
   // Track <think> tag state for providers that use XML-style thinking

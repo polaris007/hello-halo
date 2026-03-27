@@ -248,7 +248,7 @@ async function handleToolApproval(
   try {
     // 3. Wait for user approval (using session-manager's waitForUserInput)
     // Note: We need to import waitForUserInput from session-manager
-    const { waitForUserInput } = await import('./session-manager')
+    const { waitForUserInput } = await import('./session-manager.js')
     const result = await waitForUserInput(
       conversationId,
       'tool-approval',

@@ -32,7 +32,7 @@ import {
   isOutputText,
   isRefusal,
   isFunctionTool
-} from '../types'
+} from '../types/index.js'
 
 describe('Anthropic Type Guards', () => {
   describe('isTextBlock', () => {

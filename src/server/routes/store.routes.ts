@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 

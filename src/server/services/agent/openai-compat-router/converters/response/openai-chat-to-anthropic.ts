@@ -9,14 +9,14 @@ import type {
   OpenAIChatResponse,
   OpenAIChatResponseMessage,
   OpenAIChatFinishReason
-} from '../../types'
+} from '../../types/index.js'
 
 import {
   openAIChatToolCallToAnthropicToolUse,
   openAIChatTextToAnthropicText
-} from '../content-blocks'
+} from '../content-blocks.js'
 
-import { generateMessageId, generateServerToolUseId } from '../../utils'
+import { generateMessageId, generateServerToolUseId } from '../../utils/index.js'
 
 // ============================================================================
 // Stop Reason Mapping

@@ -5,7 +5,7 @@
  * No inference, no override - URL is the single source of truth.
  */
 
-import type { OpenAIWireApiType } from '../types'
+import type { OpenAIWireApiType } from '../types/index.js'
 
 /**
  * Valid endpoint suffixes

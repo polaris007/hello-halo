@@ -2,13 +2,13 @@
  * Request Converter: Anthropic -> OpenAI Responses API
  */
 
-import type { AnthropicRequest, OpenAIResponsesRequest } from '../../types'
-import { convertAnthropicMessagesToResponsesInput } from '../messages'
+import type { AnthropicRequest, OpenAIResponsesRequest } from '../../types/index.js'
+import { convertAnthropicMessagesToResponsesInput } from '../messages.js'
 import {
   convertAnthropicToolsToResponses,
   convertAnthropicToolChoiceToResponses,
   convertAnthropicThinkingToResponsesReasoning
-} from '../tools'
+} from '../tools.js'
 
 export interface ConversionResult {
   request: OpenAIResponsesRequest

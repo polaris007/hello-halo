@@ -6,14 +6,14 @@
  * and run BEFORE any format conversion to OpenAI.
  */
 
-export * from './types'
-export { warmupInterceptor } from './warmup'
-export { preflightInterceptor } from './preflight'
+export * from './types.js'
+export { warmupInterceptor } from './warmup.js'
+export { preflightInterceptor } from './preflight.js'
 
-import type { AnthropicRequest } from '../types'
-import type { RequestInterceptor, InterceptorContext } from './types'
-import { warmupInterceptor } from './warmup'
-import { preflightInterceptor } from './preflight'
+import type { AnthropicRequest } from '../types/index.js'
+import type { RequestInterceptor, InterceptorContext } from './types.js'
+import { warmupInterceptor } from './warmup.js'
+import { preflightInterceptor } from './preflight.js'
 
 /**
  * Default interceptor chain - order matters!

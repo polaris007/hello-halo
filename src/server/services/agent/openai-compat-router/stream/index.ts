@@ -5,7 +5,7 @@
  */
 
 // SSE Writer
-export { SSEWriter, type SSEWriterOptions } from './sse-writer'
+export { SSEWriter, type SSEWriterOptions } from './sse-writer.js'
 
 // Base handler
 export {
@@ -15,26 +15,26 @@ export {
   OPENAI_RESPONSES_STOP_REASON_MAP,
   type StreamState,
   type StreamHandlerOptions
-} from './base-stream-handler'
+} from './base-stream-handler.js'
 
 // OpenAI Chat Completions stream handler
 export {
   OpenAIChatStreamHandler,
   streamOpenAIChatToAnthropic
-} from './openai-chat-stream'
+} from './openai-chat-stream.js'
 
 // OpenAI Responses API stream handler
 export {
   OpenAIResponsesStreamHandler,
   streamOpenAIResponsesToAnthropic
-} from './openai-responses-stream'
+} from './openai-responses-stream.js'
 
 // ============================================================================
 // Backward Compatibility Aliases
 // ============================================================================
 
-import { streamOpenAIChatToAnthropic } from './openai-chat-stream'
-import { streamOpenAIResponsesToAnthropic } from './openai-responses-stream'
+import { streamOpenAIChatToAnthropic } from './openai-chat-stream.js'
+import { streamOpenAIResponsesToAnthropic } from './openai-responses-stream.js'
 
 /**
  * @deprecated Use streamOpenAIChatToAnthropic instead

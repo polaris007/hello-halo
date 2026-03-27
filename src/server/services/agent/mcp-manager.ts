@@ -7,15 +7,15 @@
  */
 
 import { query as claudeQuery } from '@anthropic-ai/claude-agent-sdk'
-import type { McpServerStatusInfo } from './types'
+import type { McpServerStatusInfo } from './types.js'
 import {
   getNodePath,
   getApiCredentials,
   getEnabledMcpServers,
   inferOpenAIWireApi,
   broadcastToAllClients
-} from './helpers'
-import { getCleanUserEnv } from './sdk-config'
+} from './helpers.js'
+import { getCleanUserEnv } from './sdk-config.js'
 
 // ============================================
 // MCP Status Cache
@@ -100,7 +100,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
     console.log('[Agent] MCP servers to test:', Object.keys(enabledMcpServers).join(', '))
 
     // Use a temp directory for the query
-    const { getHaloDataDir } = await import('./helpers')
+    const { getHaloDataDir } = await import('./helpers.js')
     const path = await import('path')
     const cwd = path.join(getHaloDataDir(), 'temp')
     const { mkdirSync, existsSync } = await import('fs')
@@ -224,7 +224,7 @@ async function getMcpConfig(): Promise<any> {
   try {
     const { join } = await import('path')
     const { readFileSync, existsSync } = await import('fs')
-    const { resolveDataDir } = await import('../config.service')
+    const { resolveDataDir } = await import('../config.service.js')
     const dataDir = resolveDataDir()
     const configPath = join(dataDir, 'config.json')
     if (existsSync(configPath)) {

@@ -9,11 +9,11 @@ import type {
   OpenAIResponsesResponse,
   OpenAIResponsesOutputItem,
   OpenAIResponsesStatus
-} from '../../types'
+} from '../../types/index.js'
 
-import { responsesFunctionCallToAnthropicToolUse } from '../content-blocks'
-import { generateMessageId, generateToolUseId } from '../../utils'
-import { createAnthropicErrorResponse } from './openai-chat-to-anthropic'
+import { responsesFunctionCallToAnthropicToolUse } from '../content-blocks.js'
+import { generateMessageId, generateToolUseId } from '../../utils/index.js'
+import { createAnthropicErrorResponse } from './openai-chat-to-anthropic.js'
 
 // ============================================================================
 // Stop Reason Mapping

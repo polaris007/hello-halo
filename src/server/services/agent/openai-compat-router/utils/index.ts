@@ -2,9 +2,9 @@
  * Utility Functions
  */
 
-export * from './id'
-export * from './config'
-export * from './url'
+export * from './id.js'
+export * from './config.js'
+export * from './url.js'
 
 /**
  * Safe JSON parse with fallback

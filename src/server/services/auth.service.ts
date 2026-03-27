@@ -7,8 +7,8 @@ import { randomBytes } from 'crypto'
 import { hash, compare } from '@node-rs/bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { getDatabase } from '../utils/database'
-import { getConfig, resolveDataDir } from './config.service'
+import { getDatabase } from '../utils/database.js'
+import { getConfig, resolveDataDir } from './config.service.js'
 import {
   hashPassword,
   verifyPassword,
@@ -16,7 +16,7 @@ import {
   generateRefreshToken,
   verifyToken,
   generateUUID
-} from '../utils/crypto'
+} from '../utils/crypto.js'
 
 // Constants
 const SALT_ROUNDS = 10

@@ -8,7 +8,7 @@
 
 import { appendFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, statSync, renameSync } from 'fs'
 import { join, parse } from 'path'
-import { getConfig } from '../services/config.service'
+import { getConfig } from '../services/config.service.js'
 
 // Log levels
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'

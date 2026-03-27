@@ -8,7 +8,7 @@ import { readdirSync, existsSync, accessSync, statSync, mkdirSync, constants } f
 import { resolve, sep, dirname, parse as pathParse } from 'path'
 import { homedir, platform } from 'os'
 import { execSync } from 'child_process'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 
 const router = Router()
 

@@ -9,9 +9,9 @@
 
 import { Readable } from 'node:stream'
 import type { Response as ExpressResponse } from 'express'
-import { SSEWriter } from './sse-writer'
-import type { AnthropicStopReason, StreamToolCallState } from '../types'
-import { safeJsonParse } from '../utils'
+import { SSEWriter } from './sse-writer.js'
+import type { AnthropicStopReason, StreamToolCallState } from '../types/index.js'
+import { safeJsonParse } from '../utils/index.js'
 
 // ============================================================================
 // Stream State

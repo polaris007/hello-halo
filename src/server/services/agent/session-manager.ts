@@ -15,16 +15,16 @@ import type {
   SessionConfig,
   SessionState,
   Thought
-} from './types'
-import type { SseWriter } from '../../utils/sse-writer'
+} from './types.js'
+import type { SseWriter } from '../../utils/sse-writer.js'
 import {
   getNodePath,
   getWorkingDir,
   getApiCredentials,
   getEnabledMcpServers
-} from './helpers'
-import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
-import { getConfig, resolveDataDir } from '../config.service'
+} from './helpers.js'
+import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config.js'
+import { getConfig, resolveDataDir } from '../config.service.js'
 
 // ============================================
 // User Data Path (Server-side replacement for app.getPath('userData'))

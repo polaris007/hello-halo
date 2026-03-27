@@ -3,12 +3,12 @@
  */
 
 import { Router } from 'express'
-import { getDatabase } from '../utils/database'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
+import { getDatabase } from '../utils/database.js'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, mkdirSync, accessSync, statSync, constants } from 'fs'
 import { join, resolve } from 'path'
 import { randomUUID } from 'crypto'
-import { getConfig, resolveDataDir } from '../services/config.service'
+import { getConfig, resolveDataDir } from '../services/config.service.js'
 
 const router = Router()
 

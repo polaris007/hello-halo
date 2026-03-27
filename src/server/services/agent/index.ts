@@ -48,21 +48,21 @@ export type {
   // Token Usage
   TokenUsage,
   SingleCallUsage
-} from './types'
+} from './types.js'
 
 // ============================================
 // Send Message
 // ============================================
 
-export { sendMessage, sendMessageWithSSE, type AgentSSERequest } from './send-message'
+export { sendMessage, sendMessageWithSSE, type AgentSSERequest } from './send-message.js'
 
 // ============================================
 // Control Functions
 // ============================================
 
-import { stopGeneration } from './control'
-import { activeSessions } from './session-manager'
-import type { SessionState } from './types'
+import { stopGeneration } from './control.js'
+import { activeSessions } from './session-manager.js'
+import type { SessionState } from './types.js'
 
 /**
  * Get session state for a conversation
@@ -86,7 +86,7 @@ export async function approveTool(conversationId: string, toolId?: string): Prom
   console.log(`[Agent] Tool approved: ${conversationId}, ${toolId}`)
 
   // 使用新的 resolveUserInput 函数
-  const { resolveUserInput } = await import('./session-manager')
+  const { resolveUserInput } = await import('./session-manager.js')
   const resolved = resolveUserInput(conversationId, { approved: true })
 
   if (resolved) {
@@ -103,7 +103,7 @@ export async function rejectTool(conversationId: string, toolId?: string): Promi
   console.log(`[Agent] Tool rejected: ${conversationId}, ${toolId}`)
 
   // 使用新的 resolveUserInput 函数
-  const { resolveUserInput } = await import('./session-manager')
+  const { resolveUserInput } = await import('./session-manager.js')
   const resolved = resolveUserInput(conversationId, { approved: false })
 
   if (resolved) {
@@ -128,7 +128,7 @@ export async function answerQuestion(conversationId: string, questionId: string,
   console.log(`[Agent] Question answered: ${conversationId}, ${questionId}`)
 
   // 使用 permission-handler 的 resolveQuestion 函数
-  const { resolveQuestion } = await import('./permission-handler')
+  const { resolveQuestion } = await import('./permission-handler.js')
   const resolved = resolveQuestion(questionId, answers)
 
   if (resolved) {
@@ -177,7 +177,7 @@ export {
   activeSessions,
   v2Sessions,
   activeSSEStreams
-} from './session-manager'
+} from './session-manager.js'
 
 // ============================================
 // Stream Processing
@@ -188,7 +188,7 @@ export {
   type StreamCallbacks,
   type StreamResult,
   type ProcessStreamParams
-} from './stream-processor'
+} from './stream-processor.js'
 
 // ============================================
 // SDK Configuration
@@ -207,7 +207,7 @@ export {
   // SDK options building
   buildBaseSdkOptions,
   type BaseSdkOptionsParams
-} from './sdk-config'
+} from './sdk-config.js'
 
 // ============================================
 // System Prompt
@@ -219,7 +219,7 @@ export {
   DEFAULT_ALLOWED_TOOLS,
   type AllowedTool,
   type SystemPromptContext
-} from './system-prompt'
+} from './system-prompt.js'
 
 // ============================================
 // Helpers
@@ -243,7 +243,7 @@ export {
   broadcastToAllClients,
   setMainWindow,
   getMainWindow
-} from './helpers'
+} from './helpers.js'
 
 // ============================================
 // Permission Handler
@@ -254,7 +254,7 @@ export {
   resolveQuestion,
   rejectQuestion,
   rejectAllQuestions
-} from './permission-handler'
+} from './permission-handler.js'
 
 // ============================================
 // Message Utilities
@@ -273,4 +273,4 @@ export {
   // Token usage extraction
   extractSingleUsage,
   extractResultUsage
-} from './message-utils'
+} from './message-utils.js'

@@ -9,9 +9,9 @@ import {
   BaseStreamHandler,
   OPENAI_RESPONSES_STOP_REASON_MAP,
   type StreamHandlerOptions
-} from './base-stream-handler'
-import { safeJsonParse } from '../utils'
-import type { AnthropicStopReason } from '../types'
+} from './base-stream-handler.js'
+import { safeJsonParse } from '../utils/index.js'
+import type { AnthropicStopReason } from '../types/index.js'
 
 // Event types from OpenAI Responses API
 type ResponsesEventType =
@@ -20,6 +20,8 @@ type ResponsesEventType =
   | 'response.completed'
   | 'response.incomplete'
   | 'response.failed'
+  | 'response.error'
+  | 'response.done'
   | 'response.output_item.added'
   | 'response.output_item.done'
   | 'response.output_text.delta'
@@ -31,6 +33,7 @@ type ResponsesEventType =
   | 'response.reasoning_summary_part.added'
   | 'response.reasoning_summary_part.done'
   | 'error'
+  | 'done'
 
 export class OpenAIResponsesStreamHandler extends BaseStreamHandler {
   constructor(res: ExpressResponse, options: StreamHandlerOptions = {}) {

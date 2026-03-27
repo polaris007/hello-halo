@@ -14,7 +14,7 @@ import type {
   AnthropicMessageDeltaEvent,
   AnthropicMessageStopEvent,
   AnthropicStopReason
-} from '../types'
+} from '../types/index.js'
 
 export interface SSEWriterOptions {
   debug?: boolean
@@ -135,7 +135,7 @@ export class SSEWriter {
       content_block: {
         type: 'web_search_tool_result',
         tool_use_id: toolUseId,
-        content: results
+        content: results as any
       }
     }
     return this.writeEvent('content_block_start', event)

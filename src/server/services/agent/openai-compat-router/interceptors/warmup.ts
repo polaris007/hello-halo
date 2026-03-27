@@ -5,8 +5,8 @@
  * These serve no real purpose for LLM APIs, so we intercept and return a mock response.
  */
 
-import type { AnthropicRequest } from '../types'
-import type { RequestInterceptor, InterceptorContext, InterceptorResult } from './types'
+import type { AnthropicRequest } from '../types/index.js'
+import type { RequestInterceptor, InterceptorContext, InterceptorResult } from './types.js'
 
 /**
  * Extract user message text from Anthropic message content formats

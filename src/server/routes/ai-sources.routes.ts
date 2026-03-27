@@ -3,8 +3,8 @@
  */
 
 import { Router } from 'express'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware'
-import { getConfig, saveConfig } from '../services/config.service'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
+import { getConfig, saveConfig } from '../services/config.service.js'
 import { randomUUID } from 'crypto'
 
 const router = Router()
@@ -508,15 +508,15 @@ router.get('/models', (req, res) => {
 // V2 AI Sources API - 混合存储：API-Key 源在文件中，OAuth 源在数据库中
 // ============================================================================
 
-import { getDatabase } from '../utils/database'
-import { clearConfigCache } from '../services/agent/helpers'
-import type { AISource, AISourcesConfig } from '../../shared/types/ai-sources'
-import { createSource, addSource, updateSource, deleteSource, setCurrentSource, setCurrentModel, createEmptyAISourcesConfig } from '../../shared/types/ai-sources'
+import { getDatabase } from '../utils/database.js'
+import { clearConfigCache } from '../services/agent/helpers.js'
+import type { AISource, AISourcesConfig } from '@shared/types/ai-sources'
+import { createSource, addSource, updateSource, deleteSource, setCurrentSource, setCurrentModel, createEmptyAISourcesConfig } from '@shared/types/ai-sources'
 import {
   LLMConfigSource,
   createEmptyLLMConfigFile,
   validateLLMConfigSource
-} from '../../shared/types/llm-config'
+} from '@shared/types/llm-config'
 import {
   getLLMConfig,
   saveLLMConfig,
@@ -526,7 +526,7 @@ import {
   setCurrentLLMSource,
   getCurrentLLMSourceFromConfig,
   clearLLMConfigCache
-} from '../services/llm-config.service'
+} from '../services/llm-config.service.js'
 
 const AI_SOURCES_KEY = 'aiSources'
 
@@ -741,7 +741,7 @@ router.post('/sources', optionalAuthMiddleware, (req, res) => {
  */
 router.put('/sources/:id', optionalAuthMiddleware, (req, res) => {
   try {
-    const sourceId = req.params.id
+    const sourceId = req.params.id as string
     const updates = req.body as Partial<AISource>
 
     // First check if this is an API-Key source in file
@@ -808,7 +808,7 @@ router.put('/sources/:id', optionalAuthMiddleware, (req, res) => {
  */
 router.delete('/sources/:id', optionalAuthMiddleware, (req, res) => {
   try {
-    const sourceId = req.params.id
+    const sourceId = req.params.id as string
 
     // First check if this is an API-Key source in file
     const llmConfig = getLLMConfig()
@@ -1003,7 +1003,7 @@ router.post('/migrate', optionalAuthMiddleware, async (req, res) => {
     const dbSources = dbConfig.sources
 
     // Import migration functions
-    const { needsMigration, migrateFromDatabase } = await import('../services/llm-config.service')
+    const { needsMigration, migrateFromDatabase } = await import('../services/llm-config.service.js')
 
     if (!needsMigration(dbSources)) {
       return res.json({

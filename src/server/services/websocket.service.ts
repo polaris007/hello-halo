@@ -7,9 +7,9 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { Server } from 'http'
 import { IncomingMessage } from 'http'
 import { URL } from 'url'
-import { getDatabase } from '../utils/database'
-import { getAuthConfig } from '../middleware/auth.middleware'
-import { verifyToken } from '../utils/crypto'
+import { getDatabase } from '../utils/database.js'
+import { getAuthConfig } from '../middleware/auth.middleware.js'
+import { verifyToken } from '../utils/crypto.js'
 
 // 客户端连接类型
 interface ClientConnection {

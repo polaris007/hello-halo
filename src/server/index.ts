@@ -53,10 +53,10 @@ const __dirname = dirname(__filename)
 // DATABASE INITIALIZATION
 // ========================================
 
-import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from './utils/database'
-import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service'
-import { loadAuthConfig } from './middleware/auth.middleware'
-import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource } from './services/config.service'
+import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from './utils/database.js'
+import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service.js'
+import { loadAuthConfig } from './middleware/auth.middleware.js'
+import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource } from './services/config.service.js'
 
 // ========================================
 // LOGGER INITIALIZATION (must be first to capture all logs)
@@ -108,8 +108,7 @@ loadAuthConfig({
 // ========================================
 
 // Migrate API-Key sources from database to llm-config.json file
-import { getDatabase } from './utils/database'
-import { needsMigration, migrateFromDatabase } from './services/llm-config.service'
+import { needsMigration, migrateFromDatabase } from './services/llm-config.service.js'
 
 try {
   const db = getDatabase()
@@ -168,25 +167,25 @@ app.use(requestLoggerMiddleware)
 // API ROUTES
 // ========================================
 
-import { router as authRoutes } from './routes/auth.routes'
-import { router as spacesRoutes } from './routes/spaces.routes'
-import { router as conversationsRoutes } from './routes/conversations.routes'
-import { router as configsRoutes } from './routes/configs.routes'
-import { router as filesRoutes } from './routes/files.routes'
-import { router as aiSourcesRoutes } from './routes/ai-sources.routes'
-import { router as agentRoutes } from './routes/agent.routes'
-import { router as appsRoutes } from './routes/apps.routes'
-import { router as storeRoutes } from './routes/store.routes'
-import { router as searchRoutes } from './routes/search.routes'
-import { router as notifyChannelsRoutes } from './routes/notify-channels.routes'
-import { router as systemRoutes } from './routes/system.routes'
-import { router as filesystemRoutes } from './routes/filesystem.routes'
-import { router as terminalRoutes } from './routes/terminal.routes'
-import { router as adminRoutes } from './routes/admin.routes'
-import { router as logsRoutes } from './routes/logs.routes'
-import { initializeWebSocket } from './services/websocket.service'
-import { setWebSocketService } from './services/agent/helpers'
-import * as websocketServiceModule from './services/websocket.service'
+import { router as authRoutes } from './routes/auth.routes.js'
+import { router as spacesRoutes } from './routes/spaces.routes.js'
+import { router as conversationsRoutes } from './routes/conversations.routes.js'
+import { router as configsRoutes } from './routes/configs.routes.js'
+import { router as filesRoutes } from './routes/files.routes.js'
+import { router as aiSourcesRoutes } from './routes/ai-sources.routes.js'
+import { router as agentRoutes } from './routes/agent.routes.js'
+import { router as appsRoutes } from './routes/apps.routes.js'
+import { router as storeRoutes } from './routes/store.routes.js'
+import { router as searchRoutes } from './routes/search.routes.js'
+import { router as notifyChannelsRoutes } from './routes/notify-channels.routes.js'
+import { router as systemRoutes } from './routes/system.routes.js'
+import { router as filesystemRoutes } from './routes/filesystem.routes.js'
+import { router as terminalRoutes } from './routes/terminal.routes.js'
+import { router as adminRoutes } from './routes/admin.routes.js'
+import { router as logsRoutes } from './routes/logs.routes.js'
+import { initializeWebSocket } from './services/websocket.service.js'
+import { setWebSocketService } from './services/agent/helpers.js'
+import * as websocketServiceModule from './services/websocket.service.js'
 
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/spaces', spacesRoutes)

@@ -22,7 +22,7 @@ export interface ApiCredentials {
   /** Custom headers for OAuth providers */
   customHeaders?: Record<string, string>
   /** API type for OpenAI compatible providers */
-  apiType?: 'chat_completions' | 'responses'
+  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough'
   /** Force streaming mode (for providers that only support streaming) */
   forceStream?: boolean
   /** Filter sensitive content from messages (e.g., GitHub URLs) */

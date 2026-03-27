@@ -8,6 +8,9 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
+# 替换为中科大或阿里云镜像源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+
 # Install build tools for native modules (better-sqlite3, bcrypt, @node-rs/bcrypt)
 RUN apk add --no-cache python3 make g++ rust cargo
 
@@ -16,7 +19,8 @@ COPY package.json package-lock.json* ./
 COPY patches ./patches
 
 # Install ALL dependencies (devDependencies needed for vite, typescript, tailwindcss, etc.)
-RUN npm ci --ignore-scripts && npx patch-package
+#RUN npm ci --ignore-scripts && npx patch-package
+RUN npm install --registry=https://registry.npmmirror.com --ignore-scripts && npx patch-package
 
 # Copy config files needed for frontend build
 COPY vite.config.ts tsconfig.json tsconfig.web.json tsconfig.server.json ./
@@ -26,7 +30,7 @@ COPY src/shared ./src/shared
 COPY src/worker ./src/worker
 
 # Build frontend
-RUN npm run build:client
+RUN CI=true npm run build:client
 
 # ========================================
 # Stage 2: Build Server
@@ -35,6 +39,8 @@ FROM node:20-alpine AS server-builder
 
 WORKDIR /app
 
+# 替换为中科大或阿里云镜像源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
 # Install build tools for native modules
 RUN apk add --no-cache python3 make g++ rust cargo
 
@@ -43,7 +49,8 @@ COPY package.json package-lock.json* ./
 COPY patches ./patches
 
 # Install ALL dependencies (devDependencies needed for TypeScript)
-RUN npm ci --ignore-scripts && npx patch-package
+#RUN npm ci --ignore-scripts && npx patch-package
+RUN npm install --registry=https://registry.npmmirror.com --ignore-scripts && npx patch-package
 
 # Copy config files needed for server build
 COPY tsconfig.json tsconfig.web.json tsconfig.server.json ./
@@ -61,6 +68,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
+# 替换为中科大或阿里云镜像源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
 # Install build tools for native modules and curl for health check
 RUN apk add --no-cache python3 make g++ rust cargo curl
 
@@ -69,7 +78,8 @@ COPY package.json package-lock.json* ./
 COPY patches ./patches
 
 # Install production dependencies only, then apply patches
-RUN npm ci --omit=dev --ignore-scripts \
+# RUN npm ci --omit=dev --ignore-scripts \
+RUN npm install --registry=https://registry.npmmirror.com --omit=dev --ignore-scripts \
     && npx --yes patch-package \
     && npm rebuild better-sqlite3 \
     && npm rebuild @node-rs/bcrypt

@@ -3,12 +3,12 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { getDatabase } from '../utils/database'
-import { authMiddleware } from '../middleware/auth.middleware'
+import { getDatabase } from '../utils/database.js'
+import { authMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from 'fs'
 import { join, basename, isAbsolute, resolve, sep, extname } from 'path'
 import multer from 'multer'
-import { resolveDataDir } from '../services/config.service'
+import { resolveDataDir } from '../services/config.service.js'
 
 /**
  * 验证路径是否在空间目录边界内，防止路径遍历攻击
@@ -255,7 +255,7 @@ function handleMulterError(err: any, _req: Request, res: Response, next: any) {
  */
 router.post('/spaces/:spaceId/files', upload.single('file'), handleMulterError, (req: Request, res: Response) => {
   try {
-    const { spaceId } = req.params
+    const { spaceId } = req.params as { spaceId: string }
     const file = req.file
 
     if (!file) {
@@ -337,8 +337,8 @@ router.post('/spaces/:spaceId/files', upload.single('file'), handleMulterError, 
  */
 router.get('/spaces/:spaceId/files/:path/content', (req: Request, res: Response) => {
   try {
-    const { spaceId } = req.params
-    const filePath = req.params.path
+    const { spaceId } = req.params as { spaceId: string }
+    const filePath = req.params.path as string
 
     const db = getDatabase()
 
@@ -435,8 +435,8 @@ router.get('/spaces/:spaceId/files/:path/content', (req: Request, res: Response)
  */
 router.get('/spaces/:spaceId/files/:path/detect-type', (req: Request, res: Response) => {
   try {
-    const { spaceId } = req.params
-    const filePath = req.params.path
+    const { spaceId } = req.params as { spaceId: string }
+    const filePath = req.params.path as string
 
     const db = getDatabase()
 
@@ -502,8 +502,8 @@ router.get('/spaces/:spaceId/files/:path/detect-type', (req: Request, res: Respo
  */
 router.get(/^\/spaces\/([^\/]+)\/files\/(.+)$/, (req: Request, res: Response) => {
   try {
-    const spaceId = req.params[0]
-    const filePath = req.params[1]
+    const spaceId = req.params[0] as string
+    const filePath = req.params[1] as string
 
     const db = getDatabase()
 
@@ -564,7 +564,7 @@ router.get(/^\/spaces\/([^\/]+)\/files\/(.+)$/, (req: Request, res: Response) =>
  */
 router.get('/spaces/:spaceId/files', (req: Request, res: Response) => {
   try {
-    const { spaceId } = req.params
+    const { spaceId } = req.params as { spaceId: string }
     const dirPath = req.query.path as string || ''
 
     const db = getDatabase()

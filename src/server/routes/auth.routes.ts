@@ -4,10 +4,10 @@
  */
 
 import { Router } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware'
-import * as authService from '../services/auth.service'
-import { getConfig } from '../services/config.service'
-import { logActivity } from '../utils/database'
+import { authMiddleware } from '../middleware/auth.middleware.js'
+import * as authService from '../services/auth.service.js'
+import { getConfig } from '../services/config.service.js'
+import { logActivity } from '../utils/database.js'
 
 const router = Router()
 

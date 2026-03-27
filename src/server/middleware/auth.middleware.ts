@@ -4,8 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express'
-import { verifyToken } from '../utils/crypto'
-import { getDatabase } from '../utils/database'
+import { verifyToken } from '../utils/crypto.js'
+import { getDatabase } from '../utils/database.js'
 
 // Extend Express Request type to include user
 declare global {

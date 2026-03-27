@@ -10,7 +10,7 @@
  */
 
 import type { Response as ExpressResponse } from 'express'
-import type { AnthropicRequest } from '../types'
+import type { AnthropicRequest } from '../types/index.js'
 
 /**
  * Context passed to interceptors

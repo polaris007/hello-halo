@@ -7,7 +7,7 @@
  * - SDK message parsing into Thought objects
  */
 
-import type { Thought, ImageAttachment, CanvasContext } from './types'
+import type { Thought, ImageAttachment, CanvasContext } from './types.js'
 
 // ============================================
 // Canvas Context Formatting

@@ -30,6 +30,9 @@ export interface ServerConfig {
     basePath: string
     maxUploadSize: number
   }
+  aiProvider?: string
+  features?: Record<string, boolean>
+  limits?: Record<string, number>
 }
 
 // 默认数据目录：应用启动目录下的 data 子目录
@@ -51,7 +54,10 @@ const DEFAULT_CONFIG: ServerConfig = {
   data: {
     basePath: DEFAULT_DATA_DIR,
     maxUploadSize: 100 * 1024 * 1024 // 100MB
-  }
+  },
+  aiProvider: undefined,
+  features: undefined,
+  limits: undefined
 }
 
 let config: ServerConfig | null = null
@@ -140,7 +146,7 @@ export function loadConfig(customPath?: string): ServerConfig {
         console.log(`[Config] Loaded from ${path}`)
 
         // 如果配置文件中指定了数据目录，重新解析
-        if (config.data?.basePath && !process.env.HALO_DATA_DIR) {
+        if (config && config.data?.basePath && !process.env.HALO_DATA_DIR) {
           dataDir = resolveDataDir()
         }
         return config!
@@ -285,6 +291,18 @@ function mergeConfig(base: ServerConfig, updates: Partial<ServerConfig>): Server
 
   if (updates.aiSources) {
     result.aiSources = { ...base.aiSources, ...updates.aiSources }
+  }
+
+  if (updates.aiProvider !== undefined) {
+    result.aiProvider = updates.aiProvider
+  }
+
+  if (updates.features) {
+    result.features = updates.features
+  }
+
+  if (updates.limits) {
+    result.limits = updates.limits
   }
 
   return result

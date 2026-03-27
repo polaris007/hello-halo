@@ -8,10 +8,10 @@
 import { join, isAbsolute } from 'path'
 import * as path from 'path'
 import { existsSync, mkdirSync } from 'fs'
-import type { ApiCredentials } from './types'
-import { getDatabase } from '../../utils/database'
-import { getLLMConfig, getCurrentLLMSourceFromConfig, clearLLMConfigCache } from '../llm-config.service'
-import { resolveDataDir } from '../config.service'
+import type { ApiCredentials } from './types.js'
+import { getDatabase } from '../../utils/database.js'
+import { getLLMConfig, getCurrentLLMSourceFromConfig, clearLLMConfigCache } from '../llm-config.service.js'
+import { resolveDataDir } from '../config.service.js'
 
 // ============================================
 // Working Directory Management

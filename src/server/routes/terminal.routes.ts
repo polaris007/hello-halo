@@ -7,9 +7,9 @@ import { Router, Request, Response } from 'express'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { join, isAbsolute } from 'path'
-import { authMiddleware } from '../middleware/auth.middleware'
-import { getDatabase } from '../utils/database'
-import { resolveDataDir } from '../services/config.service'
+import { authMiddleware } from '../middleware/auth.middleware.js'
+import { getDatabase } from '../utils/database.js'
+import { resolveDataDir } from '../services/config.service.js'
 
 const router = Router()
 const execAsync = promisify(exec)

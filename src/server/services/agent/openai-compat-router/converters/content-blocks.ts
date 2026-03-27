@@ -29,7 +29,7 @@ import type {
   OpenAIResponsesOutputText,
   OpenAIResponsesFunctionCall,
   OpenAIResponsesFunctionCallOutput
-} from '../types'
+} from '../types/index.js'
 
 // ============================================================================
 // Anthropic -> OpenAI Chat Completions

@@ -19,7 +19,7 @@ import type {
   OpenAIResponsesInputItem,
   OpenAIResponsesInputMessage,
   OpenAIResponsesInputContentPart
-} from '../types'
+} from '../types/index.js'
 
 import {
   anthropicBlockToOpenAIChatPart,
@@ -30,9 +30,9 @@ import {
   extractTextFromAnthropicBlocks,
   extractToolUseBlocks,
   extractToolResultBlocks
-} from './content-blocks'
+} from './content-blocks.js'
 
-import { deepClone } from '../utils'
+import { deepClone } from '../utils/index.js'
 
 // ============================================================================
 // Anthropic -> OpenAI Chat Completions
