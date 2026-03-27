@@ -58,7 +58,7 @@ const buildMetaDefine = {
 export default defineConfig({
   plugins: [react()],
   root: resolve(__dirname, 'src/web'),
-  publicDir: resolve(__dirname, 'public'),
+  publicDir: false,
   define: {
     ...analyticsDefine,
     ...buildMetaDefine,

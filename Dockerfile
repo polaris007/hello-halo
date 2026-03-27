@@ -8,8 +8,8 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Install build tools for native modules (better-sqlite3, bcrypt)
-RUN apk add --no-cache python3 make g++
+# Install build tools for native modules (better-sqlite3, bcrypt, @node-rs/bcrypt)
+RUN apk add --no-cache python3 make g++ rust cargo
 
 # Copy package files and patches
 COPY package.json package-lock.json* ./
@@ -23,7 +23,7 @@ COPY vite.config.ts tsconfig.json tsconfig.web.json tsconfig.server.json ./
 COPY postcss.config.cjs tailwind.config.cjs ./
 COPY src/web ./src/web
 COPY src/shared ./src/shared
-COPY public ./public
+COPY src/worker ./src/worker
 
 # Build frontend
 RUN npm run build:client
@@ -36,7 +36,7 @@ FROM node:20-alpine AS server-builder
 WORKDIR /app
 
 # Install build tools for native modules
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ rust cargo
 
 # Copy package files and patches
 COPY package.json package-lock.json* ./
@@ -49,6 +49,7 @@ RUN npm ci --ignore-scripts && npx patch-package
 COPY tsconfig.json tsconfig.web.json tsconfig.server.json ./
 COPY src/server ./src/server
 COPY src/shared ./src/shared
+COPY src/worker ./src/worker
 
 # Build server
 RUN npm run build:server
@@ -60,8 +61,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install build tools for native modules (better-sqlite3, bcrypt)
-RUN apk add --no-cache python3 make g++
+# Install build tools for native modules and curl for health check
+RUN apk add --no-cache python3 make g++ rust cargo curl
 
 # Copy package files and patches
 COPY package.json package-lock.json* ./
@@ -70,10 +71,11 @@ COPY patches ./patches
 # Install production dependencies only, then apply patches
 RUN npm ci --omit=dev --ignore-scripts \
     && npx --yes patch-package \
-    && npm rebuild better-sqlite3
+    && npm rebuild better-sqlite3 \
+    && npm rebuild @node-rs/bcrypt
 
 # Remove build tools to reduce image size
-RUN apk del python3 make g++
+RUN apk del python3 make g++ rust cargo
 
 # Copy built assets from builders
 COPY --from=frontend-builder /app/dist/client ./dist/client
@@ -102,7 +104,7 @@ USER hello
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 # Run server
 CMD ["node", "dist/server/index.js"]
