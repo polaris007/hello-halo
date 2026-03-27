@@ -513,8 +513,8 @@ export async function sendMessageWithSSE(
   // Create session state
   const sessionState = createSessionState(spaceId, conversationId, abortController)
 
-  // Save user message to database
-  saveUserMessage(spaceId, conversationId, message, images)
+  // Note: User message is already saved in agent.routes.ts before calling this function
+  // So we don't need to save it again here to avoid duplicates
 
   // Add placeholder for assistant response
   saveAssistantPlaceholder(spaceId, conversationId)

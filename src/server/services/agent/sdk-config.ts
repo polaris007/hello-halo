@@ -389,7 +389,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     abortController,
     env,
     extraArgs: {
-      'dangerously-skip-permissions': null
+//      'dangerously-skip-permissions': null
     },
     stderr: stderrHandler || ((data: string) => {
       console.error(`[Agent][${conversationId}] CLI stderr:`, data)

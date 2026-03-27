@@ -777,8 +777,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })
 
       // Add user message to UI immediately (update cache if exists)
+      // Generate client-side ID and pass to backend to ensure consistency
+      const clientMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
       const userMessage: Message = {
-        id: `msg-${Date.now()}`,
+        id: clientMessageId,
         role: 'user',
         content,
         timestamp: new Date().toISOString(),
@@ -848,6 +850,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         spaceId: currentSpaceId,
         conversationId,
         message: content,
+        clientMessageId,  // Pass client-generated ID to ensure consistency
         images: images,  // Pass images to API
         aiBrowserEnabled,  // Pass AI Browser state to API
         thinkingEnabled,  // Pass thinking mode to API

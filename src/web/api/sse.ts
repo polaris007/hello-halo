@@ -32,6 +32,8 @@ export interface SendMessageParams {
   conversationId: string
   /** 用户消息内容 */
   message: string
+  /** 客户端生成的消息 ID（用于确保前后端消息 ID 一致） */
+  clientMessageId?: string
   /** 图片附件（多模态） */
   images?: Array<{
     id: string

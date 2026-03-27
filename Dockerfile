@@ -1,4 +1,4 @@
-# Halo - B/S Architecture Web Server
+# Hello - B/S Architecture Web Server
 # Multi-stage build for production deployment
 
 # ========================================
@@ -80,16 +80,25 @@ COPY --from=frontend-builder /app/dist/client ./dist/client
 COPY --from=server-builder /app/dist/server ./dist/server
 
 # Create data directory
-RUN mkdir -p /data/halo
+RUN mkdir -p /data/hello
+
+# Create non-root user
+RUN addgroup -g 1001 hello && adduser -S -u 1001 -G hello hello
+
+# Set ownership of app directory
+RUN chown -R hello:hello /app /data/hello
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV HALO_DATA_DIR=/data/halo
+ENV HALO_DATA_DIR=/data/hello
 ENV HALO_PORT=3000
 ENV HALO_HOST=0.0.0.0
 
 # Expose port
 EXPOSE 3000
+
+# Switch to non-root user
+USER hello
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

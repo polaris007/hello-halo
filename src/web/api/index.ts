@@ -337,6 +337,7 @@ export const api = {
     spaceId: string
     conversationId: string
     message: string
+    clientMessageId?: string  // 客户端生成的消息 ID
     resumeSessionId?: string
     images?: Array<{
       id: string
@@ -371,6 +372,7 @@ export const api = {
       spaceId: request.spaceId,
       conversationId: request.conversationId,
       message: request.message,
+      clientMessageId: request.clientMessageId,  // 传递客户端消息 ID
       images: request.images,
       aiBrowserEnabled: request.aiBrowserEnabled,
       thinkingEnabled: request.thinkingEnabled,

@@ -31,7 +31,7 @@ router.use(authMiddleware)
  * 同时通过 WebSocket 推送（双通道架构）
  */
 router.post('/message', async (req, res) => {
-  const { spaceId, conversationId, message, images, aiBrowserEnabled, thinkingEnabled, canvasContext } = req.body
+  const { spaceId, conversationId, message, clientMessageId, images, aiBrowserEnabled, thinkingEnabled, canvasContext } = req.body
 
   if (!spaceId || !conversationId || !message) {
     return res.status(400).json({
@@ -73,10 +73,10 @@ router.post('/message', async (req, res) => {
     }
   }
 
-  // 添加用户消息
+  // 添加用户消息 - 使用客户端传递的消息 ID（如果提供）
   const messages = JSON.parse(conversation.messages || '[]')
   const userMessage = {
-    id: randomUUID(),
+    id: clientMessageId || randomUUID(),  // 使用客户端 ID 或生成新 ID
     role: 'user',
     content: message,
     images: images || [],
