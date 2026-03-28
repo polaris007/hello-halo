@@ -123,16 +123,16 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
 
 /**
  * Legacy auth middleware for backward compatibility
- * Supports multiple auth modes: normal (JWT), disabled, simple, header
+ * Supports multiple auth modes: normal (JWT), disabled, hybrid, header
  */
 export interface AuthConfig {
-  mode: 'normal' | 'disabled' | 'simple' | 'header'
+  mode: 'normal' | 'disabled' | 'hybrid' | 'header'
   simpleToken?: string | string[]
   headerName?: string
 }
 
 let authConfig: AuthConfig = {
-  mode: process.env.HALO_AUTH_MODE as AuthConfig['mode'] || 'normal',
+  mode: (process.env.HALO_AUTH_MODE === 'simple' ? 'hybrid' : process.env.HALO_AUTH_MODE) as AuthConfig['mode'] || 'normal',
   simpleToken: process.env.HALO_AUTH_SIMPLE_TOKEN,
   headerName: process.env.HALO_AUTH_HEADER_NAME || 'X-User-Id',
 }
@@ -168,8 +168,8 @@ export async function legacyAuthMiddleware(
     return
   }
 
-  // simple mode: validate fixed token or JWT token
-  if (mode === 'simple') {
+  // hybrid mode: validate fixed token or JWT token
+  if (mode === 'hybrid') {
     const authHeader = req.headers.authorization || ''
     const token = authHeader.replace('Bearer ', '')
 
@@ -184,7 +184,7 @@ export async function legacyAuthMiddleware(
         req.userId = defaultUser.id
         req.userEmail = defaultUser.email
         req.userRole = defaultUser.role
-        req.authMode = 'simple'
+        req.authMode = 'hybrid'
       }
       next()
       return

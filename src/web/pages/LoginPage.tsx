@@ -133,9 +133,9 @@ export function LoginPage() {
           </button>
         </form>
 
-        {authMode === 'simple' && (
+        {authMode === 'hybrid' && (
           <p className="text-xs text-muted-foreground text-center">
-            {t('Simple Token mode - Contact administrator for token')}
+            {t('Hybrid mode - Contact administrator for token')}
           </p>
         )}
 

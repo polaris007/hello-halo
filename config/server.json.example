@@ -7,8 +7,18 @@
   "auth": {
     "mode": "normal",
     "simpleToken": "",
-    "headerName": "X-User-Id"
+    "headerName": "X-User-Id",
+    "defaultPassword": "your-secure-password"
   },
+  /*
+  // hybrid 模式示例（支持简单令牌和JWT令牌）
+  "auth": {
+    "mode": "hybrid",
+    "simpleToken": "your-simple-token",
+    "headerName": "X-User-Id",
+    "defaultPassword": "your-secure-password"
+  },
+  */
   "aiSources": {
     "providers": [
       {

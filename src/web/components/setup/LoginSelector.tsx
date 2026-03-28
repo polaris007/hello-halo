@@ -1,6 +1,6 @@
 /**
  * LoginSelector - First-time login method selection
- * Dynamically renders login options based on available providers from product.json
+ * Dynamically renders login options based on available providers from backend API
  */
 
 import { useState, useEffect } from 'react'

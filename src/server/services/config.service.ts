@@ -19,7 +19,7 @@ export interface ServerConfig {
     port: number
   }
   auth: {
-    mode: 'normal' | 'disabled' | 'simple' | 'header'
+    mode: 'normal' | 'disabled' | 'hybrid' | 'header'
     simpleToken?: string
     headerName?: string
     defaultPassword?: string

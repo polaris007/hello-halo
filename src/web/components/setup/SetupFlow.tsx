@@ -1,7 +1,7 @@
 /**
  * SetupFlow - Multi-source login flow
  * Handles the first-time setup with OAuth providers or Custom API
- * Dynamically supports any provider configured in product.json
+ * Dynamically supports any provider from backend API
  */
 
 import { useState, useEffect } from 'react'

@@ -10,7 +10,7 @@
  * - Add new source via ProviderSelector
  * - Edit existing source configuration
  * - Delete source with confirmation
- * - Dynamic OAuth provider support (configured via product.json)
+ * - Dynamic OAuth provider support (from backend API)
  */
 
 import { useState, useEffect } from 'react'
@@ -32,11 +32,11 @@ import { ProviderSelector } from './ProviderSelector'
 import { resolveLocalizedText, type LocalizedText } from '../../../shared/types'
 
 // ============================================================================
-// Types for dynamic OAuth providers (from product.json)
+// Types for dynamic OAuth providers (from backend API)
 // ============================================================================
 
 /**
- * Provider configuration from backend (product.json)
+ * Provider configuration from backend API
  */
 interface AuthProviderConfig {
   type: string
@@ -124,7 +124,7 @@ export function AISourcesSection({ config, setConfig }: AISourcesSectionProps) {
   const [loginState, setLoginState] = useState<OAuthLoginState | null>(null)
   const [loggingOutSourceId, setLoggingOutSourceId] = useState<string | null>(null)
 
-  // Dynamic OAuth providers from product.json
+  // Dynamic OAuth providers from backend API
   const [oauthProviders, setOAuthProviders] = useState<AuthProviderConfig[]>([])
 
   // Fetch available OAuth providers on mount
@@ -525,7 +525,7 @@ export function AISourcesSection({ config, setConfig }: AISourcesSectionProps) {
         {t('Add AI Provider')}
       </button>
 
-      {/* Dynamic OAuth Providers (from product.json) */}
+      {/* Dynamic OAuth Providers (from backend API) */}
       {(() => {
         // Filter out providers that are already logged in
         const availableOAuthProviders = oauthProviders.filter(

@@ -23,8 +23,9 @@ Halo 支持多种认证模式：
 - Refresh token 有效期：7 天
 - 适合页面访问和需要安全性的场景
 
-### 2. Simple 模式
-- 使用固定的 token 认证
+### 2. Hybrid 模式
+- 支持固定的 token 认证
+- 同时支持 JWT token 认证
 - 无需处理 token 过期
 - 适合外部系统对接
 - 支持多个 token 配置
@@ -69,16 +70,16 @@ Halo 支持多种认证模式：
 
 **注意**：环境变量的优先级高于配置文件，配置文件的优先级高于默认值。
 
-## Simple 模式配置
+## Hybrid 模式配置
 
-### 启用 Simple 模式
+### 启用 Hybrid 模式
 
 在 `server.json` 文件中设置：
 
 ```json
 {
   "auth": {
-    "mode": "simple",
+    "mode": "hybrid",
     "simpleToken": "your-token-here"
   }
 }
@@ -86,12 +87,12 @@ Halo 支持多种认证模式：
 
 ### 多 Token 支持
 
-Simple 模式支持配置多个 token，便于多系统对接：
+Hybrid 模式支持配置多个 token，便于多系统对接：
 
 ```json
 {
   "auth": {
-    "mode": "simple",
+    "mode": "hybrid",
     "simpleToken": ["system1-token", "system2-token", "system3-token"]
   }
 }
@@ -128,4 +129,4 @@ Authorization: Bearer your-token-here
 3. 定期更新密码以提高安全性
 4. 不要在代码、日志或文档中暴露密码
 5. 考虑使用密码管理工具来安全存储密码
-6. Simple 模式下，确保 token 的安全性，定期轮换 token
+6. Hybrid 模式下，确保 token 的安全性，定期轮换 token

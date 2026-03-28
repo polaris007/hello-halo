@@ -104,12 +104,27 @@ async function authenticateUser(token: string | null) {
     return null
   }
 
-  // simple 模式
-  if (authConfig.mode === 'simple') {
-    if (token === authConfig.simpleToken) {
+  // hybrid 模式：先检查简单令牌，再检查JWT令牌
+  if (authConfig.mode === 'hybrid') {
+    // 检查简单令牌
+    const validTokens = Array.isArray(authConfig.simpleToken) 
+      ? authConfig.simpleToken 
+      : (authConfig.simpleToken ? [authConfig.simpleToken] : [])
+    
+    if (validTokens.includes(token)) {
       const db = getDatabase()
       const user = db.prepare('SELECT * FROM users WHERE is_default = 1 LIMIT 1').get() as any
-      return user ? { id: user.id, authMode: 'simple' } : null
+      return user ? { id: user.id, authMode: 'hybrid' } : null
+    }
+    
+    // 如果不是简单令牌，尝试作为JWT令牌验证
+    try {
+      const decoded = verifyToken(token)
+      if (decoded && decoded.type === 'access') {
+        return { id: decoded.userId, authMode: 'jwt' }
+      }
+    } catch {
+      // JWT验证失败，继续
     }
     return null
   }

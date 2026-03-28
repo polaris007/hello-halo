@@ -109,7 +109,7 @@ Halo 使用统一的配置目录来管理所有配置文件。配置目录默认
 | `HALO_CONFIG_DIR` | Configuration directory path | `/app/config` |
 | `HALO_LOG_DIR` | Log directory path | `{data-dir}/logs` |
 | `HALO_LOG_LEVEL` | Log level (DEBUG, INFO, WARN, ERROR) | `INFO` |
-| `HALO_AUTH_MODE` | Authentication mode (normal, disabled, simple, header) | `normal` |
+| `HALO_AUTH_MODE` | Authentication mode (normal, disabled, hybrid, header) | `normal` |
 | `HALO_DEFAULT_PASSWORD` | Default admin password | (random) |
 | `HALO_ANTHROPIC_API_KEY` | Anthropic API key | - |
 | `HALO_OPENAI_API_KEY` | OpenAI API key | - |

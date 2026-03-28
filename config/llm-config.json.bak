@@ -7,7 +7,7 @@
       "name": "天翼云",
       "provider": "openai",
       "apiUrl": "https://wishub-x6.ctyun.cn/v1/chat/completions",
-      "apiKey": "15d9002652d04e9f84ab8e4ff8650217",
+      "apiKey": "1a37f951c55145fcaaed12bafea9b823",
       "model": "DeepSeek-V3.2-Standard",
       "availableModels": [
         {
@@ -196,7 +196,7 @@
         }
       ],
       "createdAt": "2026-03-17T11:38:41.788Z",
-      "updatedAt": "2026-03-26T07:13:53.773Z"
+      "updatedAt": "2026-03-28T08:18:24.046Z"
     }
   ]
 }

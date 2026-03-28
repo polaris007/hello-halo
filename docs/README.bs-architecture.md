@@ -67,7 +67,7 @@ pm2 save
 |------|------|----------|
 | `normal` | 正常用户名密码认证 | 个人使用、小团队 |
 | `disabled` | 禁用认证 | 内网环境、系统对接 |
-| `simple` | 固定 Token 认证 | API 调用、系统集成 |
+| `hybrid` | 混合认证（固定 Token + JWT） | API 调用、系统集成、页面访问 |
 | `header` | 请求头认证 | 反向代理、SSO 集成 |
 
 ### 配置文件示例
@@ -115,13 +115,13 @@ HALO_AUTH_MODE=disabled
 }
 ```
 
-### 简单 Token 模式
+### 混合认证模式
 
-适用于 API 调用：
+适用于 API 调用和页面访问：
 
 ```bash
 # 环境变量
-HALO_AUTH_MODE=simple
+HALO_AUTH_MODE=hybrid
 HALO_AUTH_SIMPLE_TOKEN=your-token-here
 
 # API 调用

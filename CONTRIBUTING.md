@@ -159,15 +159,13 @@ Then create a PR on GitHub:
 
 ## Extending Halo
 
-### Custom AI Providers
+### Built-in AI Providers
 
-Halo supports custom AI source providers through a plugin architecture. You can create your own OAuth or API key-based providers.
+Halo supports multiple AI providers out of the box. Built-in providers are defined in `src/shared/constants/providers.ts`.
 
-See **[docs/custom-providers.md](docs/custom-providers.md)** for the complete guide, including:
-- Provider interface definitions
-- Type references (`@shared/interfaces`, `@shared/types`)
-- Implementation examples
-- Registration via `product.json`
+To add a new provider:
+1. Add provider configuration to `BUILTIN_PROVIDERS` array
+2. Follow the `BuiltinProvider` interface structure
 
 ## Areas We Need Help
 
