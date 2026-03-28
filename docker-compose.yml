@@ -12,11 +12,16 @@ services:
     volumes:
       # Persist data directory
       - halo-data:/data/halo
-      # Optional: mount config file
-      # - ./server.json:/app/server.json:ro
+      # Mount config directory (recommended)
+      # Place your server.json and llm-config.json in ./config/ directory
+      - ./config:/app/config:ro
+      # Alternative: mount individual config files (legacy approach)
+      # - ./server.json:/app/config/server.json:ro
+      # - ./llm-config.json:/app/config/llm-config.json:ro
     environment:
       - NODE_ENV=production
       - HALO_DATA_DIR=/data/halo
+      - HALO_CONFIG_DIR=/app/config
       - HALO_PORT=3000
       - HALO_HOST=0.0.0.0
       # Authentication configuration

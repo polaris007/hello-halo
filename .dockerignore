@@ -36,5 +36,10 @@ docs
 # OpenSpec
 openspec
 
+# Config files (use config/ directory instead)
+server.json
+llm-config.json
+*.example.json
+
 # Misc
 *.log

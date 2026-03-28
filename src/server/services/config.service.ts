@@ -1,10 +1,17 @@
 /**
  * 服务端配置管理
  * 读取和管理 server.json 配置文件
+ *
+ * 配置文件搜索顺序：
+ * 1. HALO_CONFIG_PATH 环境变量（精确指定文件路径）
+ * 2. {config-dir}/server.json（新位置）
+ * 3. {cwd}/server.json（旧位置，兼容）
+ * 4. 使用默认配置
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs'
-import { join, resolve } from 'path'
+import { join, resolve, dirname } from 'path'
+import { getConfigDir, findConfigFile, logConfigDirInit } from './config-dir.service.js'
 
 export interface ServerConfig {
   server: {
@@ -120,40 +127,47 @@ export function ensureDataDir(dataDir: string): void {
 
 /**
  * 加载配置文件
+ *
+ * 搜索顺序：HALO_CONFIG_PATH > {config-dir}/server.json > {cwd}/server.json
  */
 export function loadConfig(customPath?: string): ServerConfig {
   if (config) {
     return config
   }
 
-  // 先解析数据目录（不依赖配置文件）
-  let dataDir = resolveDataDir()
+  // 输出配置目录初始化日志
+  logConfigDirInit()
 
-  // 尝试从自定义路径或默认路径加载
-  // 优先级：HALO_CONFIG_PATH > {data-dir}/server.json > {cwd}/server.json
-  const pathsToTry = [
-    customPath,
-    process.env.HALO_CONFIG_PATH,
-    join(dataDir, 'server.json'),
-    join(process.cwd(), 'server.json')
-  ].filter(Boolean) as string[]
-
-  for (const path of pathsToTry) {
-    if (existsSync(path)) {
+  // 如果提供了自定义路径，直接尝试加载
+  if (customPath) {
+    if (existsSync(customPath)) {
       try {
-        const content = readFileSync(path, 'utf-8')
+        const content = readFileSync(customPath, 'utf-8')
         config = { ...DEFAULT_CONFIG, ...JSON.parse(content) }
-        configPath = path
-        console.log(`[Config] Loaded from ${path}`)
-
-        // 如果配置文件中指定了数据目录，重新解析
-        if (config && config.data?.basePath && !process.env.HALO_DATA_DIR) {
-          dataDir = resolveDataDir()
-        }
+        configPath = customPath
+        console.log(`[Config] Loaded from ${customPath}`)
         return config!
       } catch (error) {
-        console.warn(`[Config] Failed to parse ${path}:`, error)
+        console.warn(`[Config] Failed to parse ${customPath}:`, error)
       }
+    }
+  }
+
+  // 使用统一的配置文件搜索
+  const found = findConfigFile('server.json')
+  if (found) {
+    try {
+      const content = readFileSync(found.path, 'utf-8')
+      config = { ...DEFAULT_CONFIG, ...JSON.parse(content) }
+      configPath = found.path
+
+      if (found.isLegacy) {
+        console.log(`[Config] Found server.json in legacy location, consider moving to config/ directory`)
+      }
+      console.log(`[Config] Loaded from ${found.path}`)
+      return config!
+    } catch (error) {
+      console.warn(`[Config] Failed to parse ${found.path}:`, error)
     }
   }
 
@@ -165,6 +179,8 @@ export function loadConfig(customPath?: string): ServerConfig {
 
 /**
  * 保存配置文件
+ *
+ * 保存到配置目录下的 server.json
  */
 export function saveConfig(updates: Partial<ServerConfig>): ServerConfig {
   if (!config) {
@@ -173,12 +189,18 @@ export function saveConfig(updates: Partial<ServerConfig>): ServerConfig {
 
   config = mergeConfig(config, updates)
 
+  // 保存到配置目录
   if (!configPath) {
-    const dataDir = resolveDataDir()
-    configPath = join(dataDir, 'server.json')
+    configPath = join(getConfigDir(), 'server.json')
   }
 
   try {
+    // 确保配置目录存在
+    const configDirPath = dirname(configPath)
+    if (!existsSync(configDirPath)) {
+      mkdirSync(configDirPath, { recursive: true })
+    }
+
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
     console.log(`[Config] Saved to ${configPath}`)
   } catch (error) {

@@ -18,6 +18,9 @@ const { values } = parseArgs({
     'config': {
       type: 'string',
       short: 'c'
+    },
+    'config-dir': {
+      type: 'string'
     }
   },
   strict: false
@@ -29,6 +32,9 @@ if (values['data-dir'] && typeof values['data-dir'] === 'string') {
 }
 if (values['config'] && typeof values['config'] === 'string') {
   process.env.HALO_CONFIG_PATH = values['config']
+}
+if (values['config-dir'] && typeof values['config-dir'] === 'string') {
+  process.env.HALO_CONFIG_DIR = values['config-dir']
 }
 
 // ========================================
@@ -57,6 +63,7 @@ import { initializeDatabase, runMigrations, getDatabase, closeDatabase } from '.
 import { initializeDefaultUser, cleanupExpiredSessions } from './services/auth.service.js'
 import { loadAuthConfig } from './middleware/auth.middleware.js'
 import { loadConfig, applyEnvOverrides, getConfig, resolveDataDir, getDataDirSource } from './services/config.service.js'
+import { getConfigDir, getConfigDirSource } from './services/config-dir.service.js'
 
 // ========================================
 // LOGGER INITIALIZATION (must be first to capture all logs)
@@ -268,6 +275,7 @@ setWebSocketService(websocketServiceModule)
 
 server.listen(HALO_PORT, HALO_HOST, () => {
   console.log(`Halo server running at http://${HALO_HOST}:${HALO_PORT}`)
+  console.log(`Config directory: ${getConfigDir()} (from ${getConfigDirSource()})`)
   console.log(`Data directory: ${HALO_DATA_DIR} (from ${getDataDirSource()})`)
   console.log(`Auth mode: ${process.env.HALO_AUTH_MODE || 'normal'}`)
   console.log(`WebSocket available at ws://${HALO_HOST}:${HALO_PORT}/ws`)

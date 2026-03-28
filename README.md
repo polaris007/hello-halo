@@ -213,6 +213,38 @@ export HALO_LOG_API_DETAIL="false"
 export HALO_LOG_AI_DETAIL="true"
 ```
 
+## Configuration Directory
+
+Halo 使用统一的配置目录管理所有配置文件（`server.json`、`llm-config.json` 等）。
+
+### 配置目录位置
+
+按优先级排列：
+1. **环境变量**: `HALO_CONFIG_DIR=/path/to/config`
+2. **命令行参数**: `--config-dir /path/to/config`
+3. **默认值**: `./config`（当前工作目录下）
+
+### 配置文件
+
+| 文件 | 说明 |
+|------|------|
+| `server.json` | 服务器配置（端口、认证、数据目录等） |
+| `llm-config.json` | LLM 提供商配置（API keys、模型选择等） |
+
+### Docker 部署
+
+```yaml
+volumes:
+  # 挂载配置目录
+  - ./config:/app/config:ro
+environment:
+  - HALO_CONFIG_DIR=/app/config
+```
+
+详细配置请参考 [Docker 部署文档](./docs/docker-deployment.md)。
+
+---
+
 ## Installation
 
 ### Download (Recommended)

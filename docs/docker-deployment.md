@@ -87,6 +87,18 @@ command: ["node", "server.js", "--data-dir", "/custom/data/path"]
 
 ## Configuration
 
+### Configuration Directory
+
+Halo 使用统一的配置目录来管理所有配置文件。配置目录默认为 `./config`，可以通过以下方式指定：
+
+1. **环境变量**: `HALO_CONFIG_DIR=/path/to/config`
+2. **命令行参数**: `--config-dir /path/to/config`
+3. **默认值**: `{cwd}/config`
+
+配置文件搜索优先级：
+- `server.json`: `HALO_CONFIG_PATH` > `{config-dir}/server.json` > `{data-dir}/server.json` > `{cwd}/server.json`
+- `llm-config.json`: `{config-dir}/llm-config.json` > `{cwd}/llm-config.json`
+
 ### Environment Variables
 
 | Variable | Description | Default |
@@ -94,6 +106,7 @@ command: ["node", "server.js", "--data-dir", "/custom/data/path"]
 | `HALO_HOST` | Server bind address | `127.0.0.1` |
 | `HALO_PORT` | Server port | `3000` |
 | `HALO_DATA_DIR` | Data directory path | `/app/data` |
+| `HALO_CONFIG_DIR` | Configuration directory path | `/app/config` |
 | `HALO_LOG_DIR` | Log directory path | `{data-dir}/logs` |
 | `HALO_LOG_LEVEL` | Log level (DEBUG, INFO, WARN, ERROR) | `INFO` |
 | `HALO_AUTH_MODE` | Authentication mode (normal, disabled, simple, header) | `normal` |
@@ -101,13 +114,26 @@ command: ["node", "server.js", "--data-dir", "/custom/data/path"]
 | `HALO_ANTHROPIC_API_KEY` | Anthropic API key | - |
 | `HALO_OPENAI_API_KEY` | OpenAI API key | - |
 
-### Configuration File
+### Configuration Files
 
-You can also provide a `server.json` configuration file:
+推荐将配置文件放在配置目录中挂载：
 
 ```yaml
 volumes:
-  - ./server.json:/app/data/server.json
+  # 挂载整个配置目录（推荐）
+  - ./config:/app/config:ro
+```
+
+在 `./config/` 目录下放置以下文件：
+- `server.json` - 服务器配置
+- `llm-config.json` - LLM 提供商配置
+
+也可以单独挂载配置文件（传统方式）：
+
+```yaml
+volumes:
+  - ./server.json:/app/config/server.json:ro
+  - ./llm-config.json:/app/config/llm-config.json:ro
 ```
 
 Example `server.json`:

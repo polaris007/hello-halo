@@ -4,7 +4,9 @@
  * Manages the llm-config.json file which stores API-key based AI source configurations.
  * This service handles reading, writing, and validating the configuration file.
  *
- * File Location: <project-startup-directory>/llm-config.json
+ * File Location:
+ * - 优先: {config-dir}/llm-config.json（新位置）
+ * - 兼容: {cwd}/llm-config.json（旧位置）
  *
  * Design:
  * - JSON format for easy manual editing
@@ -23,6 +25,7 @@ import {
   validateLLMConfigSource,
   LLM_CONFIG_FILENAME
 } from '@shared/types/llm-config'
+import { getConfigDir, findConfigFile } from './config-dir.service.js'
 
 // ============================================================================
 // Configuration Cache
@@ -32,24 +35,48 @@ let configCache: LLMConfigFile | null = null
 let configCacheTime = 0
 const CONFIG_CACHE_TTL = 5000 // 5 seconds
 
+// 记录当前使用的配置文件路径
+let currentConfigPath: string | null = null
+
 // ============================================================================
 // Configuration Path Management
 // ============================================================================
 
 /**
- * Get the default LLM config file path
- * Returns: <project-startup-directory>/llm-config.json
+ * Get the default LLM config file path (new location in config directory)
+ * Returns: {config-dir}/llm-config.json
  */
 export function getDefaultLLMConfigPath(): string {
-  return join(process.cwd(), LLM_CONFIG_FILENAME)
+  return join(getConfigDir(), LLM_CONFIG_FILENAME)
 }
 
 /**
  * Get the LLM config file path
- * Tries custom path first, then default
+ * Searches in order: custom path > config-dir > cwd (legacy)
  */
 export function getLLMConfigPath(customPath?: string): string {
-  return customPath || getDefaultLLMConfigPath()
+  // 如果提供了自定义路径，直接使用
+  if (customPath) {
+    return customPath
+  }
+
+  // 如果已经找到过配置文件，返回缓存的路径
+  if (currentConfigPath) {
+    return currentConfigPath
+  }
+
+  // 搜索配置文件
+  const found = findConfigFile(LLM_CONFIG_FILENAME)
+  if (found) {
+    currentConfigPath = found.path
+    if (found.isLegacy) {
+      console.log(`[LLMConfig] Found ${LLM_CONFIG_FILENAME} in legacy location, consider moving to config/ directory`)
+    }
+    return found.path
+  }
+
+  // 没有找到，返回默认的新位置（用于创建新文件）
+  return getDefaultLLMConfigPath()
 }
 
 // ============================================================================

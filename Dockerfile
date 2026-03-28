@@ -73,8 +73,8 @@ WORKDIR /app
 
 # 替换为中科大或阿里云镜像源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
-# Install build tools for native modules and curl for health check
-RUN apk add --no-cache python3 make g++ rust cargo curl
+# Install build tools for native modules, curl for health check, and additional utilities
+RUN apk add --no-cache python3 make g++ rust cargo curl git jq openssh-client
 
 # Copy package files and patches
 COPY package.json package-lock.json* ./
@@ -95,8 +95,8 @@ COPY --from=frontend-builder /app/dist/client ./dist/client
 COPY --from=server-builder /app/dist/server ./dist/server
 COPY --from=server-builder /app/dist/shared ./dist/shared
 
-# Create data directory
-RUN mkdir -p /data/hello
+# Create data directory and config directory
+RUN mkdir -p /data/hello /app/config
 
 # Create non-root user
 RUN addgroup -g 1001 hello && adduser -S -u 1001 -G hello hello
@@ -107,6 +107,7 @@ RUN chown -R hello:hello /app /data/hello
 # Set environment variables
 ENV NODE_ENV=production
 ENV HALO_DATA_DIR=/data/hello
+ENV HALO_CONFIG_DIR=/app/config
 ENV HALO_PORT=3000
 ENV HALO_HOST=0.0.0.0
 
