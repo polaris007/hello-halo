@@ -4,7 +4,7 @@
 
 import { Router } from 'express'
 import { getDatabase } from '../utils/database.js'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { randomUUID } from 'crypto'
 import type { AISourcesConfig } from '@shared/types/ai-sources'
 import { createEmptyAISourcesConfig } from '@shared/types/ai-sources'

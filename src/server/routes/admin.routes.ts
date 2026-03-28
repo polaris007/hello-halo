@@ -5,7 +5,7 @@
 
 import { Router } from 'express'
 import { getDatabase, logActivity } from '../utils/database.js'
-import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware, adminMiddleware } from '../middleware/auth.middleware.js'
 import { hash } from '@node-rs/bcrypt'
 import { randomUUID } from 'crypto'
 import { getConfig, saveConfig } from '../services/config.service.js'
@@ -13,7 +13,7 @@ import { getConfig, saveConfig } from '../services/config.service.js'
 const router = Router()
 
 // All admin APIs require authentication and admin role
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 router.use(adminMiddleware)
 
 const SALT_ROUNDS = 10

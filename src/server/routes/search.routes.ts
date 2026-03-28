@@ -4,13 +4,13 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { getDatabase } from '../utils/database.js'
 
 const router = Router()
 
 // 所有搜索 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * POST /api/v1/search - 执行搜索

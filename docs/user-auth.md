@@ -13,6 +13,31 @@ Halo 项目在首次启动时会自动创建一个默认的管理员用户：
 
 这个密码在 `server.json` 文件的 `auth.defaultPassword` 字段中设置。
 
+## 认证模式
+
+Halo 支持多种认证模式：
+
+### 1. Normal 模式（默认）
+- 使用 JWT token 认证
+- Access token 有效期：1 小时
+- Refresh token 有效期：7 天
+- 适合页面访问和需要安全性的场景
+
+### 2. Simple 模式
+- 使用固定的 token 认证
+- 无需处理 token 过期
+- 适合外部系统对接
+- 支持多个 token 配置
+
+### 3. Disabled 模式
+- 禁用认证
+- 所有请求使用默认管理员权限
+- 仅用于开发环境
+
+### 4. Header 模式
+- 从请求头读取用户 ID
+- 适合反向代理集成
+
 ## 设置默认密码的方法
 
 有三种方式可以设置默认密码：
@@ -44,6 +69,50 @@ Halo 项目在首次启动时会自动创建一个默认的管理员用户：
 
 **注意**：环境变量的优先级高于配置文件，配置文件的优先级高于默认值。
 
+## Simple 模式配置
+
+### 启用 Simple 模式
+
+在 `server.json` 文件中设置：
+
+```json
+{
+  "auth": {
+    "mode": "simple",
+    "simpleToken": "your-token-here"
+  }
+}
+```
+
+### 多 Token 支持
+
+Simple 模式支持配置多个 token，便于多系统对接：
+
+```json
+{
+  "auth": {
+    "mode": "simple",
+    "simpleToken": ["system1-token", "system2-token", "system3-token"]
+  }
+}
+```
+
+### 通过环境变量配置
+
+多个 token 用逗号分隔：
+
+```bash
+# HALO_AUTH_SIMPLE_TOKEN=token1,token2,token3
+```
+
+### 使用方式
+
+外部系统在请求头中添加：
+
+```bash
+Authorization: Bearer your-token-here
+```
+
 ## 密码保存机制
 
 系统会在首次启动时自动将默认密码保存到 `server.json` 配置文件中，确保密码持久化。
@@ -59,3 +128,4 @@ Halo 项目在首次启动时会自动创建一个默认的管理员用户：
 3. 定期更新密码以提高安全性
 4. 不要在代码、日志或文档中暴露密码
 5. 考虑使用密码管理工具来安全存储密码
+6. Simple 模式下，确保 token 的安全性，定期轮换 token

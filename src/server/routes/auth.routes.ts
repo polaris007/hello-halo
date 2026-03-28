@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import * as authService from '../services/auth.service.js'
 import { getConfig } from '../services/config.service.js'
 import { logActivity } from '../utils/database.js'
@@ -139,7 +139,7 @@ router.post('/refresh', async (req, res) => {
 /**
  * POST /api/v1/auth/logout - User logout
  */
-router.post('/logout', authMiddleware, async (req, res) => {
+router.post('/logout', legacyAuthMiddleware, async (req, res) => {
   try {
     const authHeader = req.headers.authorization
     const token = authHeader?.replace('Bearer ', '')
@@ -166,7 +166,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
 /**
  * POST /api/v1/auth/change-password - Change password
  */
-router.post('/change-password', authMiddleware, async (req, res) => {
+router.post('/change-password', legacyAuthMiddleware, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body
     const userId = req.userId!
@@ -211,7 +211,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 /**
  * GET /api/v1/auth/me - Get current user info
  */
-router.get('/me', authMiddleware, async (req, res) => {
+router.get('/me', legacyAuthMiddleware, async (req, res) => {
   try {
     const user = await authService.getUserById(req.userId!)
 

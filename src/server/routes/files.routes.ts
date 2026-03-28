@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express'
 import { getDatabase } from '../utils/database.js'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from 'fs'
 import { join, basename, isAbsolute, resolve, sep, extname } from 'path'
 import multer from 'multer'
@@ -220,7 +220,7 @@ function detectFileType(filePath: string): 'code' | 'markdown' | 'image' | 'json
 const router = Router()
 
 // 所有文件 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 // 配置文件上传（内存存储）
 const upload = multer({

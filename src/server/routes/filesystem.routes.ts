@@ -8,12 +8,12 @@ import { readdirSync, existsSync, accessSync, statSync, mkdirSync, constants } f
 import { resolve, sep, dirname, parse as pathParse } from 'path'
 import { homedir, platform } from 'os'
 import { execSync } from 'child_process'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 
 const router = Router()
 
 // 所有文件系统 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * GET /api/v1/filesystem/roots - 获取文件系统根路径列表

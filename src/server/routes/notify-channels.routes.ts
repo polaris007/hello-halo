@@ -4,14 +4,14 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { getDatabase } from '../utils/database.js'
 import { randomUUID } from 'crypto'
 
 const router = Router()
 
 // 所有通知渠道 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * GET /api/v1/notify-channels - 获取通知渠道列表

@@ -4,7 +4,8 @@
     "port": 3000
   },
   "auth": {
-    "mode": "normal",
+    "mode": "simple",
+    "simpleToken": ["system1-token-123456", "system2-token-789012", "system3-token-345678"],
     "defaultPassword": "Clqc@1234"
   },
   "data": {

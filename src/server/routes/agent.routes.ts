@@ -8,7 +8,7 @@
  */
 
 import { Router, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { getDatabase } from '../utils/database.js'
 import { randomUUID } from 'crypto'
 import * as agentService from '../services/agent/index.js'
@@ -22,7 +22,7 @@ import {
 const router = Router()
 
 // 所有 Agent API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * POST /api/v1/agent/message - 发送消息到 Agent

@@ -127,7 +127,7 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
  */
 export interface AuthConfig {
   mode: 'normal' | 'disabled' | 'simple' | 'header'
-  simpleToken?: string
+  simpleToken?: string | string[]
   headerName?: string
 }
 
@@ -168,12 +168,17 @@ export async function legacyAuthMiddleware(
     return
   }
 
-  // simple mode: validate fixed token
+  // simple mode: validate fixed token or JWT token
   if (mode === 'simple') {
     const authHeader = req.headers.authorization || ''
     const token = authHeader.replace('Bearer ', '')
 
-    if (token === authConfig.simpleToken) {
+    // First check if it's a simple token
+    const validTokens = Array.isArray(authConfig.simpleToken) 
+      ? authConfig.simpleToken 
+      : (authConfig.simpleToken ? [authConfig.simpleToken] : [])
+
+    if (validTokens.includes(token)) {
       const defaultUser = await getDefaultUser()
       if (defaultUser) {
         req.userId = defaultUser.id
@@ -181,6 +186,17 @@ export async function legacyAuthMiddleware(
         req.userRole = defaultUser.role
         req.authMode = 'simple'
       }
+      next()
+      return
+    }
+
+    // If not a simple token, try to validate as JWT token
+    const decoded = verifyToken(token)
+    if (decoded && decoded.type === 'access') {
+      req.userId = decoded.userId
+      req.userEmail = decoded.email
+      req.userRole = decoded.role
+      req.authMode = 'jwt'
       next()
       return
     }

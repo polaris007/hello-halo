@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { getConfig, saveConfig } from '../services/config.service.js'
 import { randomUUID } from 'crypto'
 

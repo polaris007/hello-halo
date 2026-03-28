@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { logger } from '../utils/logger.js'
 
 const router = Router()
@@ -139,7 +139,7 @@ router.post('/client', optionalAuthMiddleware, async (req: Request, res: Respons
 /**
  * GET /api/v1/logs/server - 获取服务器日志信息
  */
-router.get('/server', authMiddleware, async (req: Request, res: Response) => {
+router.get('/server', legacyAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const logDir = process.env.HALO_LOG_DIR || join(process.cwd(), 'logs')
 

@@ -5,13 +5,13 @@
 
 import { Router } from 'express'
 import { getDatabase } from '../utils/database.js'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { randomUUID } from 'crypto'
 
 const router = Router()
 
 // 所有对话 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * GET /api/v1/spaces/:spaceId/conversations - 获取对话列表

@@ -4,7 +4,7 @@
 
 import { Router } from 'express'
 import { getDatabase } from '../utils/database.js'
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, mkdirSync, accessSync, statSync, constants } from 'fs'
 import { join, resolve } from 'path'
 import { randomUUID } from 'crypto'

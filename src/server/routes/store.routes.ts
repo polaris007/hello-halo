@@ -4,14 +4,14 @@
  */
 
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
 const router = Router()
 
 // 所有商店 API 都需要认证
-router.use(authMiddleware)
+router.use(legacyAuthMiddleware)
 
 /**
  * GET /api/v1/store/apps - 获取商店应用列表
