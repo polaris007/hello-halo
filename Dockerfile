@@ -58,6 +58,9 @@ COPY src/server ./src/server
 COPY src/shared ./src/shared
 COPY src/worker ./src/worker
 
+# Copy scripts needed for build
+COPY scripts ./scripts
+
 # Build server
 RUN npm run build:server
 
@@ -90,6 +93,7 @@ RUN apk del python3 make g++ rust cargo
 # Copy built assets from builders
 COPY --from=frontend-builder /app/dist/client ./dist/client
 COPY --from=server-builder /app/dist/server ./dist/server
+COPY --from=server-builder /app/dist/shared ./dist/shared
 
 # Create data directory
 RUN mkdir -p /data/hello

@@ -11,7 +11,7 @@
     "dev:server": "tsx src/server/index.ts",
     "dev:client": "vite",
     "build": "npm run build:server && npm run build:client",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json && node scripts/fix-path-aliases.js",
     "build:client": "vite build  --debug",
     "start": "node dist/server/index.js",
     "postinstall": "patch-package",

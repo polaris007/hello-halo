@@ -234,7 +234,7 @@ if (existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath))
 
   // SPA fallback
-  app.get('*', (_req, res) => {
+  app.get(/.*/, (_req, res) => {
     res.sendFile(join(clientDistPath, 'index.html'))
   })
 }
