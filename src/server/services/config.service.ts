@@ -46,7 +46,8 @@ const DEFAULT_CONFIG: ServerConfig = {
   auth: {
     mode: 'normal',
     simpleToken: undefined,
-    headerName: 'X-User-Id'
+    headerName: 'X-User-Id',
+    defaultPassword: 'Clqc@1234'
   },
   aiSources: {
     providers: []
@@ -170,17 +171,18 @@ export function saveConfig(updates: Partial<ServerConfig>): ServerConfig {
     config = { ...DEFAULT_CONFIG }
   }
 
-  // 深度合并配置
   config = mergeConfig(config, updates)
 
-  // 如果有配置文件路径，保存更改
-  if (configPath) {
-    try {
-      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
-      console.log(`[Config] Saved to ${configPath}`)
-    } catch (error) {
-      console.error('[Config] Failed to save config:', error)
-    }
+  if (!configPath) {
+    const dataDir = resolveDataDir()
+    configPath = join(dataDir, 'server.json')
+  }
+
+  try {
+    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+    console.log(`[Config] Saved to ${configPath}`)
+  } catch (error) {
+    console.error('[Config] Failed to save config:', error)
   }
 
   return config

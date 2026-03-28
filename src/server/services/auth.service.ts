@@ -3,12 +3,11 @@
  * JWT-based authentication with user management
  */
 
-import { randomBytes } from 'crypto'
 import { hash, compare } from '@node-rs/bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getDatabase } from '../utils/database.js'
-import { getConfig, resolveDataDir } from './config.service.js'
+import { getConfig, resolveDataDir, saveConfig } from './config.service.js'
 import {
   hashPassword,
   verifyPassword,
@@ -292,7 +291,6 @@ export async function initializeDefaultUser() {
   const configPassword = config.auth?.defaultPassword || process.env.HALO_DEFAULT_PASSWORD
 
   if (hasUsers()) {
-    // If config specifies a password, update default admin's password
     if (configPassword) {
       const db = getDatabase()
       const defaultUser = db.prepare('SELECT id, email FROM users WHERE is_default = 1 LIMIT 1').get() as any
@@ -307,7 +305,7 @@ export async function initializeDefaultUser() {
     return null
   }
 
-  const defaultPassword = configPassword || randomBytes(8).toString('hex')
+  const defaultPassword = configPassword || 'Clqc@1234'
   const id = generateUUID()
   const now = Math.floor(Date.now() / 1000)
 
@@ -315,26 +313,31 @@ export async function initializeDefaultUser() {
   db.prepare(`
     INSERT INTO users (id, email, username, password_hash, name, role, is_default, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, 'admin@halo.local', 'admin', await hash(defaultPassword, SALT_ROUNDS), 'Admin', 'admin', 1, now, now)
+  `).run(id, 'admin', 'admin', await hash(defaultPassword, SALT_ROUNDS), 'Admin', 'admin', 1, now, now)
 
-  // Create user directory: {data-dir}/users/{user_id}/spaces/
   const dataDir = resolveDataDir()
   const userSpacesDir = join(dataDir, 'users', id, 'spaces')
   if (!existsSync(userSpacesDir)) {
     mkdirSync(userSpacesDir, { recursive: true })
   }
 
+  if (!config.auth?.defaultPassword && !process.env.HALO_DEFAULT_PASSWORD) {
+    saveConfig({
+      auth: {
+        ...config.auth,
+        defaultPassword: defaultPassword
+      }
+    })
+    console.log('[Auth] Default password saved to config file')
+  }
+
   console.log('========================================')
   console.log('Default admin user created:')
-  console.log(`  Email: admin@halo.local`)
-  if (configPassword) {
-    console.log(`  Password: (from config)`)
-  } else {
-    console.log(`  Password: ${defaultPassword}`)
-  }
+  console.log(`  Email: admin`)
+  console.log(`  Password: ${defaultPassword}`)
   console.log('========================================')
 
-  return { email: 'admin@halo.local', password: defaultPassword }
+  return { email: 'admin', password: defaultPassword }
 }
 
 // ========================================
