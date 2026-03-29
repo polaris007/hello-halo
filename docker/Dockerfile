@@ -73,8 +73,8 @@ WORKDIR /app
 
 # 替换为中科大或阿里云镜像源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
-# Install build tools for native modules, curl for health check, and additional utilities
-RUN apk add --no-cache python3 make g++ rust cargo curl git jq openssh-client
+# Install build tools for native modules, curl for health check, bash, and additional utilities
+RUN apk add --no-cache bash python3 make g++ rust cargo curl git jq openssh-client
 
 # Copy package files and patches
 COPY package.json package-lock.json* ./
@@ -101,6 +101,10 @@ RUN mkdir -p /data/hello /app/config
 # Create non-root user
 RUN addgroup -g 1001 hello && adduser -S -u 1001 -G hello hello
 
+# Copy startup script
+COPY docker/start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Set ownership of app directory
 RUN chown -R hello:hello /app /data/hello
 
@@ -121,5 +125,5 @@ USER hello
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-# Run server
-CMD ["node", "dist/server/index.js"]
+# Run startup script
+CMD ["/app/start.sh"]

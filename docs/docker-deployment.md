@@ -4,46 +4,51 @@ This guide explains how to deploy Halo using Docker.
 
 ## Quick Start
 
-### Using Docker Compose (Recommended)
+### Project Structure
 
-Create a `docker-compose.yml` file:
+The project has a dedicated `docker` directory containing all Docker-related files:
 
-```yaml
-version: '3.8'
-
-services:
-  halo:
-    image: halo:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - halo-data:/app/data
-    environment:
-      - HALO_HOST=0.0.0.0
-      - HALO_PORT=3000
-      - HALO_AUTH_MODE=normal
-      # Set a default admin password
-      - HALO_DEFAULT_PASSWORD=your-secure-password
-      # Optional: Set API keys
-      # - HALO_ANTHROPIC_API_KEY=your-api-key
-
-volumes:
-  halo-data:
+```
+hello-halo/
+├── docker/            # Docker-related files
+│   ├── Dockerfile     # Docker build file
+│   ├── docker-compose.yml  # Docker Compose configuration
+│   ├── start.sh       # Startup script
+│   └── .dockerignore  # Docker ignore file
+├── config/            # Configuration files
+│   ├── server.json    # Server configuration
+│   ├── llm-config.json # LLM provider configuration
+│   └── setup.sh       # Optional setup script
+└── ...
 ```
 
-Start the service:
+### Using Docker Compose (Recommended)
+
+**From the `docker` directory:**
 
 ```bash
+cd docker
 docker-compose up -d
+```
+
+**From the project root:**
+
+```bash
+docker-compose -f docker/docker-compose.yml up -d
 ```
 
 ### Using Docker Run
 
+**From the project root:**
+
 ```bash
+docker build -f docker/Dockerfile -t halo:latest .
+
 docker run -d \
   --name halo \
   -p 3000:3000 \
-  -v halo-data:/app/data \
+  -v halo-data:/data/hello \
+  -v ./config:/app/config:ro \
   -e HALO_HOST=0.0.0.0 \
   -e HALO_PORT=3000 \
   -e HALO_DEFAULT_PASSWORD=your-secure-password \
@@ -52,22 +57,21 @@ docker run -d \
 
 ## Data Directory
 
-Halo stores all data in the `/app/data` directory by default. This includes:
+Halo stores all data in the `/data/hello` directory by default. This includes:
 
 - `halo.db` - SQLite database
 - `users/` - User data directories
 - `logs/` - Application logs
-- `server.json` - Configuration file (if created)
 
 ### Data Persistence
 
-**Important**: Always mount a volume to `/app/data` to persist data across container restarts.
+**Important**: Always mount a volume to `/data/hello` to persist data across container restarts.
 
 ```yaml
 volumes:
-  - halo-data:/app/data  # Named volume (recommended)
+  - halo-data:/data/hello  # Named volume (recommended)
   # or
-  - ./data:/app/data     # Bind mount (for development)
+  - ./data:/data/hello     # Bind mount (for development)
 ```
 
 ### Custom Data Directory
@@ -77,12 +81,6 @@ You can specify a custom data directory using environment variables:
 ```yaml
 environment:
   - HALO_DATA_DIR=/custom/data/path
-```
-
-Or using command-line arguments:
-
-```yaml
-command: ["node", "server.js", "--data-dir", "/custom/data/path"]
 ```
 
 ## Configuration
@@ -223,6 +221,35 @@ Halo provides health check endpoints:
 - `GET /health` - Basic health check
 - `GET /ready` - Readiness check (includes database check)
 
+## Docker Startup Process
+
+### Startup Flow
+
+1. **Container starts** with the `start.sh` script as the entry point
+2. **Check for setup.sh**: The script checks if `/app/config/setup.sh` exists
+3. **Execute setup.sh**: If found, it runs the script to set environment variables
+4. **Start Halo server**: The script executes `node dist/server/index.js`
+
+### Startup Script Details
+
+The `docker/start.sh` script performs the following steps:
+
+```bash
+#!/bin/sh
+
+# Check if setup.sh exists and execute it
+if [ -f "/app/config/setup.sh" ]; then
+  echo "Found setup.sh, executing..."
+  chmod +x /app/config/setup.sh
+  . /app/config/setup.sh
+else
+  echo "No setup script."
+fi
+
+# Start the server
+exec node dist/server/index.js
+```
+
 ## Multi-Instance Deployment
 
 For running multiple instances, ensure each instance has a unique data directory:
@@ -232,14 +259,14 @@ services:
   halo-1:
     image: halo:latest
     volumes:
-      - halo-data-1:/app/data
+      - halo-data-1:/data/hello
     environment:
       - HALO_PORT=3001
 
   halo-2:
     image: halo:latest
     volumes:
-      - halo-data-2:/app/data
+      - halo-data-2:/data/hello
     environment:
       - HALO_PORT=3002
 ```

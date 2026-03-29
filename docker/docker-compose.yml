@@ -3,8 +3,8 @@ version: '3.8'
 services:
   halo:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: halo-server
     restart: unless-stopped
     ports:
@@ -14,7 +14,7 @@ services:
       - halo-data:/data/halo
       # Mount config directory (recommended)
       # Place your server.json and llm-config.json in ./config/ directory
-      - ./config:/app/config:ro
+      - ../config:/app/config:ro
       # Alternative: mount individual config files (legacy approach)
       # - ./server.json:/app/config/server.json:ro
       # - ./llm-config.json:/app/config/llm-config.json:ro

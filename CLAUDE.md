@@ -12,6 +12,7 @@ npm run build        # 构建
 npm run test         # 运行所有测试
 npm run i18n         # 国际化提取翻译
 npm run package      # 打包
+docker build -f docker/Dockerfile -t hello-server:1.0 . # 打镜像
 ```
 
 ## 架构
