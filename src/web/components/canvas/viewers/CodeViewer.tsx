@@ -25,6 +25,7 @@ import { api } from '../../../api'
 import type { CanvasTab } from '../../../stores/canvas.store'
 import { useTranslation } from '../../../i18n'
 import { CodeMirrorEditor, type CodeMirrorEditorRef } from './CodeMirrorEditor'
+import { canvasLifecycle } from '../../../services/canvas-lifecycle'
 
 // ============================================
 // Types
@@ -120,7 +121,8 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
     setSaveError(null)
 
     try {
-      const result = await api.saveArtifactContent(tab.path, newContent)
+      const spaceId = canvasLifecycle.getCurrentSpaceId()
+      const result = await api.saveArtifactContent(tab.path, newContent, spaceId)
 
       if (result.success) {
         // Mark tab as saved (clears dirty flag) via callback

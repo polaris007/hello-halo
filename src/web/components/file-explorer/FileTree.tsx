@@ -9,13 +9,48 @@
  * - Right-click context menu with file operations
  */
 
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef, createContext, useContext } from 'react'
 import { ChevronRight, ChevronDown, Loader2, FilePlus, FolderPlus, Edit, Trash2, Copy } from 'lucide-react'
 import { FileIcon } from './FileIcon'
 import type { FileEntry } from './useFileExplorer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
 import { useNotificationStore } from '../../stores/notification.store'
+
+// Context for managing context menu state globally
+interface ContextMenuContextType {
+  contextMenu: { x: number; y: number; file: FileEntry } | null
+  setContextMenu: (contextMenu: { x: number; y: number; file: FileEntry } | null) => void
+}
+
+const ContextMenuContext = createContext<ContextMenuContextType | undefined>(undefined)
+
+// Provider component for context menu context
+function ContextMenuProvider({ children }: { children: React.ReactNode }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileEntry } | null>(null)
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
+  return (
+    <ContextMenuContext.Provider value={{ contextMenu, setContextMenu }}>
+      {children}
+    </ContextMenuContext.Provider>
+  )
+}
+
+// Hook to use context menu context
+function useContextMenu() {
+  const context = useContext(ContextMenuContext)
+  if (!context) {
+    throw new Error('useContextMenu must be used within a ContextMenuProvider')
+  }
+  return context
+}
 
 interface FileItemProps {
   file: FileEntry
@@ -48,11 +83,11 @@ function FileItemComponent({
   const [children, setChildren] = useState<FileEntry[]>([])
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
   const [childrenLoaded, setChildrenLoaded] = useState(false)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [newName, setNewName] = useState(file.name)
   const [isLoading, setIsLoading] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const { contextMenu, setContextMenu } = useContextMenu()
 
   const isExpanded = file.isDirectory && expandedDirs.has(file.path)
   const canExpand = file.isDirectory && depth < maxDepth
@@ -80,13 +115,6 @@ function FileItemComponent({
     }
   }, [isRenaming])
 
-  // Close context menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null)
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [])
-
   const handleClick = useCallback(() => {
     if (file.isDirectory) {
       onToggleDir(file.path)
@@ -97,8 +125,9 @@ function FileItemComponent({
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY })
-  }, [])
+    // Open new context menu at the clicked position with the current file
+    setContextMenu({ x: e.clientX, y: e.clientY, file })
+  }, [file, setContextMenu])
 
   const handleCreateFile = useCallback(async () => {
     if (!spaceId) return
@@ -362,7 +391,7 @@ function FileItemComponent({
       </div>
 
       {/* Context menu */}
-      {contextMenu && (
+      {contextMenu && contextMenu.file.path === file.path && (
         <div
           className="fixed z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[180px]"
           style={{
@@ -547,30 +576,34 @@ export function FileTree({
 
   if (files.length === 0) {
     return (
-      <div className="py-4 px-4 text-center text-sm text-muted-foreground/50">
-        {t('No files in this directory')}
-      </div>
+      <ContextMenuProvider>
+        <div className="py-4 px-4 text-center text-sm text-muted-foreground/50">
+          {t('No files in this directory')}
+        </div>
+      </ContextMenuProvider>
     )
   }
 
   return (
-    <div className="py-1">
-      {files.map(file => (
-        <FileItem
-          key={`${file.path}-${refreshKey}`}
-          file={file}
-          spaceId={spaceId}
-          expandedDirs={expandedDirs}
-          onToggleDir={onToggleDir}
-          onFileClick={onFileClick}
-          depth={depth}
-          maxDepth={maxDepth}
-          loadChildren={loadChildren}
-          refreshDir={refreshDir}
-          dirRefreshKeys={dirRefreshKeys}
-          dirCache={dirCache}
-        />
-      ))}
-    </div>
+    <ContextMenuProvider>
+      <div className="py-1">
+        {files.map(file => (
+          <FileItem
+            key={`${file.path}-${refreshKey}`}
+            file={file}
+            spaceId={spaceId}
+            expandedDirs={expandedDirs}
+            onToggleDir={onToggleDir}
+            onFileClick={onFileClick}
+            depth={depth}
+            maxDepth={maxDepth}
+            loadChildren={loadChildren}
+            refreshDir={refreshDir}
+            dirRefreshKeys={dirRefreshKeys}
+            dirCache={dirCache}
+          />
+        ))}
+      </div>
+    </ContextMenuProvider>
   )
 }

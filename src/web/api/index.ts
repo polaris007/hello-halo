@@ -445,8 +445,13 @@ export const api = {
   },
 
   // ===== Artifact =====
-  listArtifacts: async (spaceId: string): Promise<ApiResponse> => {
-    return httpRequest('GET', `/api/v1/spaces/${spaceId}/artifacts`)
+  listArtifacts: async (spaceId: string, depth?: number, showHidden?: boolean, filter?: string): Promise<ApiResponse> => {
+    const params = new URLSearchParams()
+    if (depth !== undefined) params.set('depth', depth.toString())
+    if (showHidden !== undefined) params.set('showHidden', showHidden.toString())
+    if (filter) params.set('filter', filter)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/artifacts${queryString}`)
   },
 
   listArtifactsTree: async (spaceId: string): Promise<ApiResponse> => {
@@ -514,8 +519,8 @@ export const api = {
     return httpRequest('GET', `/api/v1/artifacts/content?path=${encodeURIComponent(filePath)}`)
   },
 
-  saveArtifactContent: async (filePath: string, content: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/v1/artifacts/save', { path: filePath, content })
+  saveArtifactContent: async (filePath: string, content: string, spaceId: string | null): Promise<ApiResponse> => {
+    return httpRequest('POST', '/api/v1/artifacts/save', { path: filePath, content, spaceId })
   },
 
   /**

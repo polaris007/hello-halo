@@ -6,6 +6,29 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../stores/authStore'
 
+// Type definitions
+export interface Artifact {
+  id: string
+  name: string
+  type: 'file' | 'folder'
+  path: string
+  relativePath: string
+  extension: string
+  icon: string
+  createdAt: string
+  modifiedAt: string
+  size?: number
+}
+
+export interface ArtifactResponse {
+  success: boolean
+  data: Artifact[]
+  metadata: {
+    total: number
+    truncated: boolean
+  }
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
 
 // Create axios instance
@@ -112,7 +135,17 @@ export const spacesApi = {
     apiClient.put(`/spaces/${id}`, { name }),
 
   delete: (id: string) =>
-    apiClient.delete(`/spaces/${id}`)
+    apiClient.delete(`/spaces/${id}`),
+
+  listArtifacts: async (id: string, depth?: number, showHidden?: boolean, filter?: string): Promise<ArtifactResponse> => {
+    try {
+      const response = await apiClient.get(`/spaces/${id}/artifacts`, { params: { depth, showHidden, filter } })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching artifacts:', error)
+      throw error
+    }
+  }
 }
 
 // Conversations API

@@ -27,6 +27,7 @@ import {
 } from '../onboarding/onboardingData'
 import { api } from '../../api'
 import type { ImageAttachment } from '../../types'
+import type { Artifact } from '../../api/client'
 import { useTranslation } from '../../i18n'
 
 interface ChatViewProps {
@@ -44,6 +45,11 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
     continueAfterInterrupt,
     answerQuestion
   } = useChatStore()
+
+  // Artifact state
+  const [artifacts, setArtifacts] = useState<Artifact[]>([])
+  const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false)
+  const [artifactError, setArtifactError] = useState<string | null>(null)
 
   // Onboarding state
   const {
@@ -184,6 +190,42 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const onboardingResponse = getOnboardingAiResponse(t)
   const onboardingHtml = getOnboardingHtmlArtifact(t)
 
+  // Debounce function
+  const debounce = (func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout | null = null
+    return (...args: any[]) => {
+      if (timeout) clearTimeout(timeout)
+      timeout = setTimeout(() => func(...args), wait)
+    }
+  }
+
+  // Load artifacts for current space with debounce
+  const loadArtifacts = useCallback(debounce(async () => {
+    if (!currentSpace) {
+      setArtifacts([])
+      return
+    }
+
+    setIsLoadingArtifacts(true)
+    setArtifactError(null)
+
+    try {
+      const response = await api.listArtifacts(currentSpace.id, 5, false)
+      setArtifacts(response.data)
+    } catch (error) {
+      console.error('Failed to load artifacts:', error)
+      setArtifactError(t('Failed to load files'))
+      setArtifacts([])
+    } finally {
+      setIsLoadingArtifacts(false)
+    }
+  }, 300), [currentSpace, t])
+
+  // Load artifacts when space changes
+  useEffect(() => {
+    loadArtifacts()
+  }, [loadArtifacts])
+
   // Handle mock onboarding send
   const handleOnboardingSend = useCallback(async () => {
     if (!currentSpace) return
@@ -222,6 +264,9 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
 
       // Small delay to ensure file system has synced
       await new Promise(resolve => setTimeout(resolve, 200))
+
+      // Reload artifacts after onboarding
+      await loadArtifacts()
     } catch (err) {
       console.error('Failed to write onboarding artifact:', err)
     }
@@ -230,7 +275,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
     // Note: Don't call nextStep() here - it's already called by Spotlight's handleHoleClick
     // We just need to stop the animation so the Spotlight can show the artifact
     setMockAnimating(false)
-  }, [currentSpace, onboardingHtml, onboardingPrompt, onboardingResponse, setMockAnimating, setMockThinking])
+  }, [currentSpace, onboardingHtml, onboardingPrompt, onboardingResponse, setMockAnimating, setMockThinking, loadArtifacts])
 
   // AI Browser state
   const { enabled: aiBrowserEnabled } = useAIBrowserStore()
@@ -345,6 +390,10 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
         isGenerating={isGenerating}
         placeholder={isCompact ? t('Continue conversation...') : (currentSpace?.isTemp ? t('Say something to Halo...') : t('Continue conversation...'))}
         isCompact={isCompact}
+        artifacts={artifacts}
+        isLoadingArtifacts={isLoadingArtifacts}
+        artifactError={artifactError}
+        onRefreshArtifacts={loadArtifacts}
       />
     </div>
   )

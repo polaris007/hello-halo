@@ -20,13 +20,14 @@
  */
 
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent, DragEvent, RefObject } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, Search } from 'lucide-react'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { getOnboardingPrompt } from '../onboarding/onboardingData'
 import { ImageAttachmentPreview } from './ImageAttachmentPreview'
 import { processImage, isValidImageType, formatFileSize } from '../../utils/imageProcessor'
 import type { ImageAttachment } from '../../types'
+import type { Artifact } from '../../api/client'
 import { useTranslation } from '../../i18n'
 
 interface InputAreaProps {
@@ -35,6 +36,10 @@ interface InputAreaProps {
   isGenerating: boolean
   placeholder?: string
   isCompact?: boolean
+  artifacts?: Artifact[]
+  isLoadingArtifacts?: boolean
+  artifactError?: string | null
+  onRefreshArtifacts?: () => void
 }
 
 // Image constraints
@@ -47,7 +52,7 @@ interface ImageError {
   message: string
 }
 
-export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false }: InputAreaProps) {
+export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, artifacts = [], isLoadingArtifacts = false, artifactError = null, onRefreshArtifacts }: InputAreaProps) {
   const { t } = useTranslation()
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -57,9 +62,20 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [imageError, setImageError] = useState<ImageError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(false)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
+  
+  // Artifact mention state
+  const [showMentionMenu, setShowMentionMenu] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredArtifacts, setFilteredArtifacts] = useState<Artifact[]>([])
+  const [selectedArtifactIndex, setSelectedArtifactIndex] = useState(0)
+  const [mentionPosition, setMentionPosition] = useState({ start: 0, end: 0 })
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
+  const mentionMenuRef = useRef<HTMLDivElement>(null)
+  const selectedArtifactRef = useRef<HTMLDivElement>(null)
 
   // AI Browser state
   const { enabled: aiBrowserEnabled, setEnabled: setAIBrowserEnabled } = useAIBrowserStore()
@@ -71,6 +87,26 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
       return () => clearTimeout(timer)
     }
   }, [imageError])
+
+  // Scroll selected artifact into view when navigating with keyboard
+  useEffect(() => {
+    if (showMentionMenu && selectedArtifactRef.current && mentionMenuRef.current) {
+      const selectedElement = selectedArtifactRef.current
+      const menuElement = mentionMenuRef.current
+      
+      const menuRect = menuElement.getBoundingClientRect()
+      const selectedRect = selectedElement.getBoundingClientRect()
+      
+      // Check if selected element is outside the visible area
+      if (selectedRect.top < menuRect.top) {
+        // Element is above the visible area
+        selectedElement.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      } else if (selectedRect.bottom > menuRect.bottom) {
+        // Element is below the visible area
+        selectedElement.scrollIntoView({ block: 'end', behavior: 'smooth' })
+      }
+    }
+  }, [selectedArtifactIndex, showMentionMenu])
 
   // Close attachment menu when clicking outside
   useEffect(() => {
@@ -230,6 +266,74 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     }
   }, [displayContent])
 
+  // Close mention menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mentionMenuRef.current && !mentionMenuRef.current.contains(event.target as Node)) {
+        setShowMentionMenu(false)
+      }
+    }
+
+    if (showMentionMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMentionMenu])
+
+  // Handle content change for @ mention detection
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isOnboardingSendStep) return
+    
+    const newContent = e.target.value
+    setContent(newContent)
+    
+    // Detect @ mention
+    const cursorPosition = e.target.selectionStart
+    const textBeforeCursor = newContent.substring(0, cursorPosition)
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@')
+    
+    if (lastAtIndex !== -1) {
+      // Check if @ is at the beginning of a word or line
+      const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' '
+      if (charBeforeAt.match(/\s|^/)) {
+        const query = textBeforeCursor.substring(lastAtIndex + 1)
+        setMentionQuery(query)
+        setSearchQuery(query)
+        setMentionPosition({ start: lastAtIndex, end: cursorPosition })
+        
+        // Refresh artifacts to get latest files
+        onRefreshArtifacts?.()
+        
+        // Filter artifacts based on query
+        const filtered = artifacts.filter(artifact => 
+          artifact.name.toLowerCase().includes(query.toLowerCase()) ||
+          artifact.relativePath.toLowerCase().includes(query.toLowerCase())
+        )
+        setFilteredArtifacts(filtered)
+        setSelectedArtifactIndex(0)
+        setShowMentionMenu(filtered.length > 0)
+      } else {
+        setShowMentionMenu(false)
+      }
+    } else {
+      setShowMentionMenu(false)
+    }
+  }
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    
+    // Filter artifacts based on search query
+    const filtered = artifacts.filter(artifact => 
+      artifact.name.toLowerCase().includes(query.toLowerCase()) ||
+      artifact.relativePath.toLowerCase().includes(query.toLowerCase())
+    )
+    setFilteredArtifacts(filtered)
+    setSelectedArtifactIndex(0)
+  }
+
   // Focus on mount
   useEffect(() => {
     if (!isGenerating && !isOnboardingSendStep) {
@@ -268,6 +372,24 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     // This prevents Enter from sending the message while confirming IME candidates
     if (e.nativeEvent.isComposing) return
 
+    // Handle @ mention keyboard navigation
+    if (showMentionMenu) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedArtifactIndex(prev => (prev + 1) % filteredArtifacts.length)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedArtifactIndex(prev => (prev - 1 + filteredArtifacts.length) % filteredArtifacts.length)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        selectArtifact(filteredArtifacts[selectedArtifactIndex])
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowMentionMenu(false)
+      }
+      return
+    }
+
     // Mobile: Enter for newline, send via button only
     // PC: Enter to send, Shift+Enter for newline
     if (e.key === 'Enter' && !e.shiftKey && !isMobile()) {
@@ -279,6 +401,25 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
       e.preventDefault()
       onStop()
     }
+  }
+
+  // Select artifact and insert into content
+  const selectArtifact = (artifact: Artifact) => {
+    const newContent = content.substring(0, mentionPosition.start) + 
+      `@${artifact.name} (${artifact.relativePath})` + 
+      content.substring(mentionPosition.end)
+    setContent(newContent)
+    setShowMentionMenu(false)
+    
+    // Focus back on textarea and set cursor position
+    setTimeout(() => {
+      const textarea = textareaRef.current
+      if (textarea) {
+        const newPosition = mentionPosition.start + `@${artifact.name} (${artifact.relativePath})`.length
+        textarea.focus()
+        textarea.setSelectionRange(newPosition, newPosition)
+      }
+    }, 0)
   }
 
   // In onboarding mode, can always send (prefilled content)
@@ -360,7 +501,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             <textarea
               ref={textareaRef}
               value={displayContent}
-              onChange={(e) => !isOnboardingSendStep && setContent(e.target.value)}
+              onChange={handleContentChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               onFocus={() => setIsFocused(true)}
@@ -375,6 +516,45 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
                 ${isOnboardingSendStep ? 'cursor-default' : ''}`}
               style={{ maxHeight: '200px' }}
             />
+
+            {/* Artifact mention menu */}
+            {showMentionMenu && (
+              <div
+                ref={mentionMenuRef}
+                role="listbox"
+                aria-label={t('File suggestions')}
+                className="absolute left-3 right-3 bottom-full mb-1 bg-popover border border-border
+                  rounded-xl shadow-lg max-h-64 overflow-y-auto z-20 animate-fade-in"
+              >
+                <div className="p-2 border-b border-border/30">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      placeholder={t('Search files...')}
+                      className="w-full pl-7 pr-2 py-1.5 text-sm bg-background/50 border border-border/30
+                        rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                  </div>
+                </div>
+                {filteredArtifacts.map((artifact, index) => (
+                  <div
+                    key={artifact.id}
+                    ref={index === selectedArtifactIndex ? selectedArtifactRef : null}
+                    role="option"
+                    aria-selected={index === selectedArtifactIndex}
+                    onClick={() => selectArtifact(artifact)}
+                    className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors duration-150
+                      ${index === selectedArtifactIndex ? 'bg-primary/10' : ''}`}
+                  >
+                    <div className="font-medium text-sm">{artifact.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{artifact.relativePath}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Bottom toolbar - always visible, industry standard layout */}

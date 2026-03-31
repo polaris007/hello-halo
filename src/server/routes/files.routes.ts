@@ -1021,4 +1021,85 @@ router.get('/spaces/:spaceId/files', (req: Request, res: Response) => {
   }
 })
 
+/**
+ * POST /api/v1/artifacts/save - 保存文件内容
+ * 用于前端编辑文件后保存内容
+ */
+router.post('/artifacts/save', (req: Request, res: Response) => {
+  try {
+    const { path, content, spaceId } = req.body as { path: string; content: string; spaceId: string }
+
+    if (!path) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: '文件路径不能为空' }
+      })
+    }
+
+    if (!spaceId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: '空间ID不能为空' }
+      })
+    }
+
+    const filePath = path
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建完整文件路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保路径在空间目录内
+    if (!validatePathBoundary(spacePath, filePath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: path outside space directory' }
+      })
+    }
+
+    const fullPath = join(spacePath, filePath)
+
+    // 确保目录存在
+    const dir = dirname(fullPath)
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+
+    // 写入文件内容
+    writeFileSync(fullPath, content, 'utf-8')
+
+    // 获取文件信息
+    const stats = statSync(fullPath)
+
+    res.json({
+      success: true,
+      data: {
+        path: filePath,
+        size: stats.size,
+        modifiedAt: stats.mtime.toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Save artifact content error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'SAVE_ERROR', message: error.message }
+    })
+  }
+})
+
 export { router }
