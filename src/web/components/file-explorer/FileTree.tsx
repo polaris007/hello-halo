@@ -6,14 +6,16 @@
  * - File/folder icons
  * - Click to open files
  * - Lazy loading of subdirectories
+ * - Right-click context menu with file operations
  */
 
-import { memo, useCallback, useState, useEffect } from 'react'
-import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
+import { memo, useCallback, useState, useEffect, useRef } from 'react'
+import { ChevronRight, ChevronDown, Loader2, FilePlus, FolderPlus, Edit, Trash2, Copy } from 'lucide-react'
 import { FileIcon } from './FileIcon'
 import type { FileEntry } from './useFileExplorer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
+import { useNotificationStore } from '../../stores/notification.store'
 
 interface FileItemProps {
   file: FileEntry
@@ -24,6 +26,7 @@ interface FileItemProps {
   depth: number
   maxDepth: number
   loadChildren: (path: string) => Promise<FileEntry[]>
+  refresh?: () => Promise<void>
 }
 
 function FileItemComponent({
@@ -34,12 +37,18 @@ function FileItemComponent({
   onFileClick,
   depth,
   maxDepth,
-  loadChildren
+  loadChildren,
+  refresh
 }: FileItemProps) {
   const { t } = useTranslation()
   const [children, setChildren] = useState<FileEntry[]>([])
   const [isLoadingChildren, setIsLoadingChildren] = useState(false)
   const [childrenLoaded, setChildrenLoaded] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [newName, setNewName] = useState(file.name)
+  const [isLoading, setIsLoading] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   const isExpanded = file.isDirectory && expandedDirs.has(file.path)
   const canExpand = file.isDirectory && depth < maxDepth
@@ -56,6 +65,21 @@ function FileItemComponent({
     }
   }, [isExpanded, childrenLoaded, canExpand, file.path, loadChildren])
 
+  // Focus rename input when renaming starts
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus()
+      renameInputRef.current.select()
+    }
+  }, [isRenaming])
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
   const handleClick = useCallback(() => {
     if (file.isDirectory) {
       onToggleDir(file.path)
@@ -64,10 +88,241 @@ function FileItemComponent({
     }
   }, [file, onToggleDir, onFileClick])
 
+  const handleRightClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  const handleCreateFile = useCallback(async () => {
+    if (!spaceId) return
+    setContextMenu(null)
+    
+    const fileName = 'new-file.txt'
+    const parentPath = file.isDirectory ? file.path : file.path.substring(0, file.path.lastIndexOf('/'))
+    
+    try {
+      setIsLoading(true)
+      const response = await api.createFile(spaceId, parentPath, fileName, '')
+      if (response.success) {
+        useNotificationStore.getState().show({
+          title: t('File created successfully'),
+          variant: 'success',
+          duration: 3000,
+        })
+        // Refresh the entire file tree to ensure all directories are updated
+        if (refresh) {
+          await refresh()
+        } else {
+          // Fallback to refreshing parent directory if refresh is not available
+          if (file.isDirectory) {
+            loadChildren(file.path)
+          } else {
+            loadChildren(parentPath)
+          }
+        }
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to create file'),
+          variant: 'error',
+          duration: 4000,
+        })
+      }
+    } catch (error) {
+      useNotificationStore.getState().show({
+        title: t('Failed to create file'),
+        variant: 'error',
+        duration: 4000,
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [spaceId, file, loadChildren, refresh, t])
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!spaceId) return
+    setContextMenu(null)
+    
+    const folderName = 'New Folder'
+    const parentPath = file.isDirectory ? file.path : file.path.substring(0, file.path.lastIndexOf('/'))
+    
+    try {
+      setIsLoading(true)
+      const response = await api.createFolder(spaceId, parentPath, folderName)
+      if (response.success) {
+        useNotificationStore.getState().show({
+          title: t('Folder created successfully'),
+          variant: 'success',
+          duration: 3000,
+        })
+        // Refresh the entire file tree to ensure all directories are updated
+        if (refresh) {
+          await refresh()
+        } else {
+          // Fallback to refreshing parent directory if refresh is not available
+          if (file.isDirectory) {
+            loadChildren(file.path)
+          } else {
+            loadChildren(parentPath)
+          }
+        }
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to create folder'),
+          variant: 'error',
+          duration: 4000,
+        })
+      }
+    } catch (error) {
+      useNotificationStore.getState().show({
+        title: t('Failed to create folder'),
+        variant: 'error',
+        duration: 4000,
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [spaceId, file, loadChildren, refresh, t])
+
+  const handleRename = useCallback(() => {
+    setContextMenu(null)
+    setIsRenaming(true)
+  }, [])
+
+  const handleRenameSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!spaceId || newName === file.name) {
+      setIsRenaming(false)
+      return
+    }
+    
+    try {
+      setIsLoading(true)
+      const response = await api.renameFile(spaceId, file.path, newName)
+      if (response.success) {
+        useNotificationStore.getState().show({
+          title: t('Renamed successfully'),
+          variant: 'success',
+          duration: 3000,
+        })
+        // Refresh the entire file tree to ensure all directories are updated
+        if (refresh) {
+          await refresh()
+        } else {
+          // Fallback to refreshing parent directory if refresh is not available
+          const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
+          loadChildren(parentPath)
+        }
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to rename'),
+          variant: 'error',
+          duration: 4000,
+        })
+      }
+    } catch (error) {
+      useNotificationStore.getState().show({
+        title: t('Failed to rename'),
+        variant: 'error',
+        duration: 4000,
+      })
+    } finally {
+      setIsRenaming(false)
+      setIsLoading(false)
+    }
+  }, [spaceId, file, newName, loadChildren, refresh, t])
+
+  const handleDelete = useCallback(async () => {
+    if (!spaceId) return
+    setContextMenu(null)
+    
+    if (confirm(t('Are you sure you want to delete this item?'))) {
+      try {
+        setIsLoading(true)
+        const response = await api.deleteFile(spaceId, file.path)
+        if (response.success) {
+          useNotificationStore.getState().show({
+            title: t('Deleted successfully'),
+            variant: 'success',
+            duration: 3000,
+          })
+          // Refresh the entire file tree to ensure all directories are updated
+          if (refresh) {
+            await refresh()
+          } else {
+            // Fallback to refreshing parent directory if refresh is not available
+            const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
+            loadChildren(parentPath)
+          }
+        } else {
+          useNotificationStore.getState().show({
+            title: t('Failed to delete'),
+            variant: 'error',
+            duration: 4000,
+          })
+        }
+      } catch (error) {
+        useNotificationStore.getState().show({
+          title: t('Failed to delete'),
+          variant: 'error',
+          duration: 4000,
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }, [spaceId, file, loadChildren, refresh, t])
+
+  const handleCopyRelativePath = useCallback(async () => {
+    setContextMenu(null)
+    await navigator.clipboard.writeText(file.path)
+    useNotificationStore.getState().show({
+      title: t('Relative path copied to clipboard'),
+      variant: 'success',
+      duration: 2000,
+    })
+  }, [file.path, t])
+
+  const handleCopyAbsolutePath = useCallback(async () => {
+    setContextMenu(null)
+    try {
+      if (!spaceId) return
+      console.log('Calling getAbsolutePath for:', file.path)
+      const response = await api.getAbsolutePath(spaceId, file.path)
+      console.log('API response:', response)
+      if (response.success && response.data?.absolutePath) {
+        console.log('Copying absolute path:', response.data.absolutePath)
+        await navigator.clipboard.writeText(response.data.absolutePath)
+        useNotificationStore.getState().show({
+          title: t('Absolute path copied to clipboard'),
+          variant: 'success',
+          duration: 2000,
+        })
+      } else {
+        console.log('API call failed, falling back to relative path')
+        // Fallback to relative path if absolute path fails
+        await navigator.clipboard.writeText(file.path)
+        useNotificationStore.getState().show({
+          title: t('Relative path copied to clipboard'),
+          variant: 'success',
+          duration: 2000,
+        })
+      }
+    } catch (error) {
+      console.error('Error in handleCopyAbsolutePath:', error)
+      // Fallback to relative path if API call fails
+      await navigator.clipboard.writeText(file.path)
+      useNotificationStore.getState().show({
+        title: t('Relative path copied to clipboard'),
+        variant: 'success',
+        duration: 2000,
+      })
+    }
+  }, [file.path, spaceId, t])
+
   const paddingLeft = depth * 12
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
       {/* Item row */}
       <div
         className={`
@@ -79,6 +334,7 @@ function FileItemComponent({
         `}
         style={{ paddingLeft: paddingLeft + 8 }}
         onClick={handleClick}
+        onContextMenu={handleRightClick}
       >
         {/* Expand arrow for directories */}
         {file.isDirectory && canExpand ? (
@@ -103,11 +359,108 @@ function FileItemComponent({
           size={14}
         />
 
-        {/* Name */}
-        <span className="text-sm truncate">
-          {file.name}
-        </span>
+        {/* Name or rename input */}
+        {isRenaming ? (
+          <form onSubmit={handleRenameSubmit} className="flex-1">
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setIsRenaming(false)
+              }}
+              className="text-sm border border-input rounded px-1 py-0.5 bg-background"
+              style={{ width: '100%' }}
+            />
+          </form>
+        ) : (
+          <span className="text-sm truncate flex-1">
+            {file.name}
+          </span>
+        )}
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[180px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            right: 'auto',
+            bottom: 'auto',
+            zIndex: 9999
+          }}
+        >
+          {/* Create file (only for directories) */}
+          {file.isDirectory && (
+            <button
+              onClick={handleCreateFile}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              <FilePlus size={14} />
+              {t('New file')}
+            </button>
+          )}
+
+          {/* Create folder (for both files and directories) */}
+          <button
+            onClick={handleCreateFolder}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <FolderPlus size={14} />
+            {t('New folder')}
+          </button>
+
+          <div className="border-t border-border my-1" />
+
+          {/* Rename */}
+          <button
+            onClick={handleRename}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Edit size={14} />
+            {t('Rename')}
+          </button>
+
+          {/* Delete */}
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Trash2 size={14} />
+            {t('Delete')}
+          </button>
+
+          <div className="border-t border-border my-1" />
+
+          {/* Copy relative path */}
+          <button
+            onClick={handleCopyRelativePath}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Copy size={14} />
+            {t('Copy relative path')}
+          </button>
+
+          {/* Copy absolute path */}
+          <button
+            onClick={handleCopyAbsolutePath}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Copy size={14} />
+            {t('Copy absolute path')}
+          </button>
+        </div>
+      )}
 
       {/* Children (recursive) */}
       {isExpanded && childrenLoaded && children.length > 0 && (
@@ -123,6 +476,7 @@ function FileItemComponent({
               depth={depth + 1}
               maxDepth={maxDepth}
               loadChildren={loadChildren}
+              refresh={refresh}
             />
           ))}
         </div>
@@ -158,6 +512,10 @@ export interface FileTreeProps {
   depth?: number
   /** Maximum depth to render */
   maxDepth?: number
+  /** Refresh key to force reload */
+  refreshKey?: number
+  /** Refresh the entire file tree */
+  refresh?: () => Promise<void>
 }
 
 export function FileTree({
@@ -167,7 +525,9 @@ export function FileTree({
   onToggleDir,
   onFileClick,
   depth = 0,
-  maxDepth = 10
+  maxDepth = 10,
+  refreshKey = 0,
+  refresh
 }: FileTreeProps) {
   const { t } = useTranslation()
 
@@ -203,7 +563,7 @@ export function FileTree({
     <div className="py-1">
       {files.map(file => (
         <FileItem
-          key={file.path}
+          key={`${file.path}-${refreshKey}`}
           file={file}
           spaceId={spaceId}
           expandedDirs={expandedDirs}
@@ -212,6 +572,7 @@ export function FileTree({
           depth={depth}
           maxDepth={maxDepth}
           loadChildren={loadChildren}
+          refresh={refresh}
         />
       ))}
     </div>

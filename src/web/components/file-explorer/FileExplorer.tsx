@@ -9,9 +9,10 @@
  */
 
 import { useCallback } from 'react'
-import { FolderOpen, RefreshCw, ChevronLeft, AlertCircle, Loader2 } from 'lucide-react'
+import { FolderOpen, RefreshCw, ChevronLeft, AlertCircle, Loader2, FilePlus, FolderPlus } from 'lucide-react'
 import { FileTree } from './FileTree'
 import { useFileExplorer } from './useFileExplorer'
+import { api } from '../../api'
 import { useTranslation } from '../../i18n'
 import { canvasLifecycle } from '../../services/canvas-lifecycle'
 import { useNotificationStore } from '../../stores/notification.store'
@@ -46,7 +47,8 @@ export function FileExplorer({
     isLoading,
     error,
     toggleDir,
-    refresh
+    refresh,
+    refreshKey
   } = useFileExplorer({ spaceId })
 
   // Handle file click - open in canvas
@@ -74,6 +76,64 @@ export function FileExplorer({
     onCollapsedChange?.(!isCollapsed)
   }, [isCollapsed, onCollapsedChange])
 
+  // Handle create file
+  const handleCreateFile = useCallback(async () => {
+    if (!spaceId) return
+    
+    try {
+      const response = await api.createFile(spaceId, '', 'new-file.txt', '')
+      if (response.success) {
+        useNotificationStore.getState().show({
+          title: t('File created successfully'),
+          variant: 'success',
+          duration: 3000,
+        })
+        refresh()
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to create file'),
+          variant: 'error',
+          duration: 4000,
+        })
+      }
+    } catch (error) {
+      useNotificationStore.getState().show({
+        title: t('Failed to create file'),
+        variant: 'error',
+        duration: 4000,
+      })
+    }
+  }, [spaceId, refresh, t])
+
+  // Handle create folder
+  const handleCreateFolder = useCallback(async () => {
+    if (!spaceId) return
+    
+    try {
+      const response = await api.createFolder(spaceId, '', 'New Folder')
+      if (response.success) {
+        useNotificationStore.getState().show({
+          title: t('Folder created successfully'),
+          variant: 'success',
+          duration: 3000,
+        })
+        refresh()
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to create folder'),
+          variant: 'error',
+          duration: 4000,
+        })
+      }
+    } catch (error) {
+      useNotificationStore.getState().show({
+        title: t('Failed to create folder'),
+        variant: 'error',
+        duration: 4000,
+      })
+    }
+  }, [spaceId, refresh, t])
+
   // Collapsed state - show only icons
   if (isCollapsed) {
     return (
@@ -91,6 +151,24 @@ export function FileExplorer({
 
         {/* Icon buttons */}
         <div className="flex flex-col items-center gap-2 p-2">
+          <button
+            onClick={handleCreateFile}
+            className="p-1.5 rounded hover:bg-accent transition-colors"
+            title={t('New file')}
+            disabled={isLoading}
+          >
+            <FilePlus size={16} className="text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={handleCreateFolder}
+            className="p-1.5 rounded hover:bg-accent transition-colors"
+            title={t('New folder')}
+            disabled={isLoading}
+          >
+            <FolderPlus size={16} className="text-muted-foreground" />
+          </button>
+
           <button
             onClick={handleRefresh}
             className="p-1.5 rounded hover:bg-accent transition-colors"
@@ -157,6 +235,26 @@ export function FileExplorer({
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Create file button */}
+          <button
+            onClick={handleCreateFile}
+            className="p-1.5 rounded hover:bg-accent transition-colors"
+            title={t('New file')}
+            disabled={isLoading}
+          >
+            <FilePlus size={14} className="text-muted-foreground" />
+          </button>
+
+          {/* Create folder button */}
+          <button
+            onClick={handleCreateFolder}
+            className="p-1.5 rounded hover:bg-accent transition-colors"
+            title={t('New folder')}
+            disabled={isLoading}
+          >
+            <FolderPlus size={14} className="text-muted-foreground" />
+          </button>
+
           {/* Refresh button */}
           <button
             onClick={handleRefresh}
@@ -204,12 +302,14 @@ export function FileExplorer({
       ) : (
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <FileTree
-            files={files}
-            spaceId={spaceId}
-            expandedDirs={expandedDirs}
-            onToggleDir={toggleDir}
-            onFileClick={handleFileClick}
-          />
+          files={files}
+          spaceId={spaceId}
+          expandedDirs={expandedDirs}
+          onToggleDir={toggleDir}
+          onFileClick={handleFileClick}
+          refreshKey={refreshKey}
+          refresh={refresh}
+        />
         </div>
       )}
     </div>

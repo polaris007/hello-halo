@@ -5,8 +5,8 @@
 import { Router, Request, Response } from 'express'
 import { getDatabase } from '../utils/database.js'
 import { legacyAuthMiddleware } from '../middleware/auth.middleware.js'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from 'fs'
-import { join, basename, isAbsolute, resolve, sep, extname } from 'path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync, renameSync, rmSync, unlinkSync } from 'fs'
+import { join, basename, isAbsolute, resolve, sep, extname, dirname } from 'path'
 import multer from 'multer'
 import { resolveDataDir } from '../services/config.service.js'
 
@@ -497,6 +497,75 @@ router.get('/spaces/:spaceId/files/:path/detect-type', (req: Request, res: Respo
 })
 
 /**
+ * GET /api/v1/spaces/:spaceId/files/absolute-path - 获取文件的绝对路径
+ * Using query parameter for file path to handle slashes
+ * NOTE: This route MUST be defined before the regex route for file download
+ */
+router.get('/spaces/:spaceId/files/absolute-path', (req: Request, res: Response) => {
+  try {
+    const { spaceId } = req.params as { spaceId: string }
+    const filePath = req.query.path as string
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'File path is required' }
+      })
+    }
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建完整文件路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保路径在空间目录内
+    if (!validatePathBoundary(spacePath, filePath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: path outside space directory' }
+      })
+    }
+
+    const fullPath = join(spacePath, filePath)
+
+    // 检查文件是否存在
+    if (!existsSync(fullPath)) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'FILE_NOT_FOUND', message: '文件不存在' }
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        path: filePath,
+        absolutePath: fullPath
+      }
+    })
+  } catch (error: any) {
+    console.error('Get absolute path error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'ERROR', message: error.message }
+    })
+  }
+})
+
+/**
  * GET /api/v1/spaces/:spaceId/files/* - 下载文件
  * Using a regex-based approach for Express 5 compatibility
  */
@@ -555,6 +624,324 @@ router.get(/^\/spaces\/([^\/]+)\/files\/(.+)$/, (req: Request, res: Response) =>
     res.status(500).json({
       success: false,
       error: { code: 'DOWNLOAD_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/spaces/:spaceId/files/folder - 创建文件夹
+ */
+router.post('/spaces/:spaceId/files/folder', (req: Request, res: Response) => {
+  try {
+    const { spaceId } = req.params as { spaceId: string }
+    const { path, name } = req.body as { path: string; name: string }
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: '文件夹名称不能为空' }
+      })
+    }
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建目录路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保路径在空间目录内
+    const targetPath = join(path, name)
+    if (!validatePathBoundary(spacePath, targetPath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: path outside space directory' }
+      })
+    }
+
+    const fullPath = join(spacePath, targetPath)
+
+    // 检查文件夹是否已存在
+    if (existsSync(fullPath)) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'FOLDER_EXISTS', message: '文件夹已存在' }
+      })
+    }
+
+    // 创建文件夹
+    mkdirSync(fullPath, { recursive: true })
+
+    // 获取文件夹信息
+    const stats = statSync(fullPath)
+
+    res.status(201).json({
+      success: true,
+      data: {
+        name,
+        path: targetPath,
+        isDirectory: true,
+        size: stats.size,
+        modifiedAt: stats.mtime.toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Create folder error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'CREATE_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * POST /api/v1/spaces/:spaceId/files/file - 创建文件
+ */
+router.post('/spaces/:spaceId/files/file', (req: Request, res: Response) => {
+  try {
+    const { spaceId } = req.params as { spaceId: string }
+    const { path, name, content } = req.body as { path: string; name: string; content: string }
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: '文件名称不能为空' }
+      })
+    }
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建文件路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保路径在空间目录内
+    const targetPath = join(path, name)
+    if (!validatePathBoundary(spacePath, targetPath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: path outside space directory' }
+      })
+    }
+
+    const fullPath = join(spacePath, targetPath)
+
+    // 确保目录存在
+    const dir = dirname(fullPath)
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+
+    // 写入文件内容
+    writeFileSync(fullPath, content, 'utf-8')
+
+    // 获取文件信息
+    const stats = statSync(fullPath)
+
+    res.status(201).json({
+      success: true,
+      data: {
+        name,
+        path: targetPath,
+        isDirectory: false,
+        size: stats.size,
+        modifiedAt: stats.mtime.toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Create file error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'CREATE_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * PUT /api/v1/spaces/:spaceId/files/rename - 重命名文件/文件夹
+ */
+router.put('/spaces/:spaceId/files/rename', (req: Request, res: Response) => {
+  try {
+    const { spaceId } = req.params as { spaceId: string }
+    const { oldPath, newName } = req.body as { oldPath: string; newName: string }
+
+    if (!newName) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: '新名称不能为空' }
+      })
+    }
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保原路径在空间目录内
+    if (!validatePathBoundary(spacePath, oldPath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: old path outside space directory' }
+      })
+    }
+
+    const oldFullPath = join(spacePath, oldPath)
+    const oldDir = dirname(oldFullPath)
+    const newFullPath = join(oldDir, newName)
+    const newPath = join(dirname(oldPath), newName)
+
+    // 安全验证：确保新路径在空间目录内
+    if (!validatePathBoundary(spacePath, newPath)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: new path outside space directory' }
+      })
+    }
+
+    // 检查原文件/文件夹是否存在
+    if (!existsSync(oldFullPath)) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '文件或文件夹不存在' }
+      })
+    }
+
+    // 检查新名称是否与现有文件/文件夹冲突
+    if (existsSync(newFullPath)) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'NAME_CONFLICT', message: '已存在同名文件或文件夹' }
+      })
+    }
+
+    // 执行重命名
+    renameSync(oldFullPath, newFullPath)
+
+    // 获取重命名后的信息
+    const stats = statSync(newFullPath)
+    const isDirectory = stats.isDirectory()
+
+    res.json({
+      success: true,
+      data: {
+        name: newName,
+        path: newPath,
+        isDirectory,
+        size: stats.size,
+        modifiedAt: stats.mtime.toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Rename error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'RENAME_ERROR', message: error.message }
+    })
+  }
+})
+
+/**
+ * DELETE /api/v1/spaces/:spaceId/files - 删除文件/文件夹
+ */
+router.delete('/spaces/:spaceId/files', (req: Request, res: Response) => {
+  try {
+    const { spaceId } = req.params as { spaceId: string }
+    const { path } = req.body as { path: string }
+
+    const db = getDatabase()
+
+    // 验证空间是否存在且属于当前用户
+    const space = db.prepare('SELECT * FROM spaces WHERE id = ? AND user_id = ?').get(spaceId, req.userId)
+
+    if (!space) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '空间不存在' }
+      })
+    }
+
+    // 构建路径
+    let spacePath = (space as any).path
+    if (!isAbsolute(spacePath)) {
+      spacePath = join(resolveDataDir(), spacePath)
+    }
+
+    // 安全验证：确保路径在空间目录内
+    if (!validatePathBoundary(spacePath, path)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied: path outside space directory' }
+      })
+    }
+
+    const fullPath = join(spacePath, path)
+
+    // 检查文件/文件夹是否存在
+    if (!existsSync(fullPath)) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '文件或文件夹不存在' }
+      })
+    }
+
+    // 执行删除
+    const stats = statSync(fullPath)
+    if (stats.isDirectory()) {
+      // 删除目录（递归）
+      rmSync(fullPath, { recursive: true, force: true })
+    } else {
+      // 删除文件
+      unlinkSync(fullPath)
+    }
+
+    res.json({
+      success: true,
+      data: {
+        path,
+        deleted: true
+      }
+    })
+  } catch (error: any) {
+    console.error('Delete error:', error)
+    res.status(500).json({
+      success: false,
+      error: { code: 'DELETE_ERROR', message: error.message }
     })
   }
 })

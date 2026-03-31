@@ -568,6 +568,80 @@ export const api = {
     return httpRequest('GET', `/api/v1/spaces/${spaceId}/files${params}`)
   },
 
+  /**
+   * 创建文件夹
+   * @param spaceId 空间 ID
+   * @param path 父目录路径
+   * @param name 文件夹名称
+   */
+  createFolder: async (spaceId: string, path: string, name: string): Promise<ApiResponse<{
+    name: string
+    path: string
+    isDirectory: boolean
+    size: number
+    modifiedAt: string
+  }>> => {
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/files/folder`, { path, name })
+  },
+
+  /**
+   * 创建文件
+   * @param spaceId 空间 ID
+   * @param path 父目录路径
+   * @param name 文件名称
+   * @param content 文件内容
+   */
+  createFile: async (spaceId: string, path: string, name: string, content: string): Promise<ApiResponse<{
+    name: string
+    path: string
+    isDirectory: boolean
+    size: number
+    modifiedAt: string
+  }>> => {
+    return httpRequest('POST', `/api/v1/spaces/${spaceId}/files/file`, { path, name, content })
+  },
+
+  /**
+   * 重命名文件或文件夹
+   * @param spaceId 空间 ID
+   * @param oldPath 原路径
+   * @param newName 新名称
+   */
+  renameFile: async (spaceId: string, oldPath: string, newName: string): Promise<ApiResponse<{
+    name: string
+    path: string
+    isDirectory: boolean
+    size: number
+    modifiedAt: string
+  }>> => {
+    return httpRequest('PUT', `/api/v1/spaces/${spaceId}/files/rename`, { oldPath, newName })
+  },
+
+  /**
+   * 删除文件或文件夹
+   * @param spaceId 空间 ID
+   * @param path 文件或文件夹路径
+   */
+  deleteFile: async (spaceId: string, path: string): Promise<ApiResponse<{
+    path: string
+    deleted: boolean
+  }>> => {
+    return httpRequest('DELETE', `/api/v1/spaces/${spaceId}/files`, { path })
+  },
+
+  /**
+   * 获取文件的绝对路径
+   * @param spaceId 空间 ID
+   * @param path 文件或文件夹路径
+   */
+  getAbsolutePath: async (spaceId: string, path: string): Promise<ApiResponse<{
+    path: string
+    absolutePath: string
+  }>> => {
+    const encodedPath = encodeURIComponent(path)
+    return httpRequest('GET', `/api/v1/spaces/${spaceId}/files/absolute-path?path=${encodedPath}`)
+  },
+
   // ===== Onboarding =====
   writeOnboardingArtifact: async (
     spaceId: string,

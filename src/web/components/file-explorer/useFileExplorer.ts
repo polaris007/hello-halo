@@ -34,6 +34,8 @@ export interface UseFileExplorerReturn {
   isLoading: boolean
   /** Error message if any */
   error: string | null
+  /** Refresh key for forcing reload */
+  refreshKey: number
   /** Expand a directory */
   expandDir: (path: string) => void
   /** Collapse a directory */
@@ -58,6 +60,8 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
   const [error, setError] = useState<string | null>(null)
   // Cache for loaded directories
   const [dirCache, setDirCache] = useState<Map<string, FileEntry[]>>(new Map())
+  // Refresh key to force reload of file tree
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Load directory contents
   const loadDir = useCallback(async (path: string) => {
@@ -139,12 +143,10 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
   }, [loadDir])
 
   const refresh = useCallback(async () => {
-    // Clear cache for current path
-    setDirCache(prev => {
-      const next = new Map(prev)
-      next.delete(currentPath)
-      return next
-    })
+    // Clear all directory caches to ensure fresh data
+    setDirCache(new Map())
+    // Increment refresh key to force file tree reload
+    setRefreshKey(prev => prev + 1)
     await loadDir(currentPath)
   }, [currentPath, loadDir])
 
@@ -154,6 +156,7 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
     expandedDirs,
     isLoading,
     error,
+    refreshKey,
     expandDir,
     collapseDir,
     toggleDir,
