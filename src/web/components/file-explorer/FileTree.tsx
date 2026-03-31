@@ -9,7 +9,7 @@
  * - Right-click context menu with file operations
  */
 
-import { memo, useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { ChevronRight, ChevronDown, Loader2, FilePlus, FolderPlus, Edit, Trash2, Copy } from 'lucide-react'
 import { FileIcon } from './FileIcon'
 import type { FileEntry } from './useFileExplorer'
@@ -26,7 +26,9 @@ interface FileItemProps {
   depth: number
   maxDepth: number
   loadChildren: (path: string) => Promise<FileEntry[]>
-  refresh?: () => Promise<void>
+  refreshDir: (path: string) => Promise<FileEntry[]>
+  dirRefreshKeys: Map<string, number>
+  dirCache: Map<string, FileEntry[]>
 }
 
 function FileItemComponent({
@@ -38,7 +40,9 @@ function FileItemComponent({
   depth,
   maxDepth,
   loadChildren,
-  refresh
+  refreshDir,
+  dirRefreshKeys,
+  dirCache
 }: FileItemProps) {
   const { t } = useTranslation()
   const [children, setChildren] = useState<FileEntry[]>([])
@@ -53,9 +57,12 @@ function FileItemComponent({
   const isExpanded = file.isDirectory && expandedDirs.has(file.path)
   const canExpand = file.isDirectory && depth < maxDepth
 
+  // Get refresh key for this directory to detect when it needs to be reloaded
+  const dirRefreshKey = dirRefreshKeys.get(file.path) || 0
+
   // Load children when expanded
   useEffect(() => {
-    if (isExpanded && !childrenLoaded && canExpand) {
+    if (isExpanded && canExpand) {
       setIsLoadingChildren(true)
       loadChildren(file.path).then(loadedChildren => {
         setChildren(loadedChildren)
@@ -63,7 +70,7 @@ function FileItemComponent({
         setIsLoadingChildren(false)
       })
     }
-  }, [isExpanded, childrenLoaded, canExpand, file.path, loadChildren])
+  }, [isExpanded, canExpand, file.path, loadChildren, dirRefreshKey])
 
   // Focus rename input when renaming starts
   useEffect(() => {
@@ -96,10 +103,10 @@ function FileItemComponent({
   const handleCreateFile = useCallback(async () => {
     if (!spaceId) return
     setContextMenu(null)
-    
+
     const fileName = 'new-file.txt'
     const parentPath = file.isDirectory ? file.path : file.path.substring(0, file.path.lastIndexOf('/'))
-    
+
     try {
       setIsLoading(true)
       const response = await api.createFile(spaceId, parentPath, fileName, '')
@@ -109,17 +116,8 @@ function FileItemComponent({
           variant: 'success',
           duration: 3000,
         })
-        // Refresh the entire file tree to ensure all directories are updated
-        if (refresh) {
-          await refresh()
-        } else {
-          // Fallback to refreshing parent directory if refresh is not available
-          if (file.isDirectory) {
-            loadChildren(file.path)
-          } else {
-            loadChildren(parentPath)
-          }
-        }
+        // Refresh the parent directory - this will update cache and trigger re-render
+        await refreshDir(parentPath)
       } else {
         useNotificationStore.getState().show({
           title: t('Failed to create file'),
@@ -136,15 +134,15 @@ function FileItemComponent({
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, file, loadChildren, refresh, t])
+  }, [spaceId, file, refreshDir, t])
 
   const handleCreateFolder = useCallback(async () => {
     if (!spaceId) return
     setContextMenu(null)
-    
+
     const folderName = 'New Folder'
     const parentPath = file.isDirectory ? file.path : file.path.substring(0, file.path.lastIndexOf('/'))
-    
+
     try {
       setIsLoading(true)
       const response = await api.createFolder(spaceId, parentPath, folderName)
@@ -154,17 +152,8 @@ function FileItemComponent({
           variant: 'success',
           duration: 3000,
         })
-        // Refresh the entire file tree to ensure all directories are updated
-        if (refresh) {
-          await refresh()
-        } else {
-          // Fallback to refreshing parent directory if refresh is not available
-          if (file.isDirectory) {
-            loadChildren(file.path)
-          } else {
-            loadChildren(parentPath)
-          }
-        }
+        // Refresh the parent directory - this will update cache and trigger re-render
+        await refreshDir(parentPath)
       } else {
         useNotificationStore.getState().show({
           title: t('Failed to create folder'),
@@ -181,7 +170,7 @@ function FileItemComponent({
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, file, loadChildren, refresh, t])
+  }, [spaceId, file, refreshDir, t])
 
   const handleRename = useCallback(() => {
     setContextMenu(null)
@@ -194,7 +183,7 @@ function FileItemComponent({
       setIsRenaming(false)
       return
     }
-    
+
     try {
       setIsLoading(true)
       const response = await api.renameFile(spaceId, file.path, newName)
@@ -204,14 +193,9 @@ function FileItemComponent({
           variant: 'success',
           duration: 3000,
         })
-        // Refresh the entire file tree to ensure all directories are updated
-        if (refresh) {
-          await refresh()
-        } else {
-          // Fallback to refreshing parent directory if refresh is not available
-          const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
-          loadChildren(parentPath)
-        }
+        // Refresh the parent directory - this will update cache and trigger re-render
+        const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
+        await refreshDir(parentPath)
       } else {
         useNotificationStore.getState().show({
           title: t('Failed to rename'),
@@ -229,12 +213,12 @@ function FileItemComponent({
       setIsRenaming(false)
       setIsLoading(false)
     }
-  }, [spaceId, file, newName, loadChildren, refresh, t])
+  }, [spaceId, file, newName, refreshDir, t])
 
   const handleDelete = useCallback(async () => {
     if (!spaceId) return
     setContextMenu(null)
-    
+
     if (confirm(t('Are you sure you want to delete this item?'))) {
       try {
         setIsLoading(true)
@@ -245,14 +229,9 @@ function FileItemComponent({
             variant: 'success',
             duration: 3000,
           })
-          // Refresh the entire file tree to ensure all directories are updated
-          if (refresh) {
-            await refresh()
-          } else {
-            // Fallback to refreshing parent directory if refresh is not available
-            const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
-            loadChildren(parentPath)
-          }
+          // Refresh the parent directory - this will update cache and trigger re-render
+          const parentPath = file.path.substring(0, file.path.lastIndexOf('/'))
+          await refreshDir(parentPath)
         } else {
           useNotificationStore.getState().show({
             title: t('Failed to delete'),
@@ -270,7 +249,7 @@ function FileItemComponent({
         setIsLoading(false)
       }
     }
-  }, [spaceId, file, loadChildren, refresh, t])
+  }, [spaceId, file, refreshDir, t])
 
   const handleCopyRelativePath = useCallback(async () => {
     setContextMenu(null)
@@ -476,7 +455,9 @@ function FileItemComponent({
               depth={depth + 1}
               maxDepth={maxDepth}
               loadChildren={loadChildren}
-              refresh={refresh}
+              refreshDir={refreshDir}
+              dirRefreshKeys={dirRefreshKeys}
+              dirCache={dirCache}
             />
           ))}
         </div>
@@ -495,7 +476,8 @@ function FileItemComponent({
   )
 }
 
-const FileItem = memo(FileItemComponent)
+// Note: Not using memo() because dirRefreshKeys Map changes need to trigger re-renders
+const FileItem = FileItemComponent
 
 export interface FileTreeProps {
   /** Files to display */
@@ -514,8 +496,12 @@ export interface FileTreeProps {
   maxDepth?: number
   /** Refresh key to force reload */
   refreshKey?: number
-  /** Refresh the entire file tree */
-  refresh?: () => Promise<void>
+  /** Refresh a specific directory */
+  refreshDir: (path: string) => Promise<FileEntry[]>
+  /** Directory refresh keys for triggering re-render */
+  dirRefreshKeys: Map<string, number>
+  /** Directory cache */
+  dirCache: Map<string, FileEntry[]>
 }
 
 export function FileTree({
@@ -527,12 +513,20 @@ export function FileTree({
   depth = 0,
   maxDepth = 10,
   refreshKey = 0,
-  refresh
+  refreshDir,
+  dirRefreshKeys,
+  dirCache
 }: FileTreeProps) {
   const { t } = useTranslation()
 
-  // Function to load children for a directory
+  // Function to load children for a directory - uses cache when available
   const loadChildren = useCallback(async (path: string): Promise<FileEntry[]> => {
+    // Check cache first
+    const cached = dirCache.get(path)
+    if (cached) {
+      return cached
+    }
+
     if (!spaceId) return []
 
     try {
@@ -549,7 +543,7 @@ export function FileTree({
       console.error('Failed to load children:', err)
     }
     return []
-  }, [spaceId])
+  }, [spaceId, dirCache])
 
   if (files.length === 0) {
     return (
@@ -572,7 +566,9 @@ export function FileTree({
           depth={depth}
           maxDepth={maxDepth}
           loadChildren={loadChildren}
-          refresh={refresh}
+          refreshDir={refreshDir}
+          dirRefreshKeys={dirRefreshKeys}
+          dirCache={dirCache}
         />
       ))}
     </div>

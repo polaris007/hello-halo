@@ -48,7 +48,10 @@ export function FileExplorer({
     error,
     toggleDir,
     refresh,
-    refreshKey
+    refreshDir,
+    refreshKey,
+    dirRefreshKeys,
+    dirCache
   } = useFileExplorer({ spaceId })
 
   // Handle file click - open in canvas
@@ -308,7 +311,9 @@ export function FileExplorer({
           onToggleDir={toggleDir}
           onFileClick={handleFileClick}
           refreshKey={refreshKey}
-          refresh={refresh}
+          refreshDir={refreshDir}
+          dirRefreshKeys={dirRefreshKeys}
+          dirCache={dirCache}
         />
         </div>
       )}

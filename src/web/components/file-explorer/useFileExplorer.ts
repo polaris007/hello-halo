@@ -36,6 +36,10 @@ export interface UseFileExplorerReturn {
   error: string | null
   /** Refresh key for forcing reload */
   refreshKey: number
+  /** Directory refresh keys - used to trigger re-render of specific directories */
+  dirRefreshKeys: Map<string, number>
+  /** Directory cache */
+  dirCache: Map<string, FileEntry[]>
   /** Expand a directory */
   expandDir: (path: string) => void
   /** Collapse a directory */
@@ -48,6 +52,8 @@ export interface UseFileExplorerReturn {
   navigateTo: (path: string) => void
   /** Refresh current directory */
   refresh: () => Promise<void>
+  /** Refresh a specific directory (invalidates cache and returns new data) */
+  refreshDir: (path: string) => Promise<FileEntry[]>
   /** Load directory contents */
   loadDir: (path: string) => Promise<void>
 }
@@ -62,6 +68,8 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
   const [dirCache, setDirCache] = useState<Map<string, FileEntry[]>>(new Map())
   // Refresh key to force reload of file tree
   const [refreshKey, setRefreshKey] = useState(0)
+  // Directory-specific refresh keys to trigger re-render of specific directories
+  const [dirRefreshKeys, setDirRefreshKeys] = useState<Map<string, number>>(new Map())
 
   // Load directory contents
   const loadDir = useCallback(async (path: string) => {
@@ -150,6 +158,44 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
     await loadDir(currentPath)
   }, [currentPath, loadDir])
 
+  // Refresh a specific directory (invalidates cache for that directory)
+  const refreshDir = useCallback(async (path: string): Promise<FileEntry[]> => {
+    if (!spaceId) return []
+
+    try {
+      const response = await api.listFiles(spaceId, path)
+      if (response.success && response.data) {
+        // Sort: folders first, then files, both alphabetically
+        const sortedFiles = [...response.data.files].sort((a, b) => {
+          if (a.isDirectory !== b.isDirectory) {
+            return a.isDirectory ? -1 : 1
+          }
+          return a.name.localeCompare(b.name)
+        })
+
+        // Update cache for this directory
+        setDirCache(prev => new Map(prev).set(path, sortedFiles))
+
+        // Increment refresh key for this directory to trigger re-render
+        setDirRefreshKeys(prev => {
+          const next = new Map(prev)
+          next.set(path, (next.get(path) || 0) + 1)
+          return next
+        })
+
+        // If refreshing current directory, update files state
+        if (path === currentPath) {
+          setFiles(sortedFiles)
+        }
+
+        return sortedFiles
+      }
+    } catch (err) {
+      console.error('Failed to refresh directory:', err)
+    }
+    return []
+  }, [spaceId, currentPath])
+
   return {
     currentPath,
     files,
@@ -157,12 +203,15 @@ export function useFileExplorer({ spaceId }: UseFileExplorerOptions): UseFileExp
     isLoading,
     error,
     refreshKey,
+    dirRefreshKeys,
+    dirCache,
     expandDir,
     collapseDir,
     toggleDir,
     isExpanded,
     navigateTo,
     refresh,
+    refreshDir,
     loadDir
   }
 }
