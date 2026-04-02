@@ -106,9 +106,9 @@ function getUserId(req: any): string {
 router.use(optionalAuthMiddleware)
 
 /**
- * GET /api/v1/spaces/halo - 获取 Halo 默认临时空间
+ * GET /api/v1/spaces/hello - 获取 Hello 默认临时空间
  */
-router.get('/halo', (req, res) => {
+router.get('/hello', async (req, res) => {
   try {
     const userId = getUserId(req)
     const config = getConfig()

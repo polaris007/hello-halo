@@ -165,8 +165,8 @@ export const api = {
   },
 
   // ===== Space =====
-  getHaloSpace: async (): Promise<ApiResponse> => {
-    return httpRequest('GET', '/api/v1/spaces/halo')
+  getHelloSpace: async (): Promise<ApiResponse> => {
+    return httpRequest('GET', '/api/v1/spaces/hello')
   },
 
   listSpaces: async (): Promise<ApiResponse> => {
@@ -1225,4 +1225,4 @@ export const api = {
 }
 
 // Export type for the API
-export type HaloApi = typeof api
+export type HelloApi = typeof api

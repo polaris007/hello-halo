@@ -14,7 +14,7 @@ const router = Router()
 // 获取日志目录
 function getClientLogDir(): string {
   // 使用与server日志相同的目录
-  const logDir = process.env.HALO_LOG_DIR || join(process.cwd(), 'logs')
+  const logDir = process.env.HELLO_LOG_DIR || join(process.cwd(), 'logs')
   const clientLogDir = join(logDir, 'client')
 
   if (!existsSync(clientLogDir)) {
@@ -33,8 +33,8 @@ function cleanupOldClientLogs(): void {
     }
 
     // 获取保留天数，使用与server相同的环境变量
-    const retentionDays = process.env.HALO_LOG_RETENTION_DAYS
-      ? parseInt(process.env.HALO_LOG_RETENTION_DAYS, 10)
+    const retentionDays = process.env.HELLO_LOG_RETENTION_DAYS
+      ? parseInt(process.env.HELLO_LOG_RETENTION_DAYS, 10)
       : 7
 
     if (isNaN(retentionDays) || retentionDays <= 0) {
@@ -141,15 +141,15 @@ router.post('/client', optionalAuthMiddleware, async (req: Request, res: Respons
  */
 router.get('/server', legacyAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const logDir = process.env.HALO_LOG_DIR || join(process.cwd(), 'logs')
+    const logDir = process.env.HELLO_LOG_DIR || join(process.cwd(), 'logs')
 
     res.json({
       success: true,
       data: {
         logDirectory: logDir,
         currentLogFile: logger.getLogFilePath(),
-        logLevel: process.env.HALO_LOG_LEVEL || 'INFO',
-        consoleOutput: !process.env.HALO_LOG_CONSOLE || process.env.HALO_LOG_CONSOLE.toLowerCase() !== 'false'
+        logLevel: process.env.HELLO_LOG_LEVEL || 'INFO',
+        consoleOutput: !process.env.HELLO_LOG_CONSOLE || process.env.HELLO_LOG_CONSOLE.toLowerCase() !== 'false'
       }
     })
   } catch (error: any) {

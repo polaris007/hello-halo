@@ -2,7 +2,7 @@
 
 ## 默认用户信息
 
-Halo 项目在首次启动时会自动创建一个默认的管理员用户：
+Hello 项目在首次启动时会自动创建一个默认的管理员用户：
 
 - **邮箱/用户名**：`admin`
 - **角色**：`admin`（管理员权限）
@@ -15,7 +15,7 @@ Halo 项目在首次启动时会自动创建一个默认的管理员用户：
 
 ## 认证模式
 
-Halo 支持多种认证模式：
+Hello 支持多种认证模式：
 
 ### 1. Normal 模式（默认）
 - 使用 JWT token 认证
@@ -62,10 +62,10 @@ Halo 支持多种认证模式：
 
 ### 3. 通过环境变量设置
 
-创建 `.env.local` 文件（从 `.env.example` 复制），然后设置 `HALO_DEFAULT_PASSWORD` 环境变量：
+创建 `.env.local` 文件（从 `.env.example` 复制），然后设置 `HELLO_DEFAULT_PASSWORD` 环境变量：
 
 ```bash
-# HALO_DEFAULT_PASSWORD=你的密码
+# HELLO_DEFAULT_PASSWORD=你的密码
 ```
 
 **注意**：环境变量的优先级高于配置文件，配置文件的优先级高于默认值。
@@ -103,7 +103,7 @@ Hybrid 模式支持配置多个 token，便于多系统对接：
 多个 token 用逗号分隔：
 
 ```bash
-# HALO_AUTH_SIMPLE_TOKEN=token1,token2,token3
+# HELLO_AUTH_SIMPLE_TOKEN=token1,token2,token3
 ```
 
 ### 使用方式

@@ -1,6 +1,6 @@
 # Docker Deployment Guide
 
-This guide explains how to deploy Halo using Docker.
+This guide explains how to deploy Hello using Docker.
 
 ## Quick Start
 
@@ -42,24 +42,24 @@ docker-compose -f docker/docker-compose.yml up -d
 **From the project root:**
 
 ```bash
-docker build -f docker/Dockerfile -t halo:latest .
+docker build -f docker/Dockerfile -t hello:latest .
 
 docker run -d \
-  --name halo \
+  --name hello \
   -p 3000:3000 \
-  -v halo-data:/data/hello \
+  -v hello-data:/data/hello \
   -v ./config:/app/config:ro \
-  -e HALO_HOST=0.0.0.0 \
-  -e HALO_PORT=3000 \
-  -e HALO_DEFAULT_PASSWORD=your-secure-password \
-  halo:latest
+  -e HELLO_HOST=0.0.0.0 \
+  -e HELLO_PORT=3000 \
+  -e HELLO_DEFAULT_PASSWORD=your-secure-password \
+  hello:latest
 ```
 
 ## Data Directory
 
-Halo stores all data in the `/data/hello` directory by default. This includes:
+Hello stores all data in the `/data/hello` directory by default. This includes:
 
-- `halo.db` - SQLite database
+- `hello.db` - SQLite database
 - `users/` - User data directories
 - `logs/` - Application logs
 
@@ -80,37 +80,37 @@ You can specify a custom data directory using environment variables:
 
 ```yaml
 environment:
-  - HALO_DATA_DIR=/custom/data/path
+  - HELLO_DATA_DIR=/custom/data/path
 ```
 
 ## Configuration
 
 ### Configuration Directory
 
-Halo 使用统一的配置目录来管理所有配置文件。配置目录默认为 `./config`，可以通过以下方式指定：
+Hello 使用统一的配置目录来管理所有配置文件。配置目录默认为 `./config`，可以通过以下方式指定：
 
-1. **环境变量**: `HALO_CONFIG_DIR=/path/to/config`
+1. **环境变量**: `HELLO_CONFIG_DIR=/path/to/config`
 2. **命令行参数**: `--config-dir /path/to/config`
 3. **默认值**: `{cwd}/config`
 
 配置文件搜索优先级：
-- `server.json`: `HALO_CONFIG_PATH` > `{config-dir}/server.json` > `{data-dir}/server.json` > `{cwd}/server.json`
+- `server.json`: `HELLO_CONFIG_PATH` > `{config-dir}/server.json` > `{data-dir}/server.json` > `{cwd}/server.json`
 - `llm-config.json`: `{config-dir}/llm-config.json` > `{cwd}/llm-config.json`
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HALO_HOST` | Server bind address | `127.0.0.1` |
-| `HALO_PORT` | Server port | `3000` |
-| `HALO_DATA_DIR` | Data directory path | `/app/data` |
-| `HALO_CONFIG_DIR` | Configuration directory path | `/app/config` |
-| `HALO_LOG_DIR` | Log directory path | `{data-dir}/logs` |
-| `HALO_LOG_LEVEL` | Log level (DEBUG, INFO, WARN, ERROR) | `INFO` |
-| `HALO_AUTH_MODE` | Authentication mode (normal, disabled, hybrid, header) | `normal` |
-| `HALO_DEFAULT_PASSWORD` | Default admin password | (random) |
-| `HALO_ANTHROPIC_API_KEY` | Anthropic API key | - |
-| `HALO_OPENAI_API_KEY` | OpenAI API key | - |
+| `HELLO_HOST` | Server bind address | `127.0.0.1` |
+| `HELLO_PORT` | Server port | `3000` |
+| `HELLO_DATA_DIR` | Data directory path | `/app/data` |
+| `HELLO_CONFIG_DIR` | Configuration directory path | `/app/config` |
+| `HELLO_LOG_DIR` | Log directory path | `{data-dir}/logs` |
+| `HELLO_LOG_LEVEL` | Log level (DEBUG, INFO, WARN, ERROR) | `INFO` |
+| `HELLO_AUTH_MODE` | Authentication mode (normal, disabled, hybrid, header) | `normal` |
+| `HELLO_DEFAULT_PASSWORD` | Default admin password | (random) |
+| `HELLO_ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `HELLO_OPENAI_API_KEY` | OpenAI API key | - |
 
 ### Configuration Files
 
@@ -179,17 +179,17 @@ Example `server.json`:
 version: '3.8'
 
 services:
-  halo:
-    image: halo:latest
+  hello:
+    image: hello:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"  # Only local access, use reverse proxy
     volumes:
-      - halo-data:/app/data
+      - hello-data:/app/data
     environment:
-      - HALO_HOST=0.0.0.0
-      - HALO_PORT=3000
-      - HALO_LOG_LEVEL=INFO
+      - HELLO_HOST=0.0.0.0
+      - HELLO_PORT=3000
+      - HELLO_LOG_LEVEL=INFO
     env_file:
       - .env  # Store secrets in .env file
     healthcheck:
@@ -208,15 +208,15 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
     depends_on:
-      - halo
+      - hello
 
 volumes:
-  halo-data:
+  hello-data:
 ```
 
 ### Health Checks
 
-Halo provides health check endpoints:
+Hello provides health check endpoints:
 
 - `GET /health` - Basic health check
 - `GET /ready` - Readiness check (includes database check)
@@ -228,7 +228,7 @@ Halo provides health check endpoints:
 1. **Container starts** with the `start.sh` script as the entry point
 2. **Check for setup.sh**: The script checks if `/app/config/setup.sh` exists
 3. **Execute setup.sh**: If found, it runs the script to set environment variables
-4. **Start Halo server**: The script executes `node dist/server/index.js`
+4. **Start Hello server**: The script executes `node dist/server/index.js`
 
 ### Startup Script Details
 
@@ -256,19 +256,19 @@ For running multiple instances, ensure each instance has a unique data directory
 
 ```yaml
 services:
-  halo-1:
-    image: halo:latest
+  hello-1:
+    image: hello:latest
     volumes:
-      - halo-data-1:/data/hello
+      - hello-data-1:/data/hello
     environment:
-      - HALO_PORT=3001
+      - HELLO_PORT=3001
 
-  halo-2:
-    image: halo:latest
+  hello-2:
+    image: hello:latest
     volumes:
-      - halo-data-2:/data/hello
+      - hello-data-2:/data/hello
     environment:
-      - HALO_PORT=3002
+      - HELLO_PORT=3002
 ```
 
 ## Troubleshooting
@@ -277,20 +277,20 @@ services:
 
 ```bash
 # View container logs
-docker logs halo
+docker logs hello
 
 # View application logs
-docker exec halo cat /app/data/logs/server-$(date +%Y-%m-%d).log
+docker exec hello cat /app/data/logs/server-$(date +%Y-%m-%d).log
 ```
 
 ### Check Data Directory
 
 ```bash
 # List data directory contents
-docker exec halo ls -la /app/data
+docker exec hello ls -la /app/data
 
 # Check database
-docker exec halo sqlite3 /app/data/halo.db ".tables"
+docker exec hello sqlite3 /app/data/hello.db ".tables"
 ```
 
 ### Common Issues

@@ -132,9 +132,9 @@ export interface AuthConfig {
 }
 
 let authConfig: AuthConfig = {
-  mode: (process.env.HALO_AUTH_MODE === 'simple' ? 'hybrid' : process.env.HALO_AUTH_MODE) as AuthConfig['mode'] || 'normal',
-  simpleToken: process.env.HALO_AUTH_SIMPLE_TOKEN,
-  headerName: process.env.HALO_AUTH_HEADER_NAME || 'X-User-Id',
+  mode: (process.env.HELLO_AUTH_MODE === 'simple' ? 'hybrid' : process.env.HELLO_AUTH_MODE) as AuthConfig['mode'] || 'normal',
+  simpleToken: process.env.HELLO_AUTH_SIMPLE_TOKEN,
+  headerName: process.env.HELLO_AUTH_HEADER_NAME || 'X-User-Id',
 }
 
 export function loadAuthConfig(config: AuthConfig) {

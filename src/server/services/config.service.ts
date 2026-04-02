@@ -78,9 +78,9 @@ let dataDirSource: string = 'default' // 记录数据目录来源
  */
 export function resolveDataDir(): string {
   // 1. 检查环境变量（可能由启动参数设置）
-  if (process.env.HALO_DATA_DIR) {
-    dataDirSource = 'HALO_DATA_DIR environment variable'
-    return resolve(process.env.HALO_DATA_DIR)
+  if (process.env.HELLO_DATA_DIR) {
+    dataDirSource = 'HELLO_DATA_DIR environment variable'
+    return resolve(process.env.HELLO_DATA_DIR)
   }
 
   // 2. 如果已有配置文件，检查其中的 data.basePath
@@ -229,31 +229,31 @@ export function applyEnvOverrides(): ServerConfig {
   }
 
   // 服务器配置
-  if (process.env.HALO_HOST) {
-    config.server.host = process.env.HALO_HOST
+  if (process.env.HELLO_HOST) {
+    config.server.host = process.env.HELLO_HOST
   }
-  if (process.env.HALO_PORT) {
-    config.server.port = parseInt(process.env.HALO_PORT, 10)
+  if (process.env.HELLO_PORT) {
+    config.server.port = parseInt(process.env.HELLO_PORT, 10)
   }
 
   // 认证配置
-  if (process.env.HALO_AUTH_MODE) {
-    config.auth.mode = process.env.HALO_AUTH_MODE as any
+  if (process.env.HELLO_AUTH_MODE) {
+    config.auth.mode = process.env.HELLO_AUTH_MODE as any
   }
-  if (process.env.HALO_AUTH_SIMPLE_TOKEN) {
-    config.auth.simpleToken = process.env.HALO_AUTH_SIMPLE_TOKEN
+  if (process.env.HELLO_AUTH_SIMPLE_TOKEN) {
+    config.auth.simpleToken = process.env.HELLO_AUTH_SIMPLE_TOKEN
   }
-  if (process.env.HALO_AUTH_HEADER_NAME) {
-    config.auth.headerName = process.env.HALO_AUTH_HEADER_NAME
+  if (process.env.HELLO_AUTH_HEADER_NAME) {
+    config.auth.headerName = process.env.HELLO_AUTH_HEADER_NAME
   }
-  if (process.env.HALO_DEFAULT_PASSWORD) {
-    config.auth.defaultPassword = process.env.HALO_DEFAULT_PASSWORD
+  if (process.env.HELLO_DEFAULT_PASSWORD) {
+    config.auth.defaultPassword = process.env.HELLO_DEFAULT_PASSWORD
   }
 
   // 数据目录 - 环境变量覆盖
-  if (process.env.HALO_DATA_DIR) {
-    config.data.basePath = resolve(process.env.HALO_DATA_DIR)
-    dataDirSource = 'HALO_DATA_DIR environment variable'
+  if (process.env.HELLO_DATA_DIR) {
+    config.data.basePath = resolve(process.env.HELLO_DATA_DIR)
+    dataDirSource = 'HELLO_DATA_DIR environment variable'
   }
 
   // 确保数据目录存在并输出日志
@@ -262,19 +262,19 @@ export function applyEnvOverrides(): ServerConfig {
   console.log(`[Config] Data directory: ${dataDir} (from ${dataDirSource})`)
 
   // AI 提供商配置（从环境变量）
-  if (process.env.HALO_ANTHROPIC_API_KEY) {
+  if (process.env.HELLO_ANTHROPIC_API_KEY) {
     ensureProvider('anthropic', 'Anthropic', 'anthropic', 'https://api.anthropic.com')
     const provider = config.aiSources.providers.find(p => p.id === 'anthropic')
     if (provider) {
-      provider.apiKey = process.env.HALO_ANTHROPIC_API_KEY
+      provider.apiKey = process.env.HELLO_ANTHROPIC_API_KEY
     }
   }
 
-  if (process.env.HALO_OPENAI_API_KEY) {
+  if (process.env.HELLO_OPENAI_API_KEY) {
     ensureProvider('openai', 'OpenAI', 'openai', 'https://api.openai.com')
     const provider = config.aiSources.providers.find(p => p.id === 'openai')
     if (provider) {
-      provider.apiKey = process.env.HALO_OPENAI_API_KEY
+      provider.apiKey = process.env.HELLO_OPENAI_API_KEY
     }
   }
 

@@ -10,7 +10,7 @@ import { logger } from './logger.js'
 // 获取AI日志目录
 function getAiLogDir(): string {
   // 使用与server日志相同的目录
-  const logDir = process.env.HALO_LOG_DIR || join(process.cwd(), 'logs')
+  const logDir = process.env.HELLO_LOG_DIR || join(process.cwd(), 'logs')
   return logDir
 }
 
@@ -46,8 +46,8 @@ function getAiLogFilePath(): string {
 
 // 检查是否应该记录详细AI交互
 function shouldLogAiDetails(): boolean {
-  if (process.env.HALO_LOG_AI_DETAIL !== undefined) {
-    const value = process.env.HALO_LOG_AI_DETAIL.toLowerCase()
+  if (process.env.HELLO_LOG_AI_DETAIL !== undefined) {
+    const value = process.env.HELLO_LOG_AI_DETAIL.toLowerCase()
     return value === 'true' || value === '1' || value === 'yes'
   }
   // 默认记录详细AI交互
@@ -63,8 +63,8 @@ function cleanupOldAiLogs(): void {
     }
 
     // 获取保留天数，使用与server相同的环境变量
-    const retentionDays = process.env.HALO_LOG_RETENTION_DAYS
-      ? parseInt(process.env.HALO_LOG_RETENTION_DAYS, 10)
+    const retentionDays = process.env.HELLO_LOG_RETENTION_DAYS
+      ? parseInt(process.env.HELLO_LOG_RETENTION_DAYS, 10)
       : 7
 
     if (isNaN(retentionDays) || retentionDays <= 0) {
@@ -121,8 +121,8 @@ function getAiLogMaxSize(): number {
   // 默认截断长度为2048个字符
   const defaultSize = 2048
 
-  if (process.env.HALO_LOG_AI_MAX_SIZE !== undefined) {
-    const envValue = parseInt(process.env.HALO_LOG_AI_MAX_SIZE, 10)
+  if (process.env.HELLO_LOG_AI_MAX_SIZE !== undefined) {
+    const envValue = parseInt(process.env.HELLO_LOG_AI_MAX_SIZE, 10)
     if (!isNaN(envValue) && envValue > 0) {
       return envValue
     }

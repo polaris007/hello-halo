@@ -53,7 +53,7 @@ export function HomePage() {
   // Path selection state
   const [useCustomPath, setUseCustomPath] = useState(false)
   const [customPath, setCustomPath] = useState<string | null>(null)
-  const [defaultPath, setDefaultPath] = useState<string>('~/.halo/spaces')
+  const [defaultPath, setDefaultPath] = useState<string>('~/.hello/spaces')
   const [showFolderPicker, setShowFolderPicker] = useState(false)
 
   // Load spaces on mount

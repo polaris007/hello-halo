@@ -18,10 +18,10 @@ import { resolveDataDir } from '../config.service.js'
 // ============================================
 
 /**
- * Get the base data directory for Halo
+ * Get the base data directory for Hello
  * Uses config service to get the configured data directory
  */
-export function getHaloDataDir(): string {
+export function getHelloDataDir(): string {
   return resolveDataDir()
 }
 
@@ -38,7 +38,7 @@ export function getHaloDataDir(): string {
  */
 export function getWorkingDir(spaceId: string): string {
   console.log(`[Agent] getWorkingDir called with spaceId: ${spaceId}`)
-  const haloDir = getHaloDataDir()
+  const haloDir = getHelloDataDir()
 
   try {
     const db = getDatabase()
@@ -306,7 +306,7 @@ export async function getApiCredentialsForSource(
  */
 export function inferOpenAIWireApi(apiUrl: string): 'responses' | 'chat_completions' {
   // 1. Check environment variable override
-  const envApiType = process.env.HALO_OPENAI_API_TYPE || process.env.HALO_OPENAI_WIRE_API
+  const envApiType = process.env.HELLO_OPENAI_API_TYPE || process.env.HELLO_OPENAI_WIRE_API
   if (envApiType) {
     const v = envApiType.toLowerCase()
     if (v.includes('response')) return 'responses'
@@ -445,10 +445,10 @@ export function getNodePath(): string {
 
 /**
  * Get Claude Config Directory
- * Server-side version uses ~/.halo/claude-config
+ * Server-side version uses ~/.hello/claude-config
  */
 export function getClaudeConfigDir(): string {
-  const haloDir = getHaloDataDir()
+  const haloDir = getHelloDataDir()
   const configDir = join(haloDir, 'claude-config')
 
   if (!existsSync(configDir)) {
