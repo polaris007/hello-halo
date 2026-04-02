@@ -114,15 +114,15 @@ router.get('/halo', (req, res) => {
     const config = getConfig()
     const db = getDatabase()
 
-    // Check if halo space already exists
-    let haloSpace = db.prepare(`
+    // Check if hello space already exists
+    let helloSpace = db.prepare(`
       SELECT id, name, path, working_dir, created_at, updated_at
       FROM spaces
-      WHERE user_id = ? AND name = 'halo'
+      WHERE user_id = ? AND name = 'hello'
     `).get(userId) as any
 
-    if (!haloSpace) {
-      // Create halo temp space
+    if (!helloSpace) {
+      // Create hello temp space
       const id = randomUUID()
       const dataDir = resolveDataDir()
       const spacePath = join(dataDir, 'users', userId, 'spaces', id)
@@ -133,11 +133,11 @@ router.get('/halo', (req, res) => {
       db.prepare(`
         INSERT INTO spaces (id, user_id, name, path, working_dir, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(id, userId, 'halo', spacePath, null, now, now)
+      `).run(id, userId, 'hello', spacePath, null, now, now)
       
-      haloSpace = {
+      helloSpace = {
         id,
-        name: 'halo',
+        name: 'hello',
         path: spacePath,
         working_dir: null,
         created_at: now,
@@ -146,11 +146,11 @@ router.get('/halo', (req, res) => {
     }
 
     // Mark as temp space for frontend
-    haloSpace.isTemp = true
+    helloSpace.isTemp = true
 
     res.json({
       success: true,
-      data: haloSpace
+      data: helloSpace
     })
   } catch (error: any) {
     res.status(500).json({

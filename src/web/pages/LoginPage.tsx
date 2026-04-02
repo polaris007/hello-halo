@@ -81,7 +81,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">{t('Halo')}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('Hello')}</h1>
           <p className="text-muted-foreground mt-2">{t('Please login to continue')}</p>
         </div>
 

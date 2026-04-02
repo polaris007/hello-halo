@@ -31,7 +31,7 @@ const isWebMode = api.isRemoteMode()
 export function HomePage() {
   const { t } = useTranslation()
   const { setView } = useAppStore()
-  const { haloSpace, spaces, loadSpaces, setCurrentSpace, refreshCurrentSpace, createSpace, updateSpace, deleteSpace } = useSpaceStore()
+  const { helloSpace, spaces, loadSpaces, setCurrentSpace, refreshCurrentSpace, createSpace, updateSpace, deleteSpace } = useSpaceStore()
   const { apps, loadApps } = useAppsStore()
   const { setInitialAppId } = useAppsPageStore()
 
@@ -165,7 +165,7 @@ export function HomePage() {
     const isProjectSpace = !!space.workingDir || !isCentralizedSpace
 
     const message = isProjectSpace
-      ? t('Are you sure you want to delete this space?\n\nOnly Halo data (conversation history) will be deleted, your project files will be kept.')
+      ? t('Are you sure you want to delete this space?\n\nOnly Hello data (conversation history) will be deleted, your project files will be kept.')
       : t('Are you sure you want to delete this space?\n\nAll conversations and files in the space will be deleted.')
 
     if (confirm(message)) {
@@ -225,7 +225,7 @@ export function HomePage() {
             <div className="w-[22px] h-[22px] rounded-full border-2 border-primary/60 flex items-center justify-center">
               <div className="w-3 h-3 rounded-full bg-gradient-to-br from-primary/30 to-transparent" />
             </div>
-            <span className="text-sm font-medium">Halo</span>
+            <span className="text-sm font-medium">Hello</span>
           </>
         }
         right={
@@ -240,18 +240,18 @@ export function HomePage() {
 
       {/* Content */}
       <main className="flex-1 overflow-auto p-6">
-        {/* Primary entry cards: Halo Space + Apps */}
+        {/* Primary entry cards: Hello Space + Apps */}
         <div className="grid grid-cols-2 gap-4 mb-8 animate-fade-in">
-          {/* Halo Space card */}
-          {haloSpace && (
+          {/* Hello Space card */}
+          {helloSpace && (
             <div
-              data-onboarding="halo-space"
-              onClick={() => handleSpaceClick(haloSpace)}
-              className="halo-space-card p-5 rounded-xl cursor-pointer flex flex-col gap-3 min-h-[120px]"
+              data-onboarding="hello-space"
+              onClick={() => handleSpaceClick(helloSpace)}
+              className="hello-space-card p-5 rounded-xl cursor-pointer border border-border hover:border-primary/40 hover:bg-secondary/50 transition-colors flex flex-col gap-3 min-h-[120px]"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h2 className="text-sm font-semibold">{t('Halo')}</h2>
+                <h2 className="text-sm font-semibold">{t('Hello')}</h2>
               </div>
               <p className="text-xs text-muted-foreground flex-1">
                 {t('Aimless time, ideas will crystallize here')}

@@ -43,7 +43,7 @@ export const LoginPage: React.FC = () => {
       <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow">
         <div>
           <h2 className="text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            {t('Sign in to Halo')}
+            {t('Sign in to Hello')}
           </h2>
         </div>
 
