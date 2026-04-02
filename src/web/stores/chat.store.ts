@@ -815,6 +815,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return { spaceStates: newSpaceStates, conversationCache: newCache }
       })
 
+      // Generate conversation title from first message if it's the first message
+      const currentConversation = get().getCachedConversation(conversationId)
+      if (currentConversation && currentConversation.messages && currentConversation.messages.length === 1) {
+        // This is the first message, generate title from content
+        const firstMessage = currentConversation.messages[0]
+        if (firstMessage.role === 'user' && firstMessage.content) {
+          // Extract first 30 characters as title, remove newlines and trim
+          const title = firstMessage.content
+            .replace(/\n/g, ' ')
+            .trim()
+            .substring(0, 30)
+          // Add ellipsis if content is longer
+          const finalTitle = title.length > 27 ? title + '...' : title
+          
+          // Rename conversation
+          await get().renameConversation(currentSpaceId, conversationId, finalTitle)
+        }
+      }
+
       // Build Canvas Context for AI awareness
       // This allows AI to naturally understand what the user is currently viewing
       const buildCanvasContext = (): CanvasContext | undefined => {

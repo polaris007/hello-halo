@@ -142,14 +142,13 @@ export const ConversationList = memo(function ConversationList({
   // Format date
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
-    const now = new Date()
-    const isToday = date.toDateString() === now.toDateString()
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
 
-    if (isToday) {
-      return t('Today')
-    }
-
-    return `${date.getMonth() + 1}-${date.getDate()}`
+    return `${year}-${month}-${day} ${hours}:${minutes}`
   }
 
   // Start editing a conversation title
