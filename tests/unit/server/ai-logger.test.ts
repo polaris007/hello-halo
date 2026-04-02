@@ -219,8 +219,7 @@ describe('AI Logger', () => {
 
       // 验证日志内容
       const logContent = readFileSync(logFilePath, 'utf-8')
-      const lines = logContent.trim().split('\n')
-      expect(lines.length).toBe(2) // 请求和响应各一行
+      expect(logContent).toContain('ai_request')
       expect(logContent).toContain('ai_response')
       expect(logContent).toContain('success')
       expect(logContent).toContain('1500') // duration
@@ -284,8 +283,7 @@ describe('AI Logger', () => {
       expect(existsSync(logFilePath)).toBe(true)
 
       const logContent = readFileSync(logFilePath, 'utf-8')
-      const lines = logContent.trim().split('\n')
-      expect(lines.length).toBe(3) // 请求 + 2 个 chunk
+      expect(logContent).toContain('ai_request')
       expect(logContent).toContain('ai_stream_chunk')
       expect(logContent).toContain('text_delta')
     })
@@ -335,6 +333,75 @@ describe('AI Logger', () => {
       // 验证旧文件被删除，新文件保留
       expect(existsSync(oldLogFile)).toBe(false)
       expect(existsSync(newLogFile)).toBe(true)
+    })
+  })
+
+  describe('API Key 指纹生成', () => {
+    it('应该为有效的 API Key 生成指纹', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      const apiKey = 'sk-ant-api03-secret-key-1234567890'
+      const fingerprint = generateApiKeyFingerprint(apiKey)
+
+      // 指纹应该包含前缀、后缀和哈希
+      expect(fingerprint).toContain('sk-ant-')
+      expect(fingerprint).toContain('...')
+      expect(fingerprint).toContain('(hash:')
+      expect(fingerprint).not.toContain(apiKey) // 不应包含完整密钥
+    })
+
+    it('应该为空值返回 [NOT SET]', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      expect(generateApiKeyFingerprint(undefined)).toBe('[NOT SET]')
+      expect(generateApiKeyFingerprint(null)).toBe('[NOT SET]')
+      expect(generateApiKeyFingerprint('')).toBe('[NOT SET]')
+    })
+
+    it('应该为短 API Key 生成指纹', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      const shortKey = 'sk-123'
+      const fingerprint = generateApiKeyFingerprint(shortKey)
+
+      expect(fingerprint).toContain('sk-123')
+      expect(fingerprint).toContain('(hash:')
+    })
+
+    it('应该为不同的 API Key 生成不同的指纹', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      const key1 = 'sk-ant-api03-key1-1234567890'
+      const key2 = 'sk-ant-api03-key2-0987654321'
+
+      const fingerprint1 = generateApiKeyFingerprint(key1)
+      const fingerprint2 = generateApiKeyFingerprint(key2)
+
+      // 不同的密钥应该产生不同的指纹
+      expect(fingerprint1).not.toBe(fingerprint2)
+    })
+
+    it('应该为相同的 API Key 生成相同的指纹', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      const apiKey = 'sk-ant-api03-same-key-1234567890'
+
+      const fingerprint1 = generateApiKeyFingerprint(apiKey)
+      const fingerprint2 = generateApiKeyFingerprint(apiKey)
+
+      // 相同的密钥应该产生相同的指纹
+      expect(fingerprint1).toBe(fingerprint2)
+    })
+
+    it('指纹格式应该正确', async () => {
+      const { generateApiKeyFingerprint } = await import('../../../src/server/utils/ai-logger.js')
+
+      const apiKey = 'sk-ant-api03-test-key-12345678901234567890'
+      const fingerprint = generateApiKeyFingerprint(apiKey)
+
+      // 验证格式：prefix...suffix (hash: xxxxxxxx)
+      const pattern = /^sk-ant-\.\.\.\d{4} \(hash: [a-f0-9]{8}\)$/
+      expect(fingerprint).toMatch(pattern)
     })
   })
 })

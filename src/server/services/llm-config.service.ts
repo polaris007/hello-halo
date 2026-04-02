@@ -132,12 +132,15 @@ export function loadLLMConfig(customPath?: string): LLMConfigFile {
 /**
  * Save LLM config to file
  * Creates backup before overwriting
+ * Always saves to the default location (config/llm-config.json) unless customPath is provided
  */
 export function saveLLMConfig(config: LLMConfigFile, customPath?: string): {
   success: boolean
   error?: string
 } {
-  const configPath = getLLMConfigPath(customPath)
+  // Always use default path (config/llm-config.json) unless custom path is provided
+  // This ensures we don't write to legacy locations
+  const configPath = customPath ? customPath : getDefaultLLMConfigPath()
 
   // Validate config before saving
   const validation = validateLLMConfigFile(config)
@@ -171,6 +174,10 @@ export function saveLLMConfig(config: LLMConfigFile, customPath?: string): {
     writeFileSync(configPath, content, 'utf-8')
     console.log(`[LLMConfig] Saved to ${configPath}`)
 
+    // Update currentConfigPath to ensure subsequent operations use this path
+    // This is critical when saving a new file for the first time
+    currentConfigPath = configPath
+
     // Update cache
     configCache = config
     configCacheTime = Date.now()
@@ -183,13 +190,10 @@ export function saveLLMConfig(config: LLMConfigFile, customPath?: string): {
 }
 
 /**
- * Get current config (loads if not cached)
+ * Get current config (loads if not cached or cache expired)
  */
 export function getLLMConfig(): LLMConfigFile {
-  if (!configCache) {
-    return loadLLMConfig()
-  }
-  return configCache
+  return loadLLMConfig()
 }
 
 /**
@@ -243,15 +247,18 @@ export function addLLMSource(source: LLMConfigSource): {
     return { success: false, error: validation.errors.join(', ') }
   }
 
-  // Add source
-  config.sources.push(source)
-
-  // Auto-select if no current source
-  if (!config.currentId) {
-    config.currentId = source.id
+  // Create a new config object to avoid mutating the cache directly
+  const newConfig: LLMConfigFile = {
+    ...config,
+    sources: [...config.sources, source]
   }
 
-  return saveLLMConfig(config)
+  // Auto-select if no current source
+  if (!newConfig.currentId) {
+    newConfig.currentId = source.id
+  }
+
+  return saveLLMConfig(newConfig)
 }
 
 /**
@@ -281,8 +288,15 @@ export function updateLLMSource(sourceId: string, updates: Partial<LLMConfigSour
     return { success: false, error: validation.errors.join(', ') }
   }
 
-  config.sources[sourceIndex] = updatedSource
-  return saveLLMConfig(config)
+  // Create a new config object to avoid mutating the cache directly
+  const newConfig: LLMConfigFile = {
+    ...config,
+    sources: config.sources.map((s, index) =>
+      index === sourceIndex ? updatedSource : s
+    )
+  }
+
+  return saveLLMConfig(newConfig)
 }
 
 /**
@@ -299,17 +313,23 @@ export function deleteLLMSource(sourceId: string): {
     return { success: false, error: 'Source not found' }
   }
 
+  // Create new sources array without the deleted source
+  const newSources = config.sources.filter(s => s.id !== sourceId)
+
   // If this is the current source, switch to another or null
+  let newCurrentId = config.currentId
   if (config.currentId === sourceId) {
-    config.currentId = config.sources.length > 1
-      ? config.sources.find(s => s.id !== sourceId)?.id || null
-      : null
+    newCurrentId = newSources.length > 0 ? newSources[0].id : null
   }
 
-  // Remove source
-  config.sources.splice(sourceIndex, 1)
+  // Create a new config object to avoid mutating the cache directly
+  const newConfig: LLMConfigFile = {
+    ...config,
+    sources: newSources,
+    currentId: newCurrentId
+  }
 
-  return saveLLMConfig(config)
+  return saveLLMConfig(newConfig)
 }
 
 /**
@@ -326,45 +346,35 @@ export function setCurrentLLMSource(sourceId: string): {
     return { success: false, error: 'Source not found' }
   }
 
-  config.currentId = sourceId
-  return saveLLMConfig(config)
+  // Create a new config object to avoid mutating the cache directly
+  const newConfig: LLMConfigFile = {
+    ...config,
+    currentId: sourceId
+  }
+
+  return saveLLMConfig(newConfig)
 }
 
 // ============================================================================
-// Migration Helpers
+// Migration Functions
 // ============================================================================
 
 /**
- * Check if migration is needed
- * Returns true if there are API-Key sources in database that are not in file
+ * Check if database sources need migration to file
+ * Returns true if there are API-key sources in the database that should be migrated
  */
 export function needsMigration(dbSources: any[]): boolean {
-  if (!dbSources || dbSources.length === 0) {
-    return false
-  }
-
-  const llmConfig = getLLMConfig()
-  const apiKeySourcesInDb = dbSources.filter(s => s.authType === 'api-key')
-
-  if (apiKeySourcesInDb.length === 0) {
-    return false
-  }
-
-  // Check if any API-Key source in DB is not in file
-  for (const source of apiKeySourcesInDb) {
-    if (!llmConfig.sources.some(s => s.id === source.id)) {
-      return true
-    }
-  }
-
-  return false
+  return dbSources.some(s => s.authType === 'api-key' && s.apiKey)
 }
 
 /**
- * Migrate API-Key sources from database to file
- * Returns migration result with count of migrated sources
+ * Migrate API-key sources from database to file
+ * This is used for upgrading from older versions that stored API keys in database
  */
-export function migrateFromDatabase(dbSources: any[], dbCurrentId: string | null): {
+export function migrateFromDatabase(
+  dbSources: any[],
+  currentId: string | null
+): {
   success: boolean
   migratedCount: number
   errors: string[]
@@ -372,67 +382,53 @@ export function migrateFromDatabase(dbSources: any[], dbCurrentId: string | null
   const errors: string[] = []
   let migratedCount = 0
 
-  const llmConfig = getLLMConfig()
-  const apiKeySourcesInDb = dbSources.filter(s => s.authType === 'api-key')
+  // Get existing file config
+  const config = getLLMConfig()
 
-  for (const source of apiKeySourcesInDb) {
-    try {
-      // Skip if already in file
-      if (llmConfig.sources.some(s => s.id === source.id)) {
+  // Start with existing sources
+  const newSources = [...config.sources]
+
+  // Add API-key sources from database to file
+  for (const dbSource of dbSources) {
+    if (dbSource.authType === 'api-key' && dbSource.apiKey) {
+      // Check if already exists in file
+      if (newSources.some(s => s.id === dbSource.id)) {
         continue
       }
 
-      // Create LLM config source
-      const llmSource: LLMConfigSource = {
-        id: source.id,
-        name: source.name,
-        provider: source.provider,
-        apiUrl: source.apiUrl,
-        apiKey: source.apiKey || '',
-        apiType: source.apiType,
-        model: source.model,
-        availableModels: source.availableModels || [],
-        createdAt: source.createdAt,
-        updatedAt: source.updatedAt || source.createdAt
-      }
-
-      // Validate before adding
-      const validation = validateLLMConfigSource(llmSource)
-      if (!validation.valid) {
-        errors.push(`Source ${source.id}: ${validation.errors.join(', ')}`)
-        continue
-      }
-
-      llmConfig.sources.push(llmSource)
+      // Add to new sources array
+      newSources.push({
+        id: dbSource.id,
+        name: dbSource.name,
+        provider: dbSource.provider,
+        apiUrl: dbSource.apiUrl || dbSource.baseUrl || '',
+        apiKey: dbSource.apiKey,
+        apiType: dbSource.apiType,
+        model: dbSource.model,
+        availableModels: dbSource.availableModels || [],
+        createdAt: dbSource.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
       migratedCount++
-
-      console.log(`[LLMConfig] Migrated source ${source.id} to file`)
-    } catch (error: any) {
-      errors.push(`Source ${source.id}: ${error.message}`)
     }
   }
 
-  // Set current source if not set
-  if (!llmConfig.currentId && dbCurrentId) {
-    const migratedSource = llmConfig.sources.find(s => s.id === dbCurrentId)
-    if (migratedSource) {
-      llmConfig.currentId = dbCurrentId
-    } else if (llmConfig.sources.length > 0) {
-      llmConfig.currentId = llmConfig.sources[0].id
-    }
+  // Create a new config object to avoid mutating the cache directly
+  const newConfig: LLMConfigFile = {
+    ...config,
+    sources: newSources,
+    // Set currentId if not already set
+    currentId: config.currentId || currentId
   }
 
-  // Save if there were migrations
-  if (migratedCount > 0) {
-    const saveResult = saveLLMConfig(llmConfig)
-    if (!saveResult.success) {
-      errors.push(`Failed to save migrated config: ${saveResult.error}`)
-      return { success: false, migratedCount: 0, errors }
-    }
+  // Save the merged config
+  const result = saveLLMConfig(newConfig)
+  if (!result.success) {
+    errors.push(result.error || 'Failed to save config')
   }
 
   return {
-    success: errors.length === 0,
+    success: result.success,
     migratedCount,
     errors
   }

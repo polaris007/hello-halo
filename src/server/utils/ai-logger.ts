@@ -143,6 +143,35 @@ function truncateContent(content: string): string {
   return content.substring(0, maxLength) + '...[TRUNCATED]'
 }
 
+// 生成API Key指纹（用于追踪和调试，不暴露完整密钥）
+function generateApiKeyFingerprint(apiKey: string | undefined | null): string {
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.length === 0) {
+    return '[NOT SET]'
+  }
+
+  try {
+    // 提取前缀（如 "sk-ant-", "sk-"）
+    const prefixLength = Math.min(7, apiKey.length)
+    const prefix = apiKey.substring(0, prefixLength)
+
+    // 提取后4位
+    const suffixLength = Math.min(4, apiKey.length - prefixLength)
+    const suffix = suffixLength > 0 ? apiKey.substring(apiKey.length - suffixLength) : ''
+
+    // 生成短哈希（用于唯一标识，取前8位）
+    const crypto = require('crypto')
+    const hash = crypto.createHash('sha256').update(apiKey).digest('hex').substring(0, 8)
+
+    // 格式：sk-ant-...xxxx (hash: a1b2c3d4)
+    return `${prefix}...${suffix} (hash: ${hash})`
+  } catch (error) {
+    // 如果crypto不可用，使用简化版本
+    const prefix = apiKey.substring(0, Math.min(7, apiKey.length))
+    const suffix = apiKey.length > 7 ? apiKey.substring(apiKey.length - 4) : ''
+    return `${prefix}...${suffix} (no-hash)`
+  }
+}
+
 // 脱敏敏感信息（API密钥、访问令牌等）
 function sanitizeAiRequest(request: any): any {
   if (!request || typeof request !== 'object') {
@@ -215,6 +244,7 @@ export interface AiConfigLog {
     forceStream?: boolean
     filterContent?: boolean
     hasApiKey: boolean
+    apiKeyFingerprint?: string  // API Key指纹，用于追踪
   }
 }
 
@@ -401,7 +431,9 @@ export function logAiConfig(params: {
     if (params.config.filterContent !== undefined) {
       logLines.push(`[${timestamp}] [INFO]   过滤内容: ${params.config.filterContent}`)
     }
-    logLines.push(`[${timestamp}] [INFO]   有API密钥: ${!!params.config.apiKey}`)
+    // 记录API Key指纹（用于追踪，不暴露完整密钥）
+    const apiKeyFingerprint = generateApiKeyFingerprint(params.config.apiKey)
+    logLines.push(`[${timestamp}] [INFO]   API密钥指纹: ${apiKeyFingerprint}`)
 
     // 写入日志文件
     const logFilePath = getAiLogFilePathWithCleanup()
@@ -746,4 +778,4 @@ export default {
 }
 
 // 导出辅助函数用于测试
-export { cleanupOldAiLogs, truncateContent, sanitizeAiRequest, shouldLogAiDetails, getAiLogMaxSize }
+export { cleanupOldAiLogs, truncateContent, sanitizeAiRequest, shouldLogAiDetails, getAiLogMaxSize, generateApiKeyFingerprint }

@@ -7,9 +7,10 @@ import { getDatabase } from '../utils/database.js'
 import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
 import { randomUUID } from 'crypto'
 import type { AISourcesConfig } from '@shared/types/ai-sources'
-import { createEmptyAISourcesConfig } from '@shared/types/ai-sources'
-import { getLLMConfig } from '../services/llm-config.service.js'
+import { getLLMConfig, clearLLMConfigCache } from '../services/llm-config.service.js'
 import type { AISource } from '@shared/types/ai-sources'
+import { invalidateAllSessions } from '../services/agent/index.js'
+import { clearConfigCache } from '../services/agent/helpers.js'
 
 const router = Router()
 
@@ -33,63 +34,35 @@ function getUserId(req: any): string {
 router.use(optionalAuthMiddleware)
 
 /**
- * Merge file config with database config for aiSources
+ * Get AISourcesConfig from file (llm-config.json)
  */
-function mergeAISourcesWithFileConfig(dbConfig: AISourcesConfig): AISourcesConfig {
+function getAISourcesFromFile(): AISourcesConfig | null {
   const llmConfig = getLLMConfig()
-  const mergedSources: AISource[] = []
-
-  for (const dbSource of dbConfig.sources) {
-    if (dbSource.authType === 'api-key') {
-      // Find corresponding file source
-      const fileSource = llmConfig.sources.find(s => s.id === dbSource.id)
-      if (fileSource) {
-        // Merge file data into db source
-        mergedSources.push({
-          ...dbSource,
-          apiKey: fileSource.apiKey,
-          apiUrl: fileSource.apiUrl,
-          model: fileSource.model,
-          availableModels: fileSource.availableModels,
-          apiType: fileSource.apiType
-        })
-      } else {
-        // File source not found, use db source as-is
-        mergedSources.push(dbSource)
-      }
-    } else {
-      // OAuth source, use db source as-is
-      mergedSources.push(dbSource)
-    }
+  if (llmConfig.sources.length === 0) {
+    return null
   }
-
-  // Add any API-Key sources from file that are not in database
-  for (const fileSource of llmConfig.sources) {
-    if (!dbConfig.sources.some(s => s.id === fileSource.id)) {
-      mergedSources.push({
-        id: fileSource.id,
-        name: fileSource.name,
-        provider: fileSource.provider,
-        authType: 'api-key',
-        apiUrl: fileSource.apiUrl,
-        apiKey: fileSource.apiKey,
-        apiType: fileSource.apiType,
-        model: fileSource.model,
-        availableModels: fileSource.availableModels,
-        createdAt: fileSource.createdAt,
-        updatedAt: fileSource.updatedAt
-      })
-    }
-  }
-
   return {
-    ...dbConfig,
-    sources: mergedSources
+    version: 2,
+    currentId: llmConfig.currentId,
+    sources: llmConfig.sources.map(fileSource => ({
+      id: fileSource.id,
+      name: fileSource.name,
+      provider: fileSource.provider,
+      authType: 'api-key' as const,
+      apiUrl: fileSource.apiUrl,
+      apiKey: fileSource.apiKey,
+      apiType: fileSource.apiType,
+      model: fileSource.model,
+      availableModels: fileSource.availableModels,
+      createdAt: fileSource.createdAt,
+      updatedAt: fileSource.updatedAt
+    }))
   }
 }
 
 /**
  * GET /api/v1/configs - 获取当前用户的所有配置
+ * aiSources is read from llm-config.json file only, not from database
  */
 router.get('/', (req, res) => {
   try {
@@ -103,18 +76,23 @@ router.get('/', (req, res) => {
 
     // 转换为键值对格式
     const configMap: Record<string, any> = {}
+
     for (const config of configs as any[]) {
       try {
         const parsed = JSON.parse(config.value)
-        // Merge aiSources with file config
-        if (config.key === 'aiSources' && parsed?.version === 2) {
-          configMap[config.key] = mergeAISourcesWithFileConfig(parsed as AISourcesConfig)
-        } else {
+        // Skip aiSources from database - it should only come from file
+        if (config.key !== 'aiSources') {
           configMap[config.key] = parsed
         }
       } catch {
         configMap[config.key] = config.value
       }
+    }
+
+    // Always read aiSources from file (llm-config.json)
+    const fileAiSources = getAISourcesFromFile()
+    if (fileAiSources) {
+      configMap['aiSources'] = fileAiSources
     }
 
     res.json({
@@ -131,6 +109,7 @@ router.get('/', (req, res) => {
 
 /**
  * POST /api/v1/configs - 批量更新配置项（支持部分更新）
+ * aiSources is NOT saved to database - it should be saved via ai-sources API
  */
 router.post('/', (req, res) => {
   try {
@@ -140,18 +119,22 @@ router.post('/', (req, res) => {
     const now = Date.now()
 
     for (const [key, value] of Object.entries(updates)) {
-      // 检查配置是否存在
+      // Skip aiSources - it should only be saved to file via ai-sources API
+      if (key === 'aiSources') {
+        console.log('[Configs] Skipping aiSources save to database - use ai-sources API instead')
+        continue
+      }
+
+      // Regular config - save to database
       const existing = db.prepare('SELECT * FROM configs WHERE key = ? AND user_id = ?').get(key, userId)
 
       if (existing) {
-        // 更新现有配置
         db.prepare(`
           UPDATE configs
           SET value = ?, updated_at = ?
           WHERE key = ? AND user_id = ?
         `).run(JSON.stringify(value), now, key, userId)
       } else {
-        // 创建新配置
         db.prepare(`
           INSERT INTO configs (id, user_id, key, value, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -164,6 +147,7 @@ router.post('/', (req, res) => {
       data: updates
     })
   } catch (error: any) {
+    console.error('[Configs] Error saving config:', error)
     res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: error.message }
@@ -173,16 +157,34 @@ router.post('/', (req, res) => {
 
 /**
  * GET /api/v1/configs/:key - 获取单个配置项
+ * For aiSources, it reads from file (llm-config.json) only
  */
 router.get('/:key', (req, res) => {
   try {
     const userId = getUserId(req)
+    const key = req.params.key
+
+    // For aiSources, read from file only
+    if (key === 'aiSources') {
+      const fileAiSources = getAISourcesFromFile()
+      if (!fileAiSources) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: '配置项不存在' }
+        })
+      }
+      return res.json({
+        success: true,
+        data: { aiSources: fileAiSources }
+      })
+    }
+
     const db = getDatabase()
     const config = db.prepare(`
       SELECT key, value, created_at, updated_at
       FROM configs
       WHERE key = ? AND user_id = ?
-    `).get(req.params.key, userId) as any
+    `).get(key, userId) as any
 
     if (!config) {
       return res.status(404).json({
@@ -207,6 +209,7 @@ router.get('/:key', (req, res) => {
 
 /**
  * PUT /api/v1/configs/:key - 更新或创建配置项
+ * aiSources is NOT saved to database - it should be saved via ai-sources API
  */
 router.put('/:key', (req, res) => {
   try {
@@ -218,6 +221,14 @@ router.put('/:key', (req, res) => {
       return res.status(400).json({
         success: false,
         error: { code: 'INVALID_REQUEST', message: '配置值不能为空' }
+      })
+    }
+
+    // For aiSources, reject save to database
+    if (key === 'aiSources') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'aiSources should be saved via ai-sources API, not configs API' }
       })
     }
 
@@ -263,8 +274,18 @@ router.put('/:key', (req, res) => {
 router.delete('/:key', (req, res) => {
   try {
     const userId = getUserId(req)
+    const key = req.params.key
+
+    // For aiSources, reject delete from database (it's not there anyway)
+    if (key === 'aiSources') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'aiSources should be deleted via ai-sources API, not configs API' }
+      })
+    }
+
     const db = getDatabase()
-    const result = db.prepare('DELETE FROM configs WHERE key = ? AND user_id = ?').run(req.params.key, userId)
+    const result = db.prepare('DELETE FROM configs WHERE key = ? AND user_id = ?').run(key, userId)
 
     if (result.changes === 0) {
       return res.status(404).json({

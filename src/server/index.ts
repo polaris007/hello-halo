@@ -111,39 +111,12 @@ loadAuthConfig({
 })
 
 // ========================================
-// MIGRATION: Database to File Config
+// CONFIG: Direct file-based configuration
 // ========================================
 
-// Migrate API-Key sources from database to llm-config.json file
-import { needsMigration, migrateFromDatabase } from './services/llm-config.service.js'
-
-try {
-  const db = getDatabase()
-  // Get default user
-  const user = db.prepare('SELECT id FROM users WHERE is_default = 1 LIMIT 1').get() as any
-    || db.prepare('SELECT id FROM users LIMIT 1').get() as any
-
-  if (user) {
-    // Get AI sources config from database
-    const row = db.prepare('SELECT value FROM configs WHERE user_id = ? AND key = ?').get(user.id, 'aiSources') as any
-    if (row) {
-      const dbConfig = JSON.parse(row.value)
-      const dbSources = dbConfig.sources || []
-
-      if (needsMigration(dbSources)) {
-        console.log('[Migration] Migrating API-Key sources from database to file...')
-        const result = migrateFromDatabase(dbSources, dbConfig.currentId)
-        if (result.success) {
-          console.log(`[Migration] Successfully migrated ${result.migratedCount} sources`)
-        } else {
-          console.error('[Migration] Migration errors:', result.errors)
-        }
-      }
-    }
-  }
-} catch (error: any) {
-  console.error('[Migration] Failed to migrate:', error.message)
-}
+// API-Key sources are now stored directly in llm-config.json file
+// No migration needed as application is not yet deployed
+console.log('[Config] Using direct file-based configuration for API-Key sources')
 
 // ========================================
 // EXPRESS APP SETUP

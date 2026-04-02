@@ -16,6 +16,7 @@ import { createCanUseTool } from './permission-handler.js'
 // Note: sendToRenderer is no longer used directly in this file
 // emitEvent is passed as a parameter from callers
 import { getConfig, resolveDataDir } from '../config.service.js'
+import { generateApiKeyFingerprint } from '../../utils/ai-logger.js'
 
 // ============================================
 // Configuration
@@ -373,7 +374,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
   console.log(`[SDK Config]   - sdkModel: ${credentials.sdkModel}`)
   console.log(`[SDK Config]   - displayModel: ${credentials.displayModel}`)
   console.log(`[SDK Config]   - anthropicBaseUrl: ${credentials.anthropicBaseUrl}`)
-  console.log(`[SDK Config]   - anthropicApiKey: ${credentials.anthropicApiKey ? credentials.anthropicApiKey.substring(0, 10) + '...' : 'NOT SET'}`)
+  console.log(`[SDK Config]   - anthropicApiKey: ${generateApiKeyFingerprint(credentials.anthropicApiKey)}`)
   console.log(`[SDK Config] --------------------------------------------`)
 
   // Build environment variables
