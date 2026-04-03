@@ -54,8 +54,8 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
   // Load Hello temp space
   loadHelloSpace: async () => {
     try {
-      const response = await api.getHaloSpace()
-      console.log('[SpaceStore] getHaloSpace: success=%s id=%s', response.success, (response.data as Space)?.id)
+      const response = await api.getHelloSpace()
+      console.log('[SpaceStore] getHelloSpace: success=%s id=%s', response.success, (response.data as Space)?.id)
 
       if (response.success && response.data) {
         const loadedHelloSpace = response.data as Space
