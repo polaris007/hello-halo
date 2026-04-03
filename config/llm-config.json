@@ -7,7 +7,7 @@
       "name": "OpenAI Compatible",
       "provider": "openai",
       "apiUrl": "https://wishub-x6.ctyun.cn/v1/chat/completions",
-      "apiKey": "17e52298ee7345648828bed86d13b0d2",
+      "apiKey": "a94f2fc9a14946868cdd37285d10fbc7",
       "model": "GLM-5",
       "availableModels": [
         {
@@ -196,7 +196,7 @@
         }
       ],
       "createdAt": "2026-04-02T02:43:57.910Z",
-      "updatedAt": "2026-04-02T03:09:05.511Z"
+      "updatedAt": "2026-04-03T06:34:23.436Z"
     }
   ]
 }

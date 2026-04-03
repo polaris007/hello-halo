@@ -23,7 +23,7 @@ function getTranslator(translator?: TFunction): TFunction {
 export function getOnboardingPrompt(translator?: TFunction): string {
   const t = getTranslator(translator)
   return t(
-    'Help me create an HTML slide deck introducing Halo (1920x1080) with a clean, modern style. Include: 1) What is Halo 2) Core capabilities 3) Use cases 4) Getting started'
+    'Help me create an HTML slide deck introducing Halo (1920x1080) with a clean, modern style. Include: 1) What is Hello 2) Core capabilities 3) Use cases 4) Getting started'
   )
 }
 
@@ -44,7 +44,7 @@ export function getOnboardingHtmlArtifact(translator?: TFunction, lang: string =
 
   const docTitle = t('Halo - AI that gets things done')
   const tagline = t('AI that gets things done')
-  const whatIsHalo = t('What is Halo?')
+  const whatIsHalo = t('What is Hello?')
   const moreThanChatTitle = t('More than chat')
   const moreThanChatDesc = t('Halo understands your goals, plans tasks, and can execute autonomously—not just answer questions.')
   const createsFilesTitle = t('Creates real files')
