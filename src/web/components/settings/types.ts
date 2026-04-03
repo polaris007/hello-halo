@@ -100,13 +100,3 @@ export interface HealthReport {
     uptime: number
   }
 }
-
-/**
- * Update status state
- */
-export interface UpdateStatus {
-  checking: boolean
-  hasUpdate: boolean
-  upToDate: boolean
-  version?: string
-}

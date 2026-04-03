@@ -437,13 +437,6 @@ function EmptyState({ isTemp, isCompact = false }: { isTemp: boolean; isCompact?
       <p className="mt-2 text-muted-foreground">
         {t('Not just chat, help you get things done')}
       </p>
-
-      {/* Powered by badge - simplified */}
-      <div className="mt-8 px-3 py-1.5 rounded-full border border-border">
-        <span className="text-xs text-muted-foreground">
-          Powered by Claude Code
-        </span>
-      </div>
     </div>
   )
 }
