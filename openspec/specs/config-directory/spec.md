@@ -11,9 +11,9 @@
 系统 SHALL 使用应用启动目录下的 `config/` 子目录作为默认配置目录。
 
 #### Scenario: 开发环境默认路径
-- **WHEN** 应用从 `/home/user/halo` 目录启动
+- **WHEN** 应用从 `/home/user/hello` 目录启动
 - **AND** 未指定任何配置目录配置
-- **THEN** 系统使用 `/home/user/halo/config` 作为配置目录
+- **THEN** 系统使用 `/home/user/hello/config` 作为配置目录
 
 #### Scenario: Docker 环境默认路径
 - **WHEN** 应用在 Docker 容器中启动，工作目录为 `/app`
@@ -22,14 +22,14 @@
 
 ### Requirement: 环境变量配置
 
-系统 SHALL 支持 `HALO_CONFIG_DIR` 环境变量指定配置目录。
+系统 SHALL 支持 `HELLO_CONFIG_DIR` 环境变量指定配置目录。
 
 #### Scenario: 通过环境变量指定配置目录
-- **WHEN** 设置环境变量 `HALO_CONFIG_DIR=/etc/halo/config`
-- **THEN** 系统使用 `/etc/halo/config` 作为配置目录
+- **WHEN** 设置环境变量 `HELLO_CONFIG_DIR=/etc/hello/config`
+- **THEN** 系统使用 `/etc/hello/config` 作为配置目录
 
 #### Scenario: 环境变量优先级高于默认值
-- **WHEN** 设置环境变量 `HALO_CONFIG_DIR=/custom/config`
+- **WHEN** 设置环境变量 `HELLO_CONFIG_DIR=/custom/config`
 - **THEN** 系统忽略默认路径，使用 `/custom/config`
 
 ### Requirement: 配置目录路径日志
@@ -42,7 +42,7 @@
 
 #### Scenario: 显示配置来源
 - **WHEN** 配置目录通过环境变量指定
-- **THEN** 日志中说明 `Config directory from HALO_CONFIG_DIR environment variable`
+- **THEN** 日志中说明 `Config directory from HELLO_CONFIG_DIR environment variable`
 
 ### Requirement: 配置目录不存在时处理
 
@@ -65,8 +65,8 @@
 
 #### Scenario: 相对路径解析
 - **WHEN** 指定配置目录为 `./config`
-- **AND** 当前工作目录为 `/home/user/halo`
-- **THEN** 系统使用 `/home/user/halo/config` 作为配置目录
+- **AND** 当前工作目录为 `/home/user/hello`
+- **THEN** 系统使用 `/home/user/hello/config` 作为配置目录
 
 ### Requirement: 跨平台路径兼容
 

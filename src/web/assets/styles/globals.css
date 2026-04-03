@@ -49,11 +49,11 @@
   --ring: 217 91% 60%;
   --radius: 0.75rem;
 
-  /* Halo brand colors */
-  --halo-glow: 217 91% 60%;
-  --halo-success: 142 71% 45%;
-  --halo-warning: 38 92% 50%;
-  --halo-error: 0 62% 50%;
+  /* Hello brand colors */
+  --hello-glow: 217 91% 60%;
+  --hello-success: 142 71% 45%;
+  --hello-warning: 38 92% 50%;
+  --hello-error: 0 62% 50%;
 }
 
 /* Light theme */
@@ -78,11 +78,11 @@
   --input: 0 0% 94%;
   --ring: 217 91% 55%;
 
-  /* Halo brand colors (adjusted for light) */
-  --halo-glow: 217 91% 55%;
-  --halo-success: 142 71% 40%;
-  --halo-warning: 38 92% 45%;
-  --halo-error: 0 72% 51%;
+  /* Hello brand colors (adjusted for light) */
+  --hello-glow: 217 91% 55%;
+  --hello-success: 142 71% 40%;
+  --hello-warning: 38 92% 45%;
+  --hello-error: 0 72% 51%;
 }
 
 * {
@@ -268,17 +268,17 @@ body {
    Shared Keyframes & Animations
    ============================================ */
 
-/* Halo glow animation */
-@keyframes halo-pulse {
+/* Hello glow animation */
+@keyframes hello-pulse {
   0%, 100% {
-    box-shadow: 0 0 20px hsl(var(--halo-glow) / 0.3);
+    box-shadow: 0 0 20px hsl(var(--hello-glow) / 0.3);
   }
   50% {
-    box-shadow: 0 0 40px hsl(var(--halo-glow) / 0.5);
+    box-shadow: 0 0 40px hsl(var(--hello-glow) / 0.5);
   }
 }
 
-@keyframes halo-breathe {
+@keyframes hello-breathe {
   0%, 100% {
     opacity: 0.6;
     transform: scale(1);
@@ -289,7 +289,7 @@ body {
   }
 }
 
-@keyframes halo-spin {
+@keyframes hello-spin {
   from {
     transform: rotate(0deg);
   }
@@ -298,16 +298,16 @@ body {
   }
 }
 
-.halo-glow {
-  animation: halo-pulse 3s ease-in-out infinite;
+.hello-glow {
+  animation: hello-pulse 3s ease-in-out infinite;
 }
 
-.halo-breathe {
-  animation: halo-breathe 3s ease-in-out infinite;
+.hello-breathe {
+  animation: hello-breathe 3s ease-in-out infinite;
 }
 
-.halo-spin {
-  animation: halo-spin 2s linear infinite;
+.hello-spin {
+  animation: hello-spin 2s linear infinite;
 }
 
 /* Fade in animation */
@@ -693,20 +693,20 @@ body {
 }
 
 .tool-running {
-  border-color: hsl(var(--halo-glow));
-  animation: halo-pulse 1.5s ease-in-out infinite;
+  border-color: hsl(var(--hello-glow));
+  animation: hello-pulse 1.5s ease-in-out infinite;
 }
 
 .tool-success {
-  border-color: hsl(var(--halo-success));
+  border-color: hsl(var(--hello-success));
 }
 
 .tool-error {
-  border-color: hsl(var(--halo-error));
+  border-color: hsl(var(--hello-error));
 }
 
 .tool-waiting {
-  border-color: hsl(var(--halo-warning));
+  border-color: hsl(var(--hello-warning));
 }
 
 /* ============================================
@@ -877,13 +877,13 @@ body {
   transform: translateY(-2px);
 }
 
-/* Halo space special style */
-.halo-space-card {
+/* Hello space special style */
+.hello-space-card {
   background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05));
   border: 1px solid hsl(var(--primary) / 0.3);
 }
 
-.halo-space-card:hover {
+.hello-space-card:hover {
   border-color: hsl(var(--primary));
   box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
 }
@@ -1041,17 +1041,17 @@ body {
 }
 
 .pulse-dot-waiting {
-  background-color: hsl(var(--halo-warning));
+  background-color: hsl(var(--hello-warning));
   animation: pulse-dot-breathe 1.5s ease-in-out infinite;
 }
 
 .pulse-dot-completed {
-  background-color: hsl(var(--halo-success));
+  background-color: hsl(var(--hello-success));
   animation: pulse-dot-appear 0.3s ease-out;
 }
 
 .pulse-dot-error {
-  background-color: hsl(var(--halo-error));
+  background-color: hsl(var(--hello-error));
 }
 
 /* Pulse panel */
@@ -1104,10 +1104,10 @@ body {
 /* Running node glow pulse */
 @keyframes timeline-node-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 hsl(var(--halo-success) / 0.4);
+    box-shadow: 0 0 0 0 hsl(var(--hello-success) / 0.4);
   }
   50% {
-    box-shadow: 0 0 8px 3px hsl(var(--halo-success) / 0.25);
+    box-shadow: 0 0 8px 3px hsl(var(--hello-success) / 0.25);
   }
 }
 
@@ -1119,11 +1119,11 @@ body {
 .activity-running-card {
   background: linear-gradient(
     135deg,
-    hsl(var(--halo-success) / 0.06),
-    hsl(var(--halo-success) / 0.02) 60%,
+    hsl(var(--hello-success) / 0.06),
+    hsl(var(--hello-success) / 0.02) 60%,
     transparent
   );
-  border: 1px solid hsl(var(--halo-success) / 0.12);
+  border: 1px solid hsl(var(--hello-success) / 0.12);
   border-radius: 0.5rem;
 }
 

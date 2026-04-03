@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Halo 是开源 AI 编程助手，将 Claude Code Agent 封装为跨平台桌面体验，支持远程访问。采用浏览器-服务器架构。
+Hello 是开源 AI 编程助手，将 Claude Code Agent 封装为跨平台桌面体验，支持远程访问。采用浏览器-服务器架构。
 
 ## 开发命令
 
@@ -44,3 +44,4 @@ src/worker/    # 工作进程
 
 - 单元测试: `tests/unit/*.test.ts`
 - E2E 测试: `tests/e2e/specs/*.spec.ts`
+

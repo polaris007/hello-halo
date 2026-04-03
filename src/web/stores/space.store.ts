@@ -33,43 +33,43 @@ interface SpaceState {
 }
 
 // Try to restore currentSpaceId from localStorage on initial load
-let persistedCurrentSpaceId: string | null = null
-try {
-  if (typeof localStorage !== 'undefined') {
-    persistedCurrentSpaceId = localStorage.getItem('halo_current_space_id')
+let persistedCurrentSpaceId = null
+  try {
+    if (typeof localStorage !== 'undefined') {
+      persistedCurrentSpaceId = localStorage.getItem('hello_current_space_id')
+    }
+  } catch (e) {
+    console.warn('[SpaceStore] Failed to get currentSpaceId from localStorage:', e)
   }
-} catch (e) {
-  console.warn('[SpaceStore] Failed to restore currentSpaceId from localStorage:', e)
-}
 
 export const useSpaceStore = create<SpaceState>((set, get) => ({
   // Initial state
-  haloSpace: null,
+  helloSpace: null,
   spaces: [],
   currentSpace: null,
   currentSpaceId: persistedCurrentSpaceId,
   isLoading: false,
   error: null,
 
-  // Load Halo temp space
-  loadHaloSpace: async () => {
+  // Load Hello temp space
+  loadHelloSpace: async () => {
     try {
       const response = await api.getHaloSpace()
       console.log('[SpaceStore] getHaloSpace: success=%s id=%s', response.success, (response.data as Space)?.id)
 
       if (response.success && response.data) {
-        const loadedHaloSpace = response.data as Space
-        set({ haloSpace: loadedHaloSpace })
+        const loadedHelloSpace = response.data as Space
+        set({ helloSpace: loadedHelloSpace })
 
-        // Restore currentSpace from persisted currentSpaceId if it matches haloSpace
+        // Restore currentSpace from persisted currentSpaceId if it matches helloSpace
         const { currentSpaceId } = get()
-        if (currentSpaceId && loadedHaloSpace.id === currentSpaceId) {
-          set({ currentSpace: loadedHaloSpace })
-          console.log('[SpaceStore] Restored currentSpace to haloSpace:', currentSpaceId)
+        if (currentSpaceId && loadedHelloSpace.id === currentSpaceId) {
+          set({ currentSpace: loadedHelloSpace })
+          console.log('[SpaceStore] Restored currentSpace to helloSpace:', currentSpaceId)
         }
       }
     } catch (error) {
-      console.error('[SpaceStore] Failed to load Halo space:', error)
+      console.error('[SpaceStore] Failed to load Hello space:', error)
     }
   },
 
@@ -78,8 +78,8 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
 
-      // Load both Halo space and user spaces
-      await get().loadHaloSpace()
+      // Load both Hello space and user spaces
+      await get().loadHelloSpace()
 
       const response = await api.listSpaces()
       console.log('[SpaceStore] listSpaces: success=%s count=%d', response.success, Array.isArray(response.data) ? (response.data as Space[]).length : 0)
@@ -89,7 +89,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
         set({ spaces: loadedSpaces })
 
         // Restore currentSpace from persisted currentSpaceId
-        const { currentSpaceId, haloSpace } = get()
+        const { currentSpaceId, helloSpace } = get()
         if (currentSpaceId) {
           // Check if currentSpaceId matches a loaded space
           const restoredSpace = loadedSpaces.find(s => s.id === currentSpaceId)
@@ -98,10 +98,10 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
             console.log('[SpaceStore] Restored currentSpace from localStorage:', currentSpaceId)
           }
         }
-        // Also check if currentSpace should be haloSpace
-        if (!get().currentSpace && haloSpace?.id === currentSpaceId) {
-          set({ currentSpace: haloSpace })
-          console.log('[SpaceStore] Restored currentSpace to haloSpace:', currentSpaceId)
+        // Also check if currentSpace should be helloSpace
+        if (!get().currentSpace && helloSpace?.id === currentSpaceId) {
+          set({ currentSpace: helloSpace })
+          console.log('[SpaceStore] Restored currentSpace to helloSpace:', currentSpaceId)
         }
       } else {
         set({ error: response.error || 'Failed to load spaces' })
@@ -121,9 +121,9 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
     try {
       if (typeof localStorage !== 'undefined') {
         if (space?.id) {
-          localStorage.setItem('halo_current_space_id', space.id)
+          localStorage.setItem('hello_current_space_id', space.id)
         } else {
-          localStorage.removeItem('halo_current_space_id')
+          localStorage.removeItem('hello_current_space_id')
         }
       }
     } catch (e) {
@@ -207,7 +207,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
           // Clear from localStorage
           try {
             if (typeof localStorage !== 'undefined') {
-              localStorage.removeItem('halo_current_space_id')
+              localStorage.removeItem('hello_current_space_id')
             }
           } catch (e) {
             console.warn('[SpaceStore] Failed to clear currentSpaceId from localStorage:', e)

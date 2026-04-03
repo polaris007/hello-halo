@@ -100,9 +100,9 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
     console.log('[Agent] MCP servers to test:', Object.keys(enabledMcpServers).join(', '))
 
     // Use a temp directory for the query
-    const { getHaloDataDir } = await import('./helpers.js')
+    const { getHelloDataDir } = await import('./helpers.js')
     const path = await import('path')
-    const cwd = path.join(getHaloDataDir(), 'temp')
+    const cwd = path.join(getHelloDataDir(), 'temp')
     const { mkdirSync, existsSync } = await import('fs')
     if (!existsSync(cwd)) {
       mkdirSync(cwd, { recursive: true })

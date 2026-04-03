@@ -30,9 +30,9 @@ let configDirSource: string = 'default'
  */
 export function resolveConfigDir(): string {
   // 1. 检查环境变量（可能由启动参数设置）
-  if (process.env.HALO_CONFIG_DIR) {
-    configDir = resolve(process.env.HALO_CONFIG_DIR)
-    configDirSource = 'HALO_CONFIG_DIR environment variable'
+  if (process.env.HELLO_CONFIG_DIR) {
+    configDir = resolve(process.env.HELLO_CONFIG_DIR)
+    configDirSource = 'HELLO_CONFIG_DIR environment variable'
     return configDir
   }
 
@@ -140,9 +140,9 @@ export function logConfigDirInit(): void {
 export function buildConfigSearchPaths(filename: string): string[] {
   const paths: string[] = []
 
-  // 1. HALO_CONFIG_PATH 环境变量指定的路径（仅对 server.json 有效）
-  if (filename === 'server.json' && process.env.HALO_CONFIG_PATH) {
-    paths.push(resolve(process.env.HALO_CONFIG_PATH))
+  // 1. HELLO_CONFIG_PATH 环境变量指定的路径（仅对 server.json 有效）
+  if (filename === 'server.json' && process.env.HELLO_CONFIG_PATH) {
+    paths.push(resolve(process.env.HELLO_CONFIG_PATH))
   }
 
   // 2. 配置目录中的文件（新位置）

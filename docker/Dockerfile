@@ -110,10 +110,10 @@ RUN chown -R hello:hello /app /data/hello
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV HALO_DATA_DIR=/data/hello
-ENV HALO_CONFIG_DIR=/app/config
-ENV HALO_PORT=3000
-ENV HALO_HOST=0.0.0.0
+ENV HELLO_DATA_DIR=/data/hello
+ENV HELLO_CONFIG_DIR=/app/config
+ENV HELLO_PORT=3000
+ENV HELLO_HOST=0.0.0.0
 
 # Expose port
 EXPOSE 3000

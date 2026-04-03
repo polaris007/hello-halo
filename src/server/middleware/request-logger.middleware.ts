@@ -10,7 +10,7 @@ import { logger } from '../utils/logger.js'
 
 // 获取API日志目录
 function getApiLogDir(): string {
-  const logDir = process.env.HALO_LOG_DIR || join(process.cwd(), 'logs')
+  const logDir = process.env.HELLO_LOG_DIR || join(process.cwd(), 'logs')
   return logDir
 }
 
@@ -46,8 +46,8 @@ function getApiLogFilePath(): string {
 
 // 检查是否应该记录详细报文
 function shouldLogApiDetails(): boolean {
-  if (process.env.HALO_LOG_API_DETAIL !== undefined) {
-    const value = process.env.HALO_LOG_API_DETAIL.toLowerCase()
+  if (process.env.HELLO_LOG_API_DETAIL !== undefined) {
+    const value = process.env.HELLO_LOG_API_DETAIL.toLowerCase()
     return value === 'true' || value === '1' || value === 'yes'
   }
   // 默认记录详细报文

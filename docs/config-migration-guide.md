@@ -4,7 +4,7 @@
 
 ## 背景
 
-从版本 X.X.X 开始，Halo 使用统一的 `config/` 目录管理所有配置文件。这带来以下好处：
+从版本 X.X.X 开始，Hello 使用统一的 `config/` 目录管理所有配置文件。这带来以下好处：
 
 - Docker 部署时只需挂载一个目录
 - 配置文件集中管理，更清晰
@@ -35,7 +35,7 @@ config/
    mv llm-config.json config/
    ```
 
-3. **重启 Halo**
+3. **重启 Hello**
 
 ### Docker 用户
 
@@ -58,14 +58,14 @@ config/
 3. **更新 docker-compose.yml**
    ```yaml
    services:
-     halo:
+     hello:
        volumes:
          # 添加配置目录挂载
          - ./config:/app/config:ro
          # 数据目录
-         - halo-data:/app/data
+         - hello-data:/app/data
        environment:
-         - HALO_CONFIG_DIR=/app/config
+         - HELLO_CONFIG_DIR=/app/config
    ```
 
 4. **重启容器**
@@ -76,7 +76,7 @@ config/
 
 ## 向后兼容
 
-Halo 仍然支持从旧位置读取配置文件，但会输出迁移提示日志：
+Hello 仍然支持从旧位置读取配置文件，但会输出迁移提示日志：
 
 ```
 [INFO] Found legacy config file at /path/to/server.json
@@ -84,7 +84,7 @@ Halo 仍然支持从旧位置读取配置文件，但会输出迁移提示日志
 ```
 
 配置文件搜索顺序：
-1. 环境变量 `HALO_CONFIG_PATH` 指定的路径（仅 server.json）
+1. 环境变量 `HELLO_CONFIG_PATH` 指定的路径（仅 server.json）
 2. `{config-dir}/server.json`
 3. `{data-dir}/server.json`
 4. `{cwd}/server.json`（旧位置，兼容模式）
@@ -93,8 +93,8 @@ Halo 仍然支持从旧位置读取配置文件，但会输出迁移提示日志
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `HALO_CONFIG_DIR` | 配置目录路径 | `./config` |
-| `HALO_CONFIG_PATH` | server.json 完整路径（优先级最高） | - |
+| `HELLO_CONFIG_DIR` | 配置目录路径 | `./config` |
+| `HELLO_CONFIG_PATH` | server.json 完整路径（优先级最高） | - |
 
 ## 命令行参数
 
@@ -103,7 +103,7 @@ Halo 仍然支持从旧位置读取配置文件，但会输出迁移提示日志
 node server.js --config-dir /path/to/config
 
 # 或使用环境变量
-HALO_CONFIG_DIR=/path/to/config node server.js
+HELLO_CONFIG_DIR=/path/to/config node server.js
 ```
 
 ## 常见问题
@@ -130,7 +130,7 @@ docker exec halo ls -la /app/config
 
 ### Q: 想继续使用旧配置位置？
 
-A: Halo 会自动从旧位置读取配置，但建议迁移到新的配置目录以便于管理。
+A: Hello 会自动从旧位置读取配置，但建议迁移到新的配置目录以便于管理。
 
 ## 需要帮助？
 

@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  halo:
+  hello:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: halo-server
+    container_name: hello-server
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       # Persist data directory
-      - halo-data:/data/halo
+      - hello-data:/data/hello
       # Mount config directory (recommended)
       # Place your server.json and llm-config.json in ./config/ directory
       - ../config:/app/config:ro
@@ -20,25 +20,25 @@ services:
       # - ./llm-config.json:/app/config/llm-config.json:ro
     environment:
       - NODE_ENV=production
-      - HALO_DATA_DIR=/data/halo
-      - HALO_CONFIG_DIR=/app/config
-      - HALO_PORT=3000
-      - HALO_HOST=0.0.0.0
+      - HELLO_DATA_DIR=/data/hello
+      - HELLO_CONFIG_DIR=/app/config
+      - HELLO_PORT=3000
+      - HELLO_HOST=0.0.0.0
       # Authentication configuration
-      - HALO_AUTH_MODE=normal
+      - HELLO_AUTH_MODE=normal
       # Optional: Set default password for admin user
-      # - HALO_DEFAULT_PASSWORD=your-secure-password
+      # - HELLO_DEFAULT_PASSWORD=your-secure-password
       # Optional: Simple token mode
-      # - HALO_AUTH_MODE=simple
-      # - HALO_AUTH_SIMPLE_TOKEN=your-token-here
+      # - HELLO_AUTH_MODE=simple
+      # - HELLO_AUTH_SIMPLE_TOKEN=your-token-here
       # Optional: Header auth mode
-      # - HALO_AUTH_MODE=header
-      # - HALO_AUTH_HEADER_NAME=X-User-Id
+      # - HELLO_AUTH_MODE=header
+      # - HELLO_AUTH_HEADER_NAME=X-User-Id
       # AI Provider configuration via environment
-      # - HALO_AI_ANTHROPIC_API_KEY=sk-xxx
-      # - HALO_AI_OPENAI_API_KEY=sk-xxx
+      # - HELLO_ANTHROPIC_API_KEY=sk-xxx
+      # - HELLO_OPENAI_API_KEY=sk-xxx
     networks:
-      - halo-network
+      - hello-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
@@ -56,14 +56,14 @@ services:
 #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
 #     - ./ssl:/etc/nginx/ssl:ro
 #   depends_on:
-#     - halo
+#     - hello
 #   networks:
-#     - halo-network
+#     - hello-network
 
 volumes:
-  halo-data:
+  hello-data:
     driver: local
 
 networks:
-  halo-network:
+  hello-network:
     driver: bridge

@@ -11,9 +11,9 @@
 系统 SHALL 使用应用启动目录下的 `data/` 子目录作为默认数据存储位置。
 
 #### Scenario: 开发环境默认路径
-- **WHEN** 应用从 `/home/user/halo` 目录启动
+- **WHEN** 应用从 `/home/user/hello` 目录启动
 - **AND** 未指定任何数据目录配置
-- **THEN** 系统使用 `/home/user/halo/data` 作为数据目录
+- **THEN** 系统使用 `/home/user/hello/data` 作为数据目录
 
 #### Scenario: Docker 环境默认路径
 - **WHEN** 应用在 Docker 容器中启动，工作目录为 `/app`
@@ -22,14 +22,14 @@
 
 ### Requirement: 环境变量配置
 
-系统 SHALL 支持 `HALO_DATA_DIR` 环境变量指定数据目录。
+系统 SHALL 支持 `HELLO_DATA_DIR` 环境变量指定数据目录。
 
 #### Scenario: 通过环境变量指定数据目录
-- **WHEN** 设置环境变量 `HALO_DATA_DIR=/var/lib/halo`
-- **THEN** 系统使用 `/var/lib/halo` 作为数据目录
+- **WHEN** 设置环境变量 `HELLO_DATA_DIR=/var/lib/hello`
+- **THEN** 系统使用 `/var/lib/hello` 作为数据目录
 
 #### Scenario: 环境变量优先级高于默认值
-- **WHEN** 设置环境变量 `HALO_DATA_DIR=/custom/data`
+- **WHEN** 设置环境变量 `HELLO_DATA_DIR=/custom/data`
 - **THEN** 系统忽略默认路径，使用 `/custom/data`
 
 ### Requirement: 启动参数配置
@@ -37,30 +37,30 @@
 系统 SHALL 支持 `--data-dir` 启动参数指定数据目录。
 
 #### Scenario: 通过启动参数指定数据目录
-- **WHEN** 使用命令 `node server.js --data-dir /opt/halo/data` 启动
-- **THEN** 系统使用 `/opt/halo/data` 作为数据目录
+- **WHEN** 使用命令 `node server.js --data-dir /opt/hello/data` 启动
+- **THEN** 系统使用 `/opt/hello/data` 作为数据目录
 
 #### Scenario: 启动参数优先级最高
-- **WHEN** 同时设置 `HALO_DATA_DIR=/env/data` 环境变量
+- **WHEN** 同时设置 `HELLO_DATA_DIR=/env/data` 环境变量
 - **AND** 使用 `--data-dir /arg/data` 启动参数
 - **THEN** 系统使用 `/arg/data`（启动参数优先）
 
 #### Scenario: 支持短参数形式
-- **WHEN** 使用命令 `node server.js -d /opt/halo/data` 启动
-- **THEN** 系统使用 `/opt/halo/data` 作为数据目录
+- **WHEN** 使用命令 `node server.js -d /opt/hello/data` 启动
+- **THEN** 系统使用 `/opt/hello/data` 作为数据目录
 
 ### Requirement: 配置文件数据路径
 
 系统 SHALL 支持在配置文件中通过 `data.basePath` 指定数据目录。
 
 #### Scenario: 从配置文件读取数据目录
-- **WHEN** 配置文件 `server.json` 包含 `{"data": {"basePath": "/config/halo"}}`
+- **WHEN** 配置文件 `server.json` 包含 `{"data": {"basePath": "/config/hello"}}`
 - **AND** 未设置环境变量和启动参数
-- **THEN** 系统使用 `/config/halo` 作为数据目录
+- **THEN** 系统使用 `/config/hello` 作为数据目录
 
 #### Scenario: 环境变量覆盖配置文件
-- **WHEN** 配置文件指定 `data.basePath` 为 `/config/halo`
-- **AND** 设置环境变量 `HALO_DATA_DIR=/env/data`
+- **WHEN** 配置文件指定 `data.basePath` 为 `/config/hello`
+- **AND** 设置环境变量 `HELLO_DATA_DIR=/env/data`
 - **THEN** 系统使用 `/env/data`（环境变量优先）
 
 ### Requirement: 数据目录自动创建
@@ -73,9 +73,9 @@
 - **AND** 创建必要的子目录结构
 
 #### Scenario: 创建嵌套目录
-- **WHEN** 指定数据目录为 `/opt/halo/production/data`
-- **AND** `/opt/halo` 目录不存在
-- **THEN** 系统创建完整路径 `/opt/halo/production/data`
+- **WHEN** 指定数据目录为 `/opt/hello/production/data`
+- **AND** `/opt/hello` 目录不存在
+- **THEN** 系统创建完整路径 `/opt/hello/production/data`
 
 #### Scenario: 权限不足时报错
 - **WHEN** 数据目录路径指向无写入权限的位置
@@ -134,7 +134,7 @@
 #### Scenario: 配置文件搜索顺序
 - **WHEN** 查找配置文件 `server.json`
 - **THEN** 系统按以下顺序搜索：
-  1. `HALO_CONFIG_PATH` 环境变量指定的路径
+  1. `HELLO_CONFIG_PATH` 环境变量指定的路径
   2. `{config-dir}/server.json`（新位置）
   3. `{cwd}/server.json`（旧位置，向后兼容）
 
@@ -156,6 +156,6 @@
 #### Scenario: 完整目录结构
 - **WHEN** 数据目录初始化完成
 - **THEN** 存在以下结构：
-  - `{data-dir}/halo.db` - 数据库文件
+  - `{data-dir}/hello.db` - 数据库文件
   - `{data-dir}/logs/` - 日志目录
   - `{data-dir}/users/` - 用户数据目录

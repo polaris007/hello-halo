@@ -29,7 +29,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 // Get current log level from environment variable
 function getLogLevel(): LogLevel {
-  const level = process.env.HALO_LOG_LEVEL?.toUpperCase() as LogLevel
+  const level = process.env.HELLO_LOG_LEVEL?.toUpperCase() as LogLevel
   if (level && LOG_LEVELS[level] !== undefined) {
     return level
   }
@@ -39,8 +39,8 @@ function getLogLevel(): LogLevel {
 
 // Get console output setting from environment variable
 function getConsoleOutput(): boolean {
-  if (process.env.HALO_LOG_CONSOLE !== undefined) {
-    const value = process.env.HALO_LOG_CONSOLE.toLowerCase()
+  if (process.env.HELLO_LOG_CONSOLE !== undefined) {
+    const value = process.env.HELLO_LOG_CONSOLE.toLowerCase()
     return value === 'true' || value === '1' || value === 'yes'
   }
   // Default to true
@@ -49,8 +49,8 @@ function getConsoleOutput(): boolean {
 
 // Get log retention days from environment variable
 function getLogRetentionDays(): number {
-  if (process.env.HALO_LOG_RETENTION_DAYS) {
-    const days = parseInt(process.env.HALO_LOG_RETENTION_DAYS, 10)
+  if (process.env.HELLO_LOG_RETENTION_DAYS) {
+    const days = parseInt(process.env.HELLO_LOG_RETENTION_DAYS, 10)
     if (!isNaN(days) && days > 0) {
       return days
     }
@@ -61,8 +61,8 @@ function getLogRetentionDays(): number {
 
 // Get maximum log file size from environment variable (in MB)
 function getMaxLogFileSizeMB(): number {
-  if (process.env.HALO_LOG_MAX_SIZE_MB) {
-    const size = parseInt(process.env.HALO_LOG_MAX_SIZE_MB, 10)
+  if (process.env.HELLO_LOG_MAX_SIZE_MB) {
+    const size = parseInt(process.env.HELLO_LOG_MAX_SIZE_MB, 10)
     if (!isNaN(size) && size > 0) {
       return size
     }
@@ -175,9 +175,9 @@ export function getLogDirectory(): string {
   if (customLogDir) {
     return customLogDir
   }
-  // Use HALO_LOG_DIR environment variable if set
-  if (process.env.HALO_LOG_DIR) {
-    return process.env.HALO_LOG_DIR
+  // Use HELLO_LOG_DIR environment variable if set
+  if (process.env.HELLO_LOG_DIR) {
+    return process.env.HELLO_LOG_DIR
   }
   // Default: use {cwd}/logs (unified with api-xxxx.log and ai-xxxx.log)
   return join(process.cwd(), 'logs')

@@ -28,13 +28,13 @@ const { values } = parseArgs({
 
 // Set environment variables from CLI arguments (highest priority)
 if (values['data-dir'] && typeof values['data-dir'] === 'string') {
-  process.env.HALO_DATA_DIR = values['data-dir']
+  process.env.HELLO_DATA_DIR = values['data-dir']
 }
 if (values['config'] && typeof values['config'] === 'string') {
-  process.env.HALO_CONFIG_PATH = values['config']
+  process.env.HELLO_CONFIG_PATH = values['config']
 }
 if (values['config-dir'] && typeof values['config-dir'] === 'string') {
-  process.env.HALO_CONFIG_DIR = values['config-dir']
+  process.env.HELLO_CONFIG_DIR = values['config-dir']
 }
 
 // ========================================
@@ -88,9 +88,9 @@ loadConfig()
 applyEnvOverrides()
 
 // Get resolved data directory
-const HALO_DATA_DIR = resolveDataDir()
-const HALO_PORT = parseInt(process.env.HALO_PORT || '3000', 10)
-const HALO_HOST = process.env.HALO_HOST || '127.0.0.1'
+const HELLO_DATA_DIR = resolveDataDir()
+const HELLO_PORT = parseInt(process.env.HELLO_PORT || '3000', 10)
+const HELLO_HOST = process.env.HELLO_HOST || '127.0.0.1'
 
 // Initialize database
 initializeDatabase()
@@ -129,7 +129,7 @@ app.set('trust proxy', 1)
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.HALO_CORS_ORIGIN || '*',
+  origin: process.env.HELLO_CORS_ORIGIN || '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -246,12 +246,12 @@ initializeWebSocket(server)
 // 设置 WebSocket 服务供 Agent 使用
 setWebSocketService(websocketServiceModule)
 
-server.listen(HALO_PORT, HALO_HOST, () => {
-  console.log(`Halo server running at http://${HALO_HOST}:${HALO_PORT}`)
+server.listen(HELLO_PORT, HELLO_HOST, () => {
+  console.log(`Hello server running at http://${HELLO_HOST}:${HELLO_PORT}`)
   console.log(`Config directory: ${getConfigDir()} (from ${getConfigDirSource()})`)
-  console.log(`Data directory: ${HALO_DATA_DIR} (from ${getDataDirSource()})`)
-  console.log(`Auth mode: ${process.env.HALO_AUTH_MODE || 'normal'}`)
-  console.log(`WebSocket available at ws://${HALO_HOST}:${HALO_PORT}/ws`)
+  console.log(`Data directory: ${HELLO_DATA_DIR} (from ${getDataDirSource()})`)
+  console.log(`Auth mode: ${process.env.HELLO_AUTH_MODE || 'normal'}`)
+  console.log(`WebSocket available at ws://${HELLO_HOST}:${HELLO_PORT}/ws`)
 })
 
 // ========================================
@@ -276,4 +276,4 @@ const shutdown = () => {
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
 
-export { app, server, HALO_DATA_DIR }
+export { app, server, HELLO_DATA_DIR }

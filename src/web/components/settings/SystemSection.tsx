@@ -205,7 +205,7 @@ export function SystemSection({ config, setConfig, isRemoteMode = false }: Syste
 
         {/* Info banner */}
         <div className="bg-muted/50 rounded-lg p-3 mb-4 text-sm text-muted-foreground">
-          {t('We recommend full trust mode - use natural language to control Halo.')}
+          {t('我们建议使用完全信任模式 - 使用自然语言控制 Hello。')}
         </div>
 
         {/* Trust Mode - always on */}

@@ -38,7 +38,7 @@
     ]
   },
   "data": {
-    "basePath": "~/.halo",
+    "basePath": "./data",
     "maxUploadSize": 104857600
   }
 }

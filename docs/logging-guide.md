@@ -1,6 +1,6 @@
-# Halo 日志配置指南
+# Hello 日志配置指南
 
-本文档介绍 Halo 的日志系统配置选项、环境变量和最佳实践。
+本文档介绍 Hello 的日志系统配置选项、环境变量和最佳实践。
 
 ## 目录
 
@@ -40,29 +40,29 @@
 
 | 环境变量 | 说明 | 默认值 | 示例 |
 |---------|------|--------|------|
-| `HALO_LOG_DIR` | 日志文件存储目录 | `<cwd>/logs` | `/var/log/halo` |
-| `HALO_LOG_LEVEL` | Server 日志级别 | `INFO` | `DEBUG`、`INFO`、`WARN`、`ERROR` |
-| `HALO_LOG_CONSOLE` | 是否输出到控制台 | `true` | `true`、`false` |
+| `HELLO_LOG_DIR` | 日志文件存储目录 | `<cwd>/logs` | `/var/log/hello` |
+| `HELLO_LOG_LEVEL` | Server 日志级别 | `INFO` | `DEBUG`、`INFO`、`WARN`、`ERROR` |
+| `HELLO_LOG_CONSOLE` | 是否输出到控制台 | `true` | `true`、`false` |
 
 ### 日志轮转配置
 
 | 环境变量 | 说明 | 默认值 | 示例 |
 |---------|------|--------|------|
-| `HALO_LOG_RETENTION_DAYS` | 日志文件保留天数 | `7` | `30` |
-| `HALO_LOG_MAX_SIZE_MB` | 单个日志文件最大大小 (MB) | `100` | `500` |
+| `HELLO_LOG_RETENTION_DAYS` | 日志文件保留天数 | `7` | `30` |
+| `HELLO_LOG_MAX_SIZE_MB` | 单个日志文件最大大小 (MB) | `100` | `500` |
 
 ### API 日志配置
 
 | 环境变量 | 说明 | 默认值 | 示例 |
 |---------|------|--------|------|
-| `HALO_LOG_API_DETAIL` | 是否记录详细 API 报文 | `true` | `true`、`false` |
+| `HELLO_LOG_API_DETAIL` | 是否记录详细 API 报文 | `true` | `true`、`false` |
 
 ### AI 日志配置
 
 | 环境变量 | 说明 | 默认值 | 示例 |
 |---------|------|--------|------|
-| `HALO_LOG_AI_DETAIL` | 是否记录详细 AI 交互 | `true` | `true`、`false` |
-| `HALO_LOG_AI_MAX_SIZE` | AI 日志截断长度 (字符) | `2048` | `4096` |
+| `HELLO_LOG_AI_DETAIL` | 是否记录详细 AI 交互 | `true` | `true`、`false` |
+| `HELLO_LOG_AI_MAX_SIZE` | AI 日志截断长度 (字符) | `2048` | `4096` |
 
 ---
 
@@ -156,7 +156,7 @@
 
 ### 按大小轮转
 
-当日志文件超过 `HALO_LOG_MAX_SIZE_MB` 配置的大小时，会自动轮转。轮转后的文件会添加时间戳：
+当日志文件超过 `HELLO_LOG_MAX_SIZE_MB` 配置的大小时，会自动轮转。轮转后的文件会添加时间戳：
 
 ```
 server-2024-01-15.log              # 当前日志文件
@@ -165,7 +165,7 @@ server-2024-01-15-20240115103000.log  # 轮转后的文件
 
 ### 保留策略
 
-默认保留最近 7 天的日志文件。可以通过 `HALO_LOG_RETENTION_DAYS` 环境变量配置。
+默认保留最近 7 天的日志文件。可以通过 `HELLO_LOG_RETENTION_DAYS` 环境变量配置。
 
 **清理时间：** 每天创建新日志文件时自动执行清理。
 
@@ -182,9 +182,9 @@ server-2024-01-15-20240115103000.log  # 轮转后的文件
    ls -la /path/to/logs
    ```
 
-2. 检查 `HALO_LOG_DIR` 环境变量是否正确设置
+2. 检查 `HELLO_LOG_DIR` 环境变量是否正确设置
    ```bash
-   echo $HALO_LOG_DIR
+   echo $HELLO_LOG_DIR
    ```
 
 3. 检查 Server 启动日志输出，确认日志目录信息
@@ -199,22 +199,22 @@ server-2024-01-15-20240115103000.log  # 轮转后的文件
 
 1. 调整日志级别为 `WARN` 或 `ERROR`
    ```bash
-   export HALO_LOG_LEVEL=WARN
+   export HELLO_LOG_LEVEL=WARN
    ```
 
 2. 关闭详细 API 日志
    ```bash
-   export HALO_LOG_API_DETAIL=false
+   export HELLO_LOG_API_DETAIL=false
    ```
 
 3. 关闭详细 AI 日志
    ```bash
-   export HALO_LOG_AI_DETAIL=false
+   export HELLO_LOG_AI_DETAIL=false
    ```
 
 4. 减小日志保留天数
    ```bash
-   export HALO_LOG_RETENTION_DAYS=3
+   export HELLO_LOG_RETENTION_DAYS=3
    ```
 
 ### 问题：磁盘空间不足
@@ -228,7 +228,7 @@ server-2024-01-15-20240115103000.log  # 轮转后的文件
 
 2. 调整日志文件大小限制
    ```bash
-   export HALO_LOG_MAX_SIZE_MB=50
+   export HELLO_LOG_MAX_SIZE_MB=50
    ```
 
 3. 配置日志目录到独立磁盘分区
@@ -257,7 +257,7 @@ server-2024-01-15-20240115103000.log  # 轮转后的文件
 
 ```bash
 #!/bin/bash
-LOG_DIR="/var/log/halo"
+LOG_DIR="/var/log/hello"
 MAX_SIZE_MB=500
 
 for file in $LOG_DIR/*.log; do
@@ -306,21 +306,21 @@ tail -100 /path/to/logs/server-$(date +%Y-%m-%d).log | grep "\[ERROR\]"
 version: '3.8'
 
 services:
-  halo:
-    image: halo:latest
+  hello:
+    image: hello:latest
     volumes:
       # 挂载日志目录到宿主机
       - ./logs:/app/logs
       # 或者挂载到独立的日志卷
-      # - halo-logs:/var/log/halo
+      # - hello-logs:/var/log/hello
     environment:
-      - HALO_LOG_DIR=/app/logs
-      - HALO_LOG_LEVEL=INFO
-      - HALO_LOG_RETENTION_DAYS=7
-      - HALO_LOG_MAX_SIZE_MB=100
+      - HELLO_LOG_DIR=/app/logs
+      - HELLO_LOG_LEVEL=INFO
+      - HELLO_LOG_RETENTION_DAYS=7
+      - HELLO_LOG_MAX_SIZE_MB=100
 
 volumes:
-  halo-logs:
+  hello-logs:
 ```
 
 ### Docker 日志驱动配置
@@ -329,8 +329,8 @@ volumes:
 
 ```yaml
 services:
-  halo:
-    image: halo:latest
+  hello:
+    image: hello:latest
     logging:
       driver: "json-file"
       options:
@@ -342,13 +342,13 @@ services:
 
 ```yaml
 services:
-  halo:
-    image: halo:latest
+  hello:
+    image: hello:latest
     logging:
       driver: "syslog"
       options:
         syslog-address: "udp://localhost:514"
-        tag: "halo"
+        tag: "hello"
 ```
 
 ### 生产环境建议
@@ -361,8 +361,8 @@ services:
 
 2. **配置日志轮转** 防止单个日志文件过大
    ```bash
-   HALO_LOG_MAX_SIZE_MB=50
-   HALO_LOG_RETENTION_DAYS=14
+   HELLO_LOG_MAX_SIZE_MB=50
+   HELLO_LOG_RETENTION_DAYS=14
    ```
 
 3. **集中日志管理** 考虑使用 ELK Stack 或类似工具
@@ -374,31 +374,31 @@ services:
 ### 开发环境
 
 ```bash
-HALO_LOG_LEVEL=DEBUG
-HALO_LOG_CONSOLE=true
-HALO_LOG_API_DETAIL=true
-HALO_LOG_AI_DETAIL=true
+HELLO_LOG_LEVEL=DEBUG
+HELLO_LOG_CONSOLE=true
+HELLO_LOG_API_DETAIL=true
+HELLO_LOG_AI_DETAIL=true
 ```
 
 ### 生产环境
 
 ```bash
-HALO_LOG_LEVEL=INFO
-HALO_LOG_CONSOLE=false
-HALO_LOG_API_DETAIL=true
-HALO_LOG_AI_DETAIL=true
-HALO_LOG_RETENTION_DAYS=14
-HALO_LOG_MAX_SIZE_MB=100
+HELLO_LOG_LEVEL=INFO
+HELLO_LOG_CONSOLE=false
+HELLO_LOG_API_DETAIL=true
+HELLO_LOG_AI_DETAIL=true
+HELLO_LOG_RETENTION_DAYS=14
+HELLO_LOG_MAX_SIZE_MB=100
 ```
 
 ### 调试模式（详细日志）
 
 ```bash
-HALO_LOG_LEVEL=DEBUG
-HALO_LOG_CONSOLE=true
-HALO_LOG_API_DETAIL=true
-HALO_LOG_AI_DETAIL=true
-HALO_LOG_AI_MAX_SIZE=8192
+HELLO_LOG_LEVEL=DEBUG
+HELLO_LOG_CONSOLE=true
+HELLO_LOG_API_DETAIL=true
+HELLO_LOG_AI_DETAIL=true
+HELLO_LOG_AI_MAX_SIZE=8192
 ```
 
 ---
@@ -407,10 +407,10 @@ HALO_LOG_AI_MAX_SIZE=8192
 
 ### 从旧日志目录迁移
 
-如果你之前使用 `~/.halo/logs` 目录，可以通过设置环境变量继续使用：
+如果你之前使用 `~/.hello/logs` 目录，可以通过设置环境变量继续使用：
 
 ```bash
-export HALO_LOG_DIR=~/.halo/logs
+export HELLO_LOG_DIR=~/.hello/logs
 ```
 
 ### 日志备份
@@ -419,10 +419,10 @@ export HALO_LOG_DIR=~/.halo/logs
 
 ```bash
 # 创建日志备份
-tar -czf halo-logs-backup-$(date +%Y%m%d).tar.gz /path/to/logs/
+tar -czf hello-logs-backup-$(date +%Y%m%d).tar.gz /path/to/logs/
 
 # 备份到远程存储
-rsync -avz /path/to/logs/ user@backup-server:/backup/halo-logs/
+rsync -avz /path/to/logs/ user@backup-server:/backup/hello-logs/
 ```
 
 ---
