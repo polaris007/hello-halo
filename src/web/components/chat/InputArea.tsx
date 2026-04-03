@@ -60,7 +60,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessingImages, setIsProcessingImages] = useState(false)
   const [imageError, setImageError] = useState<ImageError | null>(null)
-  const [thinkingEnabled, setThinkingEnabled] = useState(false)  // Extended thinking mode
+  const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
   
   // Artifact mention state
