@@ -12,6 +12,7 @@ import type { ApiCredentials } from './types.js'
 import { getDatabase } from '../../utils/database.js'
 import { getLLMConfig, getCurrentLLMSourceFromConfig, clearLLMConfigCache } from '../llm-config.service.js'
 import { resolveDataDir } from '../config.service.js'
+import { normalizeApiUrl } from './openai-compat-router/index.js'
 
 // ============================================
 // Working Directory Management
@@ -173,12 +174,13 @@ export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
           model: currentSource.model
         })
 
+        const provider = currentSource.provider === 'anthropic' ? 'anthropic' : 'openai'
         return {
-          baseUrl: currentSource.apiUrl,
+          baseUrl: provider === 'anthropic' ? currentSource.apiUrl : normalizeApiUrl(currentSource.apiUrl, 'openai'),
           apiKey: currentSource.apiKey,
           model: currentSource.model,
           displayModel: currentSource.name || currentSource.model,
-          provider: currentSource.provider === 'anthropic' ? 'anthropic' : 'openai',
+          provider,
           apiType: currentSource.apiType,
           forceStream: false,
           filterContent: false
@@ -215,7 +217,7 @@ export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
     if (currentSource) {
       // Map frontend field names to backend field names
       // Frontend: apiUrl, Backend: baseUrl
-      const baseUrl = currentSource.apiUrl || currentSource.baseUrl || 'https://api.anthropic.com'
+      const rawBaseUrl = currentSource.apiUrl || currentSource.baseUrl || 'https://api.anthropic.com'
       const apiKey = currentSource.apiKey || process.env.ANTHROPIC_API_KEY || ''
       const model = currentSource.model || 'claude-sonnet-4-20250514'
       const displayModel = currentSource.name || currentSource.model || 'Claude'
@@ -223,6 +225,11 @@ export async function getApiCredentials(config?: any): Promise<ApiCredentials> {
       // Determine provider type
       const provider = currentSource.provider === 'anthropic' ? 'anthropic' :
                        currentSource.authType === 'oauth' ? 'oauth' : 'openai'
+
+      // Normalize URL for non-Anthropic providers
+      const baseUrl = (provider === 'anthropic' || provider === 'oauth') 
+        ? rawBaseUrl 
+        : normalizeApiUrl(rawBaseUrl, 'openai')
 
       console.log('[Agent] getApiCredentials - mapped credentials:', {
         baseUrl,
