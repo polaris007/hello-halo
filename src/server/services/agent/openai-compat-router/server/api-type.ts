@@ -37,7 +37,6 @@ export function isValidEndpointUrl(url: string): boolean {
  */
 export function getEndpointUrlError(url: string): string {
   return `Invalid endpoint URL: ${url}
-
 Please provide a complete endpoint URL ending with:
   - /chat/completions  (e.g., https://api.openai.com/v1/chat/completions)
   - /responses         (e.g., https://api.openai.com/v1/responses)`
