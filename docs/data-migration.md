@@ -57,7 +57,7 @@ mkdir -p ./data
 
 ```bash
 # Copy database
-cp ~/.halo/halo.db ./data/
+cp ~/.halo/hello.db ./data/
 
 # Copy user data directories
 cp -r ~/.halo/users ./data/
@@ -121,7 +121,7 @@ Create or update `server.json`:
 
 ```
 ~/.halo/
-├── halo.db
+├── hello.db
 ├── server.json
 ├── users/
 │   └── {user_id}/
@@ -134,7 +134,7 @@ Create or update `server.json`:
 
 ```
 {cwd}/data/
-├── halo.db
+├── hello.db
 ├── server.json
 ├── users/
 │   └── {user_id}/

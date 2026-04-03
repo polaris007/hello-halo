@@ -16,7 +16,7 @@ let db: Database.Database | null = null
  */
 function getDbPath(): string {
   const dataDir = resolveDataDir()
-  return join(dataDir, 'halo.db')
+  return join(dataDir, 'hello.db')
 }
 
 /**

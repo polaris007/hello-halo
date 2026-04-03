@@ -228,9 +228,9 @@ function migrate() {
 
   // Items to migrate
   const itemsToMigrate = [
-    { name: 'halo.db', type: 'database', description: 'Database file' },
-    { name: 'halo.db-wal', type: 'database', description: 'Database WAL file', optional: true },
-    { name: 'halo.db-shm', type: 'database', description: 'Database SHM file', optional: true },
+    { name: 'hello.db', type: 'database', description: 'Database file' },
+    { name: 'hello.db-wal', type: 'database', description: 'Database WAL file', optional: true },
+    { name: 'hello.db-shm', type: 'database', description: 'Database SHM file', optional: true },
     { name: 'server.json', type: 'config', description: 'Configuration file', optional: true },
     { name: 'config.json', type: 'config', description: 'MCP config file', optional: true },
     { name: 'llm-config.json', type: 'config', description: 'LLM config file', optional: true },

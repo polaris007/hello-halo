@@ -185,7 +185,7 @@ netstat -tlnp | grep 3000
 
 ```bash
 # 重置数据库（谨慎操作）
-rm -rf ~/.halo/halo.db
+rm -rf ~/.halo/hello.db
 
 # 重启服务
 docker-compose restart

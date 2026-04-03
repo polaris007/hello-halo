@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 
 // 连接数据库
-const db = new Database('./data/halo.db')
+const db = new Database('./data/hello.db')
 
 try {
   // 查询用户信息

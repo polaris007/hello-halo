@@ -74,9 +74,8 @@ describe('数据目录配置', () => {
   describe('数据目录结构', () => {
     it('数据库文件应在数据目录下', () => {
       const dataDir = '/app/data'
-      const dbPath = join(dataDir, 'halo.db')
-
-      expect(dbPath).toBe('/app/data/halo.db')
+      const dbPath = join(dataDir, 'hello.db')
+      expect(dbPath).toBe('/app/data/hello.db')
     })
 
     it('用户目录结构应为 {data-dir}/users/{user_id}/spaces/', () => {

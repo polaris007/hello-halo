@@ -8,7 +8,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 
 // 测试数据库路径
-const TEST_DB_PATH = join(homedir(), '.halo-test', 'halo.db')
+const TEST_DB_PATH = join(homedir(), '.halo-test', 'hello.db')
 
 describe('Multi-tenant Data Isolation', () => {
   beforeEach(() => {
