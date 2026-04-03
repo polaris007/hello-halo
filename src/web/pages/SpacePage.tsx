@@ -18,6 +18,7 @@ import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { useChatStore } from '../stores/chat.store'
 import { useCanvasStore, useCanvasIsOpen, useCanvasIsMaximized } from '../stores/canvas.store'
+import { useAuthStore } from '../stores/auth.store'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
 import { useSearchStore } from '../stores/search.store'
 import { ChatView } from '../components/chat/ChatView'
@@ -63,7 +64,41 @@ export function SpacePage() {
   const sidebarOpenConfig = useAppStore(state => state.config?.layout?.sidebarOpen)
   const artifactRailWidthConfig = useAppStore(state => state.config?.layout?.artifactRailWidth)
 
+  // Auth state
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+
   const currentSpace = useSpaceStore(state => state.currentSpace)
+  const setCurrentSpace = useSpaceStore(state => state.setCurrentSpace)
+  const spaces = useSpaceStore(state => state.spaces)
+  const haloSpace = useSpaceStore(state => state.haloSpace)
+
+  // Check authentication status
+  useEffect(() => {
+    // Only redirect to login if we're not already in the process of loading
+    // This prevents false redirects when the auth state is still initializing
+    if (!isAuthenticated) {
+      setView('login')
+    }
+  }, [isAuthenticated, setView])
+
+  // Parse URL parameters
+  const parseUrlParams = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const spaceId = urlParams.get('spaceId')
+    const conversationId = urlParams.get('conversationId')
+    return { spaceId, conversationId }
+  }, [])
+
+  // Update URL parameters
+  const updateUrlParams = useCallback((spaceId: string | null, conversationId: string | null) => {
+    const urlParams = new URLSearchParams()
+    if (spaceId) urlParams.set('spaceId', spaceId)
+    if (conversationId) urlParams.set('conversationId', conversationId)
+    const search = urlParams.toString() ? `?${urlParams.toString()}` : ''
+    
+    // Use pushState to update URL without reloading
+    window.history.pushState({}, '', `${window.location.pathname}${search}`)
+  }, [])
 
   // For mobile ChatHistoryPanel visibility check
   const hasConversations = useChatStore(state => {
@@ -242,47 +277,128 @@ export function SpacePage() {
     }
   }, [currentSpace?.id, isCanvasOpen])
 
-  // Initialize space when entering
+  // Load spaces on mount
   useEffect(() => {
-    if (!currentSpace) return
+    // Load spaces and halo space
+    useSpaceStore.getState().loadSpaces()
+  }, [])
+
+  // Initialize space when entering or when spaces/haloSpace change
+  useEffect(() => {
+    // Parse URL parameters
+    const { spaceId: urlSpaceId, conversationId: urlConversationId } = parseUrlParams()
+
+    // Check if URL has spaceId or currentSpace exists
+    let spaceIdToUse = urlSpaceId
+    let spaceToUse = null
+
+    if (!spaceIdToUse) {
+      // If no spaceId in URL but currentSpace exists, use currentSpace
+      if (currentSpace) {
+        spaceIdToUse = currentSpace.id
+        spaceToUse = currentSpace
+      } else {
+        // If no spaceId in URL and no currentSpace, redirect based on authentication status
+        if (!isAuthenticated) {
+          setView('login')
+        } else {
+          setView('home')
+        }
+        return
+      }
+    } else {
+      // Find space from URL parameter
+      const findSpaceById = (id: string) => {
+        if (haloSpace?.id === id) return haloSpace
+        return spaces.find(s => s.id === id)
+      }
+
+      spaceToUse = findSpaceById(spaceIdToUse)
+      if (!spaceToUse) {
+        // If space doesn't exist yet, wait for spaces to load
+        // Don't redirect to home page immediately
+        return
+      }
+
+      // If space exists, set it as current
+      if (currentSpace?.id !== spaceIdToUse) {
+        setCurrentSpace(spaceToUse)
+      }
+    }
+
+    if (!spaceIdToUse || !spaceToUse) return
+
+    // Update URL with the spaceId if it's not already there
+    if (!urlSpaceId) {
+      updateUrlParams(spaceIdToUse, null)
+    }
 
     // Set current space in chat store (fire-and-forget, no subscription)
-    useChatStore.getState().setCurrentSpace(currentSpace.id)
+    useChatStore.getState().setCurrentSpace(spaceIdToUse)
 
     // Load conversations if not already loaded for this space
     const initSpace = async () => {
-      await useChatStore.getState().loadConversations(currentSpace.id)
+      await useChatStore.getState().loadConversations(spaceIdToUse)
 
       // Preload other spaces' conversations in background for PULSE global visibility
       const { haloSpace, spaces } = useSpaceStore.getState()
       const allSpaceIds = [
         ...(haloSpace ? [haloSpace.id] : []),
         ...spaces.map(s => s.id)
-      ].filter(id => id !== currentSpace.id)
+      ].filter(id => id !== spaceIdToUse)
       useChatStore.getState().preloadAllSpaceConversations(allSpaceIds)
 
       // After loading, check if we need to select or create a conversation
       const store = useChatStore.getState()
-      const spaceState = store.getSpaceState(currentSpace.id)
+      const spaceState = store.getSpaceState(spaceIdToUse)
 
       // Consume pending Pulse navigation (cross-space jump from PulseList)
       const pendingNav = store.pendingPulseNavigation
       if (pendingNav) {
         useChatStore.setState({ pendingPulseNavigation: null })
         useChatStore.getState().selectConversation(pendingNav)
-      } else if (spaceState.conversations.length > 0) {
-        // If no conversation selected, select the first one
-        if (!spaceState.currentConversationId) {
-          useChatStore.getState().selectConversation(spaceState.conversations[0].id)
+        // Update URL with the selected conversation
+        updateUrlParams(spaceIdToUse, pendingNav)
+      } else if (urlConversationId) {
+        // Try to select conversation from URL
+        const conversationExists = spaceState.conversations.some(c => c.id === urlConversationId)
+        if (conversationExists) {
+          useChatStore.getState().selectConversation(urlConversationId)
+        } else {
+          // If conversation doesn't exist, create a new one
+          const newConversation = await useChatStore.getState().createConversation(spaceIdToUse)
+          if (newConversation) {
+            useChatStore.getState().selectConversation(newConversation.id)
+            // Update URL with the new conversation
+            updateUrlParams(spaceIdToUse, newConversation.id)
+          }
         }
       } else {
-        // No conversations exist - create a new one
-        await useChatStore.getState().createConversation(currentSpace.id)
+        // No conversation specified in URL, select the latest existing conversation or create a new one
+        if (spaceState.conversations.length > 0) {
+          // Sort conversations by updatedAt in descending order
+          const sortedConversations = [...spaceState.conversations].sort((a, b) => 
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          )
+          // Select the latest conversation
+          const latestConversation = sortedConversations[0]
+          useChatStore.getState().selectConversation(latestConversation.id)
+          // Update URL with the selected conversation
+          updateUrlParams(spaceIdToUse, latestConversation.id)
+        } else {
+          // If no conversations exist, create a new one
+          const newConversation = await useChatStore.getState().createConversation(spaceIdToUse)
+          if (newConversation) {
+            useChatStore.getState().selectConversation(newConversation.id)
+            // Update URL with the new conversation
+            updateUrlParams(spaceIdToUse, newConversation.id)
+          }
+        }
       }
     }
 
     initSpace()
-  }, [currentSpace?.id]) // Only re-run when space ID changes
+  }, [currentSpace?.id, haloSpace, spaces, parseUrlParams, updateUrlParams, setCurrentSpace, setView, isAuthenticated]) // Only re-run when space ID changes or dependencies change
 
   // Toggle conversation list sidebar with global persistence
   const handleToggleConversationList = useCallback(() => {
@@ -376,7 +492,11 @@ export function SpacePage() {
           <>
             {/* Back button */}
             <button
-              onClick={() => setView('home')}
+              onClick={() => {
+                setView('home')
+                // Update URL to root path when returning to home page
+                window.history.pushState({}, '', '/')
+              }}
               className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

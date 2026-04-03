@@ -546,6 +546,25 @@ export default function App() {
     }
   }
 
+  // Parse URL to determine initial view
+  useEffect(() => {
+    const pathname = window.location.pathname
+    const urlParams = new URLSearchParams(window.location.search)
+    const spaceId = urlParams.get('spaceId')
+    
+    // Handle spaces page URL
+    if (pathname === '/spaces') {
+      setView('home')
+      return
+    }
+    
+    // Handle space page with spaceId
+    if (spaceId) {
+      setView('space')
+      return
+    }
+  }, [setView, window.location.search])
+
   // Render based on current view
   // Heavy pages (HomePage, SpacePage, SettingsPage) are lazy-loaded for better initial performance
   const renderView = () => {

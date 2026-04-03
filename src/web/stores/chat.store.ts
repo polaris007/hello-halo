@@ -330,7 +330,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Create new conversation
   createConversation: async (spaceId) => {
     try {
-      const response = await api.createConversation(spaceId)
+      // Generate formatted title: Chat <month>-<day> <hour>:<minute>:<second>
+      const now = new Date()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const title = `Chat ${month}-${day} ${hours}:${minutes}:${seconds}`
+      
+      const response = await api.createConversation(spaceId, title)
 
       if (response.success && response.data) {
         const newConversation = response.data as Conversation
@@ -456,6 +465,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         sessions: newSessions
       }
     })
+
+    // Update URL parameters with the selected conversation
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      urlParams.set('spaceId', currentSpaceId)
+      urlParams.set('conversationId', conversationId)
+      const search = urlParams.toString() ? `?${urlParams.toString()}` : ''
+      window.history.pushState({}, '', `${window.location.pathname}${search}`)
+    } catch (error) {
+      console.warn('[ChatStore] Failed to update URL parameters:', error)
+    }
 
     // Ensure store-level cleanup is scheduled (independent of sidebar mount state)
     get().cleanupPulseReadAt()
@@ -736,6 +756,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
             conversationId = newConversation.id
             console.log('[ChatStore] Created new conversation:', conversationId)
+
+            // Update URL parameters with the new conversation
+            try {
+              const urlParams = new URLSearchParams(window.location.search)
+              urlParams.set('spaceId', currentSpaceId)
+              urlParams.set('conversationId', conversationId)
+              const search = urlParams.toString() ? `?${urlParams.toString()}` : ''
+              window.history.pushState({}, '', `${window.location.pathname}${search}`)
+            } catch (error) {
+              console.warn('[ChatStore] Failed to update URL parameters:', error)
+            }
 
             // Warm up session in background
             api.ensureSessionWarm(currentSpaceId, conversationId).catch(console.error)

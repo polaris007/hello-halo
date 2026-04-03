@@ -90,6 +90,8 @@ export function SpaceSelector() {
   const handleManageSpaces = () => {
     setIsOpen(false)
     setView('home')
+    // Update URL to root path when returning to home page
+    window.history.pushState({}, '', '/')
   }
 
   // Build space list: Halo Space first, then dedicated spaces

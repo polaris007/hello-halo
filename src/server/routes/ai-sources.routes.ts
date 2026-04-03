@@ -588,7 +588,7 @@ router.post('/sources', optionalAuthMiddleware, (req, res) => {
     }
 
     // Use the sourceId from request or generate new one
-    const sourceId = sourceData.id || uuidv4()
+    const sourceId = sourceData.id || randomUUID()
     const now = new Date().toISOString()
     
     // Create source object with provided or generated ID
