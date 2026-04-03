@@ -21,17 +21,11 @@ function getTranslator(translator?: TFunction): TFunction {
 }
 
 export function getOnboardingPrompt(translator?: TFunction): string {
-  const t = getTranslator(translator)
-  return t(
-    'Help me create an HTML slide deck introducing Halo (1920x1080) with a clean, modern style. Include: 1) What is Hello 2) Core capabilities 3) Use cases 4) Getting started'
-  )
+  return 'Help me create an HTML slide deck introducing Hello (1920x1080) with a clean, modern style. Include: 1) What is Hello 2) Core capabilities 3) Use cases 4) Getting started'
 }
 
 export function getOnboardingAiResponse(translator?: TFunction): string {
-  const t = getTranslator(translator)
-  return t(
-    "Sure, I'll create a polished HTML presentation that introduces Halo's core features and how to use it. The slides use a modern, minimal design, support left/right arrow navigation, and fit 1920x1080."
-  )
+  return "Sure, I'll create a polished HTML presentation that introduces Hello's core features and how to use it. The slides use a modern, minimal design, support left/right arrow navigation, and fit 1920x1080."
 }
 
 export function getOnboardingConversationTitle(translator?: TFunction): string {
@@ -42,38 +36,38 @@ export function getOnboardingConversationTitle(translator?: TFunction): string {
 export function getOnboardingHtmlArtifact(translator?: TFunction, lang: string = getCurrentLanguage()): string {
   const t = getTranslator(translator)
 
-  const docTitle = t('Halo - AI that gets things done')
-  const tagline = t('AI that gets things done')
-  const whatIsHalo = t('What is Hello?')
-  const moreThanChatTitle = t('More than chat')
-  const moreThanChatDesc = t('Halo understands your goals, plans tasks, and can execute autonomously—not just answer questions.')
-  const createsFilesTitle = t('Creates real files')
-  const createsFilesDesc = t('Code, documents, spreadsheets, and web pages are saved as real files you can open anytime.')
-  const naturalLangTitle = t('Natural language interface')
-  const naturalLangDesc = t('Describe what you want in plain language; Halo will understand and act.')
-  const localFirstTitle = t('Local-first')
-  const localFirstDesc = t('Your data stays on your machine under your control. You can use your own API key.')
-  const coreCapabilities = t('Core capabilities')
-  const writeCodeTitle = t('Write code')
-  const writeCodeDesc = t('Describe your needs and Halo will generate complete code across languages and frameworks.')
-  const dataTitle = t('Work with data')
-  const dataDesc = t('Analyze tables, generate reports, and organize data while AI handles the busywork.')
-  const webTitle = t('Research with the web')
-  const webDesc = t('Need fresh information? Halo can search online and summarize what matters.')
-  const docsTitle = t('Write documents')
-  const docsDesc = t('Reports, proposals, emails—tell Halo what you need and it will draft it.')
-  const useCases = t('Use cases')
-  const devsTitle = t('Developers')
-  const devsDesc = t('Generate code quickly, debug issues, and scaffold projects.')
-  const prosTitle = t('Professionals')
-  const prosDesc = t('Write reports, build slides, organize meeting notes, and analyze data.')
-  const creatorsTitle = t('Creators')
-  const creatorsDesc = t('Write articles, design web pages, and generate ideas.')
-  const learnersTitle = t('Learners')
-  const learnersDesc = t('Answer questions, organize notes, and create study materials.')
-  const readyText = t('Ready to start?')
-  const startText = t('Start using Halo')
-  const navHint = t('Use ← → to move between slides')
+  const docTitle = 'Hello - AI that gets things done'
+  const tagline = 'AI that gets things done'
+  const whatIsHello = 'What is Hello?'
+  const moreThanChatTitle = 'More than chat'
+  const moreThanChatDesc = 'Halo understands your goals, plans tasks, and can execute autonomously—not just answer questions.'
+  const createsFilesTitle = 'Creates real files'
+  const createsFilesDesc = 'Code, documents, spreadsheets, and web pages are saved as real files you can open anytime.'
+  const naturalLangTitle = 'Natural language interface'
+  const naturalLangDesc = 'Describe what you want in plain language; Halo will understand and act.'
+  const localFirstTitle = 'Local-first'
+  const localFirstDesc = 'Your data stays on your machine under your control. You can use your own API key.'
+  const coreCapabilities = 'Core capabilities'
+  const writeCodeTitle = 'Write code'
+  const writeCodeDesc = 'Describe your needs and Halo will generate complete code across languages and frameworks.'
+  const dataTitle = 'Work with data'
+  const dataDesc = 'Analyze tables, generate reports, and organize data while AI handles the busywork.'
+  const webTitle = 'Research with the web'
+  const webDesc = 'Need fresh information? Halo can search online and summarize what matters.'
+  const docsTitle = 'Write documents'
+  const docsDesc = 'Reports, proposals, emails—tell Halo what you need and it will draft it.'
+  const useCases = 'Use cases'
+  const devsTitle = 'Developers'
+  const devsDesc = 'Generate code quickly, debug issues, and scaffold projects.'
+  const prosTitle = 'Professionals'
+  const prosDesc = 'Write reports, build slides, organize meeting notes, and analyze data.'
+  const creatorsTitle = 'Creators'
+  const creatorsDesc = 'Write articles, design web pages, and generate ideas.'
+  const learnersTitle = 'Learners'
+  const learnersDesc = 'Answer questions, organize notes, and create study materials.'
+  const readyText = 'Ready to start?'
+  const startText = 'Start using Halo'
+  const navHint = 'Use ← → to move between slides'
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -273,13 +267,13 @@ export function getOnboardingHtmlArtifact(translator?: TFunction, lang: string =
       <div class="logo">
         <div class="logo-inner"></div>
       </div>
-      <h1>Halo</h1>
+      <h1>Hello</h1>
       <p class="tagline">${tagline}</p>
     </section>
 
-    <!-- Slide 2: What is Halo -->
+    <!-- Slide 2: What is Hello -->
     <section class="slide slide-content">
-      <h2>${whatIsHalo}</h2>
+      <h2>${whatIsHello}</h2>
       <div class="features">
         <div class="feature">
           <div class="feature-icon">💬</div>
