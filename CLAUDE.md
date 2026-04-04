@@ -45,3 +45,43 @@ src/worker/    # 工作进程
 - 单元测试: `tests/unit/*.test.ts`
 - E2E 测试: `tests/e2e/specs/*.spec.ts`
 
+## gstack
+本项目使用 gstack 技能集增强开发体验。
+### Web 浏览
+使用 `/gstack-browse` skill 进行所有 web 浏览和 QA 测试，**禁止使用** `mcp__claude-in-chrome__*` 工具。
+### 可用技能
+| 技能 | 用途 |
+|------|------|
+| `/gstack-office-hours` | YC Office Hours — 产品创意验证 |
+| `/gstack-plan-ceo-review` | CEO/创始人模式计划评审 |
+| `/gstack-plan-eng-review` | 工程经理模式计划评审 |
+| `/gstack-plan-design-review` | 设计师视角计划评审 |
+| `/gstack-plan-devex-review` | 开发者体验计划评审 |
+| `/gstack-design-consultation` | 设计系统咨询 |
+| `/gstack-design-shotgun` | 生成多个设计变体 |
+| `/gstack-design-html` | 生产级 HTML/CSS 生成 |
+| `/gstack-design-review` | 视觉一致性审查 |
+| `/gstack-review` | PR 预审查 |
+| `/gstack-ship` | 发布工作流 |
+| `/gstack-land-and-deploy` | 合并部署 |
+| `/gstack-canary` | 生产环境监控 |
+| `/gstack-benchmark` | 性能回归检测 |
+| `/gstack-browse` | 无头浏览器 QA 测试 |
+| `/gstack-connect-chrome` | 连接真实 Chrome |
+| `/gstack-qa` | 系统 QA 测试并修复 |
+| `/gstack-qa-only` | 仅报告 QA 测试 |
+| `/gstack-setup-browser-cookies` | 导入浏览器 cookies |
+| `/gstack-setup-deploy` | 配置部署设置 |
+| `/gstack-retro` | 周工程回顾 |
+| `/gstack-investigate` | 系统化调试 |
+| `/gstack-document-release` | 发布后文档更新 |
+| `/gstack-codex` | OpenAI Codex CLI |
+| `/gstack-cso` | 安全审计 |
+| `/gstack-autoplan` | 自动评审流水线 |
+| `/gstack-careful` | 危险命令警告 |
+| `/gstack-freeze` | 限制编辑目录 |
+| `/gstack-guard` | 安全模式 |
+| `/gstack-unfreeze` | 解除目录限制 |
+| `/gstack-upgrade` | 升级 gstack |
+| `/gstack-learn` | 管理项目经验 |
+
