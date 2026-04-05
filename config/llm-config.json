@@ -200,7 +200,7 @@
     },
     {
       "id": "c1c48e0c-b912-427b-aab8-0873a2e11fa9",
-      "name": "OpenAI Compatible",
+      "name": "魔搭",
       "provider": "openai",
       "apiUrl": "https://api-inference.modelscope.cn/v1",
       "apiKey": "ms-66eb8c4a-ef5b-4648-bf00-5c29adbd4df6",
@@ -448,7 +448,7 @@
         }
       ],
       "createdAt": "2026-04-03T13:57:56.807Z",
-      "updatedAt": "2026-04-03T14:53:59.274Z"
+      "updatedAt": "2026-04-05T01:48:39.149Z"
     }
   ]
 }
