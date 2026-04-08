@@ -1,0 +1,8 @@
+{
+  "auth": {
+    "mode": "hybrid",
+    "simpleToken": ["ITEST-token1"],
+    "headerName": "X-User-Id",
+    "defaultPassword": "Clqc@1234"
+  }
+}

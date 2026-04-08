@@ -24,15 +24,6 @@ export interface ServerConfig {
     headerName?: string
     defaultPassword?: string
   }
-  aiSources: {
-    providers: Array<{
-      id: string
-      name: string
-      type: string
-      apiKey: string
-      baseUrl: string
-    }>
-  }
   data: {
     basePath: string
     maxUploadSize: number
@@ -55,9 +46,6 @@ const DEFAULT_CONFIG: ServerConfig = {
     simpleToken: undefined,
     headerName: 'X-User-Id',
     defaultPassword: 'Clqc@1234'
-  },
-  aiSources: {
-    providers: []
   },
   data: {
     basePath: DEFAULT_DATA_DIR,
@@ -158,7 +146,10 @@ export function loadConfig(customPath?: string): ServerConfig {
   if (found) {
     try {
       const content = readFileSync(found.path, 'utf-8')
-      config = { ...DEFAULT_CONFIG, ...JSON.parse(content) }
+      const parsedConfig = JSON.parse(content)
+      // 移除 aiSources 字段，确保不会从 server.json 读取 AI 配置
+      delete parsedConfig.aiSources
+      config = { ...DEFAULT_CONFIG, ...parsedConfig }
       configPath = found.path
 
       if (found.isLegacy) {
@@ -174,6 +165,10 @@ export function loadConfig(customPath?: string): ServerConfig {
   // 没有找到配置文件，使用默认配置
   console.log('[Config] No config file found, using defaults')
   config = { ...DEFAULT_CONFIG }
+  
+  // 自动生成 server.json 文件
+  saveConfig(config)
+  
   return config!
 }
 
@@ -261,39 +256,10 @@ export function applyEnvOverrides(): ServerConfig {
   ensureDataDir(dataDir)
   console.log(`[Config] Data directory: ${dataDir} (from ${dataDirSource})`)
 
-  // AI 提供商配置（从环境变量）
-  if (process.env.HELLO_ANTHROPIC_API_KEY) {
-    ensureProvider('anthropic', 'Anthropic', 'anthropic', 'https://api.anthropic.com')
-    const provider = config.aiSources.providers.find(p => p.id === 'anthropic')
-    if (provider) {
-      provider.apiKey = process.env.HELLO_ANTHROPIC_API_KEY
-    }
-  }
-
-  if (process.env.HELLO_OPENAI_API_KEY) {
-    ensureProvider('openai', 'OpenAI', 'openai', 'https://api.openai.com')
-    const provider = config.aiSources.providers.find(p => p.id === 'openai')
-    if (provider) {
-      provider.apiKey = process.env.HELLO_OPENAI_API_KEY
-    }
-  }
-
   return config
 }
 
-/**
- * 确保 AI 提供商存在
- */
-function ensureProvider(id: string, name: string, type: string, baseUrl: string) {
-  if (!config) {
-    config = { ...DEFAULT_CONFIG }
-  }
 
-  const exists = config.aiSources.providers.some(p => p.id === id)
-  if (!exists) {
-    config.aiSources.providers.push({ id, name, type, apiKey: '', baseUrl })
-  }
-}
 
 /**
  * 深度合并配置
@@ -311,10 +277,6 @@ function mergeConfig(base: ServerConfig, updates: Partial<ServerConfig>): Server
 
   if (updates.data) {
     result.data = { ...base.data, ...updates.data }
-  }
-
-  if (updates.aiSources) {
-    result.aiSources = { ...base.aiSources, ...updates.aiSources }
   }
 
   if (updates.aiProvider !== undefined) {
