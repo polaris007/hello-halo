@@ -1009,6 +1009,8 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   // Always send complete event to unblock frontend
   emitEvent('agent:complete', {
     type: 'agent:complete',
+    spaceId,
+    conversationId,
     duration: 0,
     tokenUsage
   })

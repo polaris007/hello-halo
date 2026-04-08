@@ -21,6 +21,7 @@
 
 import { create } from 'zustand'
 import { api } from '../api'
+import { getServerUrl } from '../api/transport'
 import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, Question, TaskStatus, PulseItem } from '../types'
 import { PULSE_READ_GRACE_PERIOD_MS } from '../types'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
@@ -1184,19 +1185,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
         newSessions.set(conversationId, {
           ...session,
           isStreaming: false,
-          isThinking: false
-          // Keep isGenerating=true and streamingContent until backend loads
+          isThinking: false,
+          // Keep isGenerating=true to prevent empty assistant message from being shown
+          isGenerating: true
         })
       }
       return { sessions: newSessions }
     })
 
+    // Clear request cache for this conversation to ensure fresh data
+    // This prevents using cached old content when reloading from backend
+    try {
+      // Clear cache for getConversation request
+      const { clearRequestCache } = await import('../api/transport')
+      clearRequestCache()
+      console.log(`[ChatStore] Cleared request cache for fresh conversation reload`)
+    } catch (error) {
+      console.error('[ChatStore] Failed to clear request cache:', error)
+    }
+
     // Reload conversation from backend (Single Source of Truth)
     // Backend has already saved the complete message with thoughts
     try {
-      const response = await api.getConversation(spaceId, conversationId)
-      if (response.success && response.data) {
-        const updatedConversation = response.data as Conversation
+      console.log(`[ChatStore] Loading conversation from backend: ${spaceId}, ${conversationId}`)
+      // 直接使用fetch API而不是api.getConversation，避免缓存问题
+      const token = localStorage.getItem('halo_remote_token')
+      // CRITICAL FIX: Add cache-busting headers to prevent HTTP caching
+      const response = await fetch(`${getServerUrl()}/api/v1/spaces/${spaceId}/conversations/${conversationId}?t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        cache: 'no-store' // 确保浏览器不缓存
+      })
+      
+      const data = await response.json()
+      console.log(`[ChatStore] Direct fetch response success:`, data.success)
+      if (data.success && data.data) {
+        const updatedConversation = data.data as Conversation
+        console.log(`[ChatStore] Updated conversation messages length:`, updatedConversation.messages?.length)
+        console.log(`[ChatStore] Updated conversation ID:`, updatedConversation.id)
 
         // Extract updated metadata
         const updatedMeta: ConversationMeta = {
@@ -1215,8 +1246,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Now atomically: update cache, metadata, AND clear session state
         // This prevents flash by doing all in one render
         set((state) => {
-          // Update cache with fresh data
+          // Update cache with fresh data - use conversationId as key to ensure consistency
           const newCache = new Map(state.conversationCache)
+          // CRITICAL FIX: Use conversationId (the function parameter) not updatedConversation.id
+          // These should be the same, but using the param ensures we update the right cache entry
           newCache.set(conversationId, updatedConversation)
 
           // Update metadata in space state
@@ -1226,7 +1259,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             newSpaceStates.set(spaceId, {
               ...currentSpaceState,
               conversations: currentSpaceState.conversations.map((c) =>
-                c.id === conversationId ? updatedMeta : c
+                c.id === updatedConversation.id ? updatedMeta : c
               )
             })
           }
@@ -1235,9 +1268,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           // Error is now persisted in message.error, so clear session-level error
           // Note: interrupted errors are sent AFTER agent:complete, so they won't be affected
           const newSessions = new Map(state.sessions)
-          const currentSession = newSessions.get(conversationId)
+          const currentSession = newSessions.get(conversationId)  // FIX: Use conversationId, not updatedConversation.id
           if (currentSession) {
-            newSessions.set(conversationId, {
+            newSessions.set(conversationId, {  // FIX: Use conversationId, not updatedConversation.id
               ...currentSession,
               isGenerating: false,
               streamingContent: '',
@@ -1255,7 +1288,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             conversationCache: newCache
           }
         })
-        console.log(`[ChatStore] Conversation reloaded from backend [${conversationId}]`)
+        console.log(`[ChatStore] Conversation reloaded from backend [${updatedConversation.id}]`)
       }
     } catch (error) {
       console.error('[ChatStore] Failed to reload conversation:', error)

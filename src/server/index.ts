@@ -143,6 +143,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 import { requestLoggerMiddleware } from './middleware/request-logger.middleware.js'
 app.use(requestLoggerMiddleware)
 
+// ETag and Cache-Control middleware
+import { etagMiddleware, cacheControlMiddleware } from './middleware/etag.middleware.js'
+app.use(cacheControlMiddleware())
+app.use(etagMiddleware())
+
 // ========================================
 // API ROUTES
 // ========================================

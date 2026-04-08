@@ -46,22 +46,25 @@ export function LoginPage() {
     setLoading(true)
 
     try {
+      console.log('[Login] Attempting to login with username:', username)
       const result = await api.login(username, password)
+      console.log('[Login] Login result:', result)
 
       if (result.success && result.data) {
-        // 连接到 WebSocket (normal mode with token)
-        api.connectWebSocket('normal')
-
+        console.log('[Login] Login successful, initializing app')
         // 重新初始化应用
         const { initialize } = useAppStore.getState()
         await initialize()
       } else {
+        console.log('[Login] Login failed:', result.error)
         setError(result.error || t('Login failed'))
       }
     } catch (err) {
+      console.error('[Login] Error:', err)
       setError(err instanceof Error ? err.message : t('Login failed'))
     } finally {
       setLoading(false)
+      console.log('[Login] Login process completed')
     }
   }
 

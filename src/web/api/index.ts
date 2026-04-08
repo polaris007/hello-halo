@@ -11,7 +11,8 @@ import {
   setAuthToken,
   clearAuthToken,
   getAuthToken,
-  dispatchEvent
+  dispatchEvent,
+  clearRequestCache
 } from './transport'
 import { sendMessageSSE, type SSEEvent, type SendMessageParams } from './sse'
 import type {
@@ -44,6 +45,8 @@ export const api = {
     if (result.success && result.data?.tokens?.accessToken) {
       setAuthToken(result.data.tokens.accessToken)
       connectWebSocket()
+      // Clear request cache to ensure fresh authentication status
+      clearRequestCache()
     }
     return result
   },

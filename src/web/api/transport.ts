@@ -30,68 +30,163 @@ export function clearAuthToken(): void {
   }
 }
 
+// Request caching and deduping
+interface RequestCacheItem<T> {
+  promise: Promise<{ success: boolean; data?: T; error?: string }>
+  timestamp: number
+  abortController?: AbortController
+}
+
+const requestCache = new Map<string, RequestCacheItem<any>>()
+const MAX_CACHE_ITEMS = 50
+const CACHE_TTL = 2 * 60 * 1000 // 2 minutes
+
+// Generate cache key for requests
+function generateCacheKey(method: string, path: string, body?: Record<string, unknown>): string {
+  const bodyStr = body ? JSON.stringify(body) : ''
+  return `${method}:${path}:${bodyStr}`
+}
+
+// Cleanup expired cache items
+function cleanupCache() {
+  const now = Date.now()
+  for (const [key, item] of requestCache.entries()) {
+    if (now - item.timestamp > CACHE_TTL) {
+      requestCache.delete(key)
+    }
+  }
+  
+  // Limit cache size
+  if (requestCache.size > MAX_CACHE_ITEMS) {
+    const entries = Array.from(requestCache.entries())
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
+    const toDelete = entries.slice(0, requestCache.size - MAX_CACHE_ITEMS)
+    toDelete.forEach(([key]) => requestCache.delete(key))
+  }
+}
+
 /**
- * HTTP Transport - Makes API calls to server
+ * HTTP Transport - Makes API calls to server with caching and deduping
  */
 export async function httpRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   path: string,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<{ success: boolean; data?: T; error?: string }> {
+  // Cleanup expired cache
+  cleanupCache()
+  
   const token = getAuthToken()
   const url = `${getServerUrl()}${path}`
-
-  console.log(`[HTTP] ${method} ${path} - token: ${token ? 'present' : 'missing'}`)
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: body ? JSON.stringify(body) : undefined
-    })
-
-    // Check content type to detect non-JSON responses (e.g. HTML error pages)
-    const contentType = response.headers.get('content-type') || ''
-
-    // Handle 401 - token expired or invalid
-    if (response.status === 401) {
-      console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token`)
-      clearAuthToken()
-      // Clear the auth cookie
-      document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      // Return error, let caller decide how to handle (e.g. show login page)
-      const errorData = await response.json().catch(() => ({}))
-      return { success: false, error: errorData?.error?.message || 'Authentication required' }
+  const cacheKey = generateCacheKey(method, path, body)
+  
+  // Only use cache for GET requests
+  if (method === 'GET' && requestCache.has(cacheKey)) {
+    const cachedItem = requestCache.get(cacheKey)!
+    console.log(`[HTTP] ${method} ${path} - using cached request`)
+    
+    // If signal is provided, link it to the existing request
+    if (signal && cachedItem.abortController) {
+      signal.addEventListener('abort', () => {
+        cachedItem.abortController?.abort()
+      })
     }
+    
+    return cachedItem.promise
+  }
+  
+  // Create new request
+  const abortController = new AbortController()
+  
+  // Link external signal to our abort controller
+  if (signal) {
+    signal.addEventListener('abort', () => {
+      abortController.abort()
+    })
+  }
+  
+  console.log(`[HTTP] ${method} ${path} - token: ${token ? 'present' : 'missing'}`)
+  
+  const promise = (async (): Promise<{ success: boolean; data?: T; error?: string }> => {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: abortController.signal
+      })
 
-    // Handle non-JSON responses (e.g. HTML 404/500 pages)
-    if (!contentType.includes('application/json')) {
-      const text = await response.text().catch(() => 'Unknown response')
-      console.error(`[HTTP] ${method} ${path} - non-JSON response (${contentType}):`, text.slice(0, 200))
+      // Check content type to detect non-JSON responses (e.g. HTML error pages)
+      const contentType = response.headers.get('content-type') || ''
+
+      // Handle 401 - token expired or invalid
+      if (response.status === 401) {
+        console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token`)
+        clearAuthToken()
+        // Clear the auth cookie
+        document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        // Return error, let caller decide how to handle (e.g. show login page)
+        const errorData = await response.json().catch(() => ({}))
+        return { success: false, error: errorData?.error?.message || 'Authentication required' }
+      }
+
+      // Handle non-JSON responses (e.g. HTML 404/500 pages)
+      if (!contentType.includes('application/json')) {
+        const text = await response.text().catch(() => 'Unknown response')
+        console.error(`[HTTP] ${method} ${path} - non-JSON response (${contentType}):`, text.slice(0, 200))
+        return {
+          success: false,
+          error: `Server returned non-JSON response (${response.status} ${response.statusText}). This may indicate a server configuration issue.`
+        }
+      }
+
+      const data = await response.json()
+      console.log(`[HTTP] ${method} ${path} - status: ${response.status}, success: ${data.success}`)
+
+      if (!response.ok) {
+        console.warn(`[HTTP] ${method} ${path} - error:`, data.error)
+      }
+
+      return data
+    } catch (error) {
+      console.error(`[HTTP] ${method} ${path} - exception:`, error)
       return {
         success: false,
-        error: `Server returned non-JSON response (${response.status} ${response.statusText}). This may indicate a server configuration issue.`
+        error: error instanceof Error ? error.message : 'Network error'
+      }
+    } finally {
+      // Remove from cache after completion for non-GET requests
+      if (method !== 'GET') {
+        requestCache.delete(cacheKey)
       }
     }
-
-    const data = await response.json()
-    console.log(`[HTTP] ${method} ${path} - status: ${response.status}, success: ${data.success}`)
-
-    if (!response.ok) {
-      console.warn(`[HTTP] ${method} ${path} - error:`, data.error)
-    }
-
-    return data
-  } catch (error) {
-    console.error(`[HTTP] ${method} ${path} - exception:`, error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Network error'
-    }
+  })()
+  
+  // Store in cache only for GET requests
+  if (method === 'GET') {
+    requestCache.set(cacheKey, {
+      promise,
+      timestamp: Date.now(),
+      abortController
+    })
   }
+  
+  return promise
+}
+
+// Clear request cache
+export function clearRequestCache(): void {
+  requestCache.clear()
+}
+
+// Invalidate specific cache entry
+export function invalidateCache(method: string, path: string, body?: Record<string, unknown>): void {
+  const cacheKey = generateCacheKey(method, path, body)
+  requestCache.delete(cacheKey)
 }
 
 /**

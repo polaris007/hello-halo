@@ -34,8 +34,9 @@ function startWatchingDirectory(spaceId: string, directoryPath: string) {
 
   try {
     const watcher = watch(directoryPath, { recursive: true }, (eventType, filename) => {
-      // 当目录发生变化时，清除该空间的所有缓存
-      clearSpaceCache(spaceId)
+      // 当目录发生变化时，使用更精细的缓存失效机制
+      const changedPath = filename ? `${directoryPath}/${filename}` : directoryPath
+      invalidateCacheByPath(spaceId, changedPath)
     })
     
     watchedDirectories.set(spaceId, watcher)
@@ -57,10 +58,27 @@ function stopWatchingDirectory(spaceId: string) {
 // 清除指定空间的所有缓存
 function clearSpaceCache(spaceId: string) {
   for (const key of artifactCache.keys()) {
-    if (key.startsWith(`${spaceId}:`)) {
+    if (key.startsWith(`artifact:${spaceId}:`)) {
       artifactCache.delete(key)
     }
   }
+}
+
+// 更精细的缓存失效机制
+function invalidateCacheByPattern(pattern: RegExp) {
+  for (const key of artifactCache.keys()) {
+    if (pattern.test(key)) {
+      artifactCache.delete(key)
+    }
+  }
+}
+
+// 根据路径变化失效相关缓存
+function invalidateCacheByPath(spaceId: string, changedPath: string) {
+  // 对于文件系统变化，清除该空间的所有缓存
+  // 因为文件变化可能影响多个缓存项
+  clearSpaceCache(spaceId)
+  console.log(`[Cache] Invalidated all caches for space ${spaceId} due to path change: ${changedPath}`)
 }
 
 // 清理过期缓存
@@ -83,7 +101,13 @@ function cleanupCache() {
 
 // 获取缓存键
 function getCacheKey(spaceId: string, depth: number, showHidden: boolean, filter: string) {
-  return `${spaceId}:${depth}:${showHidden}:${filter}`
+  // 标准化参数，确保缓存键的一致性
+  const normalizedDepth = Math.max(0, Math.min(10, depth)) // 限制深度范围
+  const normalizedShowHidden = showHidden ? 'true' : 'false'
+  const normalizedFilter = filter.trim().toLowerCase()
+  
+  // 生成更规范的缓存键
+  return `artifact:${spaceId}:d${normalizedDepth}:h${normalizedShowHidden}:f${normalizedFilter}`
 }
 
 /**
