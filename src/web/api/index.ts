@@ -40,10 +40,13 @@ export const api = {
   isAuthenticated: () => !!getAuthToken(),
 
   // Username/password login
-  login: async (username: string, password: string): Promise<ApiResponse<{ tokens: { accessToken: string }; user: { id: string; email: string } }>> => {
+  login: async (username: string, password: string): Promise<ApiResponse<{ tokens: { accessToken: string; refreshToken: string; expiresIn: number }; user: { id: string; email: string } }>> => {
     const result = await httpRequest<any>('POST', '/api/v1/auth/login', { email: username, password })
-    if (result.success && result.data?.tokens?.accessToken) {
-      setAuthToken(result.data.tokens.accessToken)
+    if (result.success && result.data?.tokens) {
+      const { accessToken, refreshToken, expiresIn } = result.data.tokens
+      setAuthTokens(accessToken, refreshToken)
+      // Store token expiration time
+      localStorage.setItem('halo_token_expires_at', (Date.now() + expiresIn * 1000).toString())
       connectWebSocket()
       // Clear request cache to ensure fresh authentication status
       clearRequestCache()
@@ -89,8 +92,8 @@ export const api = {
     return httpRequest('POST', '/api/v1/auth/complete-login', { providerType, state })
   },
 
-  authRefreshToken: async (providerType: string): Promise<ApiResponse> => {
-    return httpRequest('POST', '/api/v1/auth/refresh-token', { providerType })
+  authRefreshToken: async (refreshToken?: string): Promise<ApiResponse<{ accessToken: string; refreshToken: string; expiresIn: number }>> => {
+    return httpRequest('POST', '/api/v1/auth/refresh', { refreshToken })
   },
 
   authCheckToken: async (providerType: string): Promise<ApiResponse> => {

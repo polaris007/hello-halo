@@ -16,18 +16,44 @@ export function getAuthToken(): string | null {
   return null
 }
 
-// Set auth token
-export function setAuthToken(token: string): void {
+// Get stored refresh token
+export function getRefreshToken(): string | null {
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('halo_remote_token', token)
+    return localStorage.getItem('halo_refresh_token')
+  }
+  return null
+}
+
+// Set auth tokens
+export function setAuthTokens(accessToken: string, refreshToken: string): void {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('halo_remote_token', accessToken)
+    localStorage.setItem('halo_refresh_token', refreshToken)
   }
 }
 
-// Clear auth token
-export function clearAuthToken(): void {
+// Clear auth tokens
+export function clearAuthTokens(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('halo_remote_token')
+    localStorage.removeItem('halo_refresh_token')
+    localStorage.removeItem('halo_token_expires_at')
   }
+}
+
+// Token refresh state
+let isRefreshing = false
+let refreshSubscribers: Array<(token: string) => void> = []
+
+// Add request to queue while refreshing
+function addRefreshSubscriber(callback: (token: string) => void) {
+  refreshSubscribers.push(callback)
+}
+
+// Process all queued requests after refresh
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach(callback => callback(token))
+  refreshSubscribers = []
 }
 
 // Request caching and deduping
@@ -125,13 +151,92 @@ export async function httpRequest<T>(
 
       // Handle 401 - token expired or invalid
       if (response.status === 401) {
-        console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token`)
-        clearAuthToken()
-        // Clear the auth cookie
-        document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-        // Return error, let caller decide how to handle (e.g. show login page)
-        const errorData = await response.json().catch(() => ({}))
-        return { success: false, error: errorData?.error?.message || 'Authentication required' }
+        console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, attempting to refresh token`)
+        const refreshToken = getRefreshToken()
+
+        // If we have a refresh token, try to refresh
+        if (refreshToken && !isRefreshing) {
+          isRefreshing = true
+
+          try {
+            const refreshResponse = await fetch(`${getServerUrl()}/api/v1/auth/refresh`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ refreshToken })
+            })
+
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json()
+              if (refreshData.success) {
+                const { accessToken, refreshToken: newRefreshToken, expiresIn } = refreshData.data
+                setAuthTokens(accessToken, newRefreshToken)
+                localStorage.setItem('halo_token_expires_at', (Date.now() + expiresIn * 1000).toString())
+                console.log('[HTTP] Token refreshed successfully')
+
+                // Process queued requests
+                onRefreshed(accessToken)
+                isRefreshing = false
+
+                // Retry the original request
+                const originalRequest = await fetch(url, {
+                  method,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`
+                  },
+                  body: body ? JSON.stringify(body) : undefined,
+                  signal: abortController.signal
+                })
+
+                if (originalRequest.ok) {
+                  return originalRequest.json()
+                }
+              }
+            }
+
+            // If refresh failed, clear tokens and redirect to login
+            console.warn('[HTTP] Token refresh failed, clearing tokens')
+            clearAuthTokens()
+            document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+            window.location.href = '/login'
+            return { success: false, error: 'Session expired, please login again' }
+
+          } catch (refreshError) {
+            console.error('[HTTP] Token refresh error:', refreshError)
+            clearAuthTokens()
+            document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+            window.location.href = '/login'
+            return { success: false, error: 'Session expired, please login again' }
+          }
+        } else if (isRefreshing) {
+          // If already refreshing, queue this request
+          return new Promise(resolve => {
+            addRefreshSubscriber((newToken: string) => {
+              // Retry with new token
+              fetch(url, {
+                method,
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${newToken}`
+                },
+                body: body ? JSON.stringify(body) : undefined,
+                signal: abortController.signal
+              })
+              .then(res => res.json())
+              .then(resolve)
+            })
+          })
+        } else {
+          // No refresh token, clear and redirect to login
+          console.warn('[HTTP] No refresh token available, clearing tokens')
+          clearAuthTokens()
+          document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+          window.location.href = '/login'
+          const errorData = await response.json().catch(() => ({}))
+          return { success: false, error: errorData?.error?.message || 'Authentication required' }
+        }
       }
 
       // Handle non-JSON responses (e.g. HTML 404/500 pages)

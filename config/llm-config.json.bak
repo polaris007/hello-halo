@@ -455,12 +455,16 @@
       "name": "天翼云",
       "provider": "openai",
       "apiUrl": "https://wishub-x6.ctyun.cn/v1/chat/completions",
-      "apiKey": "a94f2fc9a14946868cdd37285d10fbc7",
-      "model": "GLM-5",
+      "apiKey": "1a37f951c55145fcaaed12bafea9b823",
+      "model": "5df2c9ff4ad347cb95ea42ad6e9e1729",
       "availableModels": [
         {
-          "id": "2f05789705a64606a552fc2b30326bba",
-          "name": "2f05789705a64606a552fc2b30326bba"
+          "id": "5df2c9ff4ad347cb95ea42ad6e9e1729",
+          "name": "5df2c9ff4ad347cb95ea42ad6e9e1729"
+        },
+        {
+          "id": "glm-5",
+          "name": "glm-5"
         },
         {
           "id": "6192ed0cb6334302a2c32735dbbb6ce3",
@@ -519,10 +523,6 @@
           "name": "DeepSeek-V3.1"
         },
         {
-          "id": "DeepSeek-V3.2",
-          "name": "DeepSeek-V3.2"
-        },
-        {
           "id": "DeepSeek-V3.2-Standard",
           "name": "DeepSeek-V3.2-Standard"
         },
@@ -541,10 +541,6 @@
         {
           "id": "Doubao1.5-pro-32k",
           "name": "Doubao1.5-pro-32k"
-        },
-        {
-          "id": "GLM-5",
-          "name": "GLM-5"
         },
         {
           "id": "Kimi-K2-Instruct",
@@ -627,10 +623,6 @@
           "name": "Qwen3-VL-Plus"
         },
         {
-          "id": "Qwen3.5-397B-A17B",
-          "name": "Qwen3.5-397B-A17B"
-        },
-        {
           "id": "QwQ-32B",
           "name": "QwQ-32B"
         },
@@ -644,7 +636,7 @@
         }
       ],
       "createdAt": "2026-04-08T06:02:12.487Z",
-      "updatedAt": "2026-04-08T06:02:28.337Z"
+      "updatedAt": "2026-05-07T00:59:01.419Z"
     },
     {
       "id": "2d3ceed9-1a4b-4696-90e5-50720f534f51",

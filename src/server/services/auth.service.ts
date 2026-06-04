@@ -23,8 +23,38 @@ const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutes
 const REFRESH_TOKEN_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-// In-memory store for refresh tokens (in production, use Redis or database)
-const refreshTokens = new Map<string, { userId: string; expiresAt: number }>()
+/**
+ * 持久化存储refresh token到数据库
+ */
+function storeRefreshToken(token: string, userId: string, expiresAt: number): void {
+  const db = getDatabase()
+  const now = Math.floor(Date.now() / 1000)
+
+  db.prepare(`
+    INSERT INTO sessions (id, user_id, token, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(generateUUID(), userId, token, Math.floor(expiresAt / 1000), now)
+}
+
+function getRefreshToken(token: string): { userId: string; expiresAt: number } | null {
+  const db = getDatabase()
+  const result = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?').get(token) as any
+  if (!result) return null
+  return {
+    userId: result.user_id,
+    expiresAt: result.expires_at * 1000
+  }
+}
+
+function deleteRefreshToken(token: string): void {
+  const db = getDatabase()
+  db.prepare('DELETE FROM sessions WHERE token = ?').run(token)
+}
+
+function deleteAllRefreshTokensForUser(userId: string): void {
+  const db = getDatabase()
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId)
+}
 
 // ========================================
 // User Management
@@ -64,11 +94,8 @@ export async function register(params: { email: string; password: string; name?:
     const accessToken = generateAccessToken({ userId: id, email, role: 'user' })
     const refreshToken = generateRefreshToken({ userId: id })
 
-    // Store refresh token
-    refreshTokens.set(refreshToken, {
-      userId: id,
-      expiresAt: Date.now() + REFRESH_TOKEN_DURATION
-    })
+    // Store refresh token in database
+    storeRefreshToken(refreshToken, id, Date.now() + REFRESH_TOKEN_DURATION)
 
     return {
       user: {
@@ -80,7 +107,7 @@ export async function register(params: { email: string; password: string; name?:
       tokens: {
         accessToken,
         refreshToken,
-        expiresIn: 3600 // 1 hour
+        expiresIn: 86400 // 24 hours
       }
     }
   } catch (error: any) {
@@ -165,10 +192,10 @@ export async function refreshToken(token: string) {
     throw new Error('Invalid refresh token')
   }
 
-  // Check if token is in our store
-  const stored = refreshTokens.get(token)
+  // Check if token is in database
+  const stored = getRefreshToken(token)
   if (!stored || stored.expiresAt < Date.now()) {
-    refreshTokens.delete(token)
+    if (stored) deleteRefreshToken(token)
     throw new Error('Invalid refresh token')
   }
 
@@ -189,16 +216,13 @@ export async function refreshToken(token: string) {
   const newRefreshToken = generateRefreshToken({ userId: user.id })
 
   // Revoke old refresh token and store new one
-  refreshTokens.delete(token)
-  refreshTokens.set(newRefreshToken, {
-    userId: user.id,
-    expiresAt: Date.now() + REFRESH_TOKEN_DURATION
-  })
+  deleteRefreshToken(token)
+  storeRefreshToken(newRefreshToken, user.id, Date.now() + REFRESH_TOKEN_DURATION)
 
   return {
     accessToken,
     refreshToken: newRefreshToken,
-    expiresIn: 3600
+    expiresIn: 86400 // 24 hours
   }
 }
 
@@ -209,12 +233,8 @@ export async function logout(token: string) {
   // Remove refresh token from store
   const decoded = verifyToken(token)
   if (decoded) {
-    // Find and remove all refresh tokens for this user
-    for (const [key, value] of refreshTokens.entries()) {
-      if (value.userId === decoded.userId) {
-        refreshTokens.delete(key)
-      }
-    }
+    // Remove all refresh tokens for this user
+    deleteAllRefreshTokensForUser(decoded.userId)
   }
 }
 
@@ -243,11 +263,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
     .run(newPasswordHash, now, userId)
 
   // Revoke all refresh tokens for this user
-  for (const [key, value] of refreshTokens.entries()) {
-    if (value.userId === userId) {
-      refreshTokens.delete(key)
-    }
-  }
+  deleteAllRefreshTokensForUser(userId)
 }
 
 /**
@@ -391,12 +407,9 @@ export function cleanupExpiredLoginAttempts() {
  * Clean up expired refresh tokens
  */
 export function cleanupExpiredRefreshTokens() {
-  const now = Date.now()
-  for (const [key, value] of refreshTokens.entries()) {
-    if (value.expiresAt < now) {
-      refreshTokens.delete(key)
-    }
-  }
+  const db = getDatabase()
+  const now = Math.floor(Date.now() / 1000)
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now)
 }
 
 /**
