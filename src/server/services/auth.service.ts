@@ -107,7 +107,7 @@ export async function register(params: { email: string; password: string; name?:
       tokens: {
         accessToken,
         refreshToken,
-        expiresIn: 86400 // 24 hours
+        expiresIn: 31536000 // 365 days (1 year)
       }
     }
   } catch (error: any) {
