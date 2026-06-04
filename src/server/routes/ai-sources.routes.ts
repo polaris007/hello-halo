@@ -4,7 +4,6 @@
 
 import { Router } from 'express'
 import { legacyAuthMiddleware, optionalAuthMiddleware } from '../middleware/auth.middleware.js'
-import { getConfig, saveConfig } from '../services/config.service.js'
 import { randomUUID } from 'crypto'
 
 const router = Router()
@@ -231,14 +230,13 @@ router.post('/validate', async (req, res) => {
  */
 router.get('/providers', (req, res) => {
   try {
-    const config = getConfig()
+    const llmConfig = getLLMConfig()
 
-    // 不返回 API Key 敏感信息
-    const providers = config.aiSources.providers.map(p => ({
+    const providers = llmConfig.sources.map(p => ({
       id: p.id,
       name: p.name,
-      type: p.type,
-      baseUrl: p.baseUrl,
+      type: p.provider,
+      baseUrl: p.apiUrl,
       hasApiKey: !!p.apiKey
     }))
 
@@ -259,8 +257,8 @@ router.get('/providers', (req, res) => {
  */
 router.get('/providers/:id', (req, res) => {
   try {
-    const config = getConfig()
-    const provider = config.aiSources.providers.find(p => p.id === req.params.id)
+    const llmConfig = getLLMConfig()
+    const provider = llmConfig.sources.find(p => p.id === req.params.id)
 
     if (!provider) {
       return res.status(404).json({
@@ -269,14 +267,13 @@ router.get('/providers/:id', (req, res) => {
       })
     }
 
-    // 不返回 API Key 敏感信息
     res.json({
       success: true,
       data: {
         id: provider.id,
         name: provider.name,
-        type: provider.type,
-        baseUrl: provider.baseUrl,
+        type: provider.provider,
+        baseUrl: provider.apiUrl,
         hasApiKey: !!provider.apiKey
       }
     })
@@ -302,27 +299,26 @@ router.post('/providers', (req, res) => {
       })
     }
 
-    const config = getConfig()
-
-    // 检查是否已存在
-    const exists = config.aiSources.providers.some(p => p.id === id)
-    if (exists) {
-      return res.status(409).json({
-        success: false,
-        error: { code: 'CONFLICT', message: 'AI 提供商已存在' }
-      })
-    }
-
-    // 添加新提供商
-    config.aiSources.providers.push({
+    const now = new Date().toISOString()
+    const newSource: LLMConfigSource = {
       id,
       name,
-      type,
+      provider: type,
+      apiUrl: baseUrl || '',
       apiKey: apiKey || '',
-      baseUrl: baseUrl || ''
-    })
+      model: req.body.model || '',
+      availableModels: [],
+      createdAt: now,
+      updatedAt: now
+    }
 
-    saveConfig(config)
+    const result = addLLMSource(newSource)
+    if (!result.success) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'CONFLICT', message: result.error }
+      })
+    }
 
     res.status(201).json({
       success: true,
@@ -350,33 +346,31 @@ router.put('/providers/:id', (req, res) => {
     const { name, type, apiKey, baseUrl } = req.body
     const providerId = req.params.id
 
-    const config = getConfig()
-    const providerIndex = config.aiSources.providers.findIndex(p => p.id === providerId)
+    const updates: Partial<LLMConfigSource> = {}
+    if (name !== undefined) updates.name = name
+    if (type !== undefined) updates.provider = type
+    if (apiKey !== undefined) updates.apiKey = apiKey
+    if (baseUrl !== undefined) updates.apiUrl = baseUrl
 
-    if (providerIndex === -1) {
+    const result = updateLLMSource(providerId, updates)
+    if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'AI 提供商不存在' }
+        error: { code: 'NOT_FOUND', message: result.error }
       })
     }
 
-    // 更新提供商信息
-    const provider = config.aiSources.providers[providerIndex]
-    if (name !== undefined) provider.name = name
-    if (type !== undefined) provider.type = type
-    if (apiKey !== undefined) provider.apiKey = apiKey
-    if (baseUrl !== undefined) provider.baseUrl = baseUrl
-
-    saveConfig(config)
+    const llmConfig = getLLMConfig()
+    const provider = llmConfig.sources.find(p => p.id === providerId)
 
     res.json({
       success: true,
       data: {
         id: providerId,
-        name: provider.name,
-        type: provider.type,
-        baseUrl: provider.baseUrl,
-        hasApiKey: !!provider.apiKey
+        name: provider?.name,
+        type: provider?.provider,
+        baseUrl: provider?.apiUrl,
+        hasApiKey: !!provider?.apiKey
       }
     })
   } catch (error: any) {
@@ -394,19 +388,13 @@ router.delete('/providers/:id', (req, res) => {
   try {
     const providerId = req.params.id
 
-    const config = getConfig()
-    const providerIndex = config.aiSources.providers.findIndex(p => p.id === providerId)
-
-    if (providerIndex === -1) {
+    const result = deleteLLMSource(providerId)
+    if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'AI 提供商不存在' }
+        error: { code: 'NOT_FOUND', message: result.error }
       })
     }
-
-    // 删除提供商
-    config.aiSources.providers.splice(providerIndex, 1)
-    saveConfig(config)
 
     res.json({
       success: true,
@@ -434,18 +422,13 @@ router.post('/switch', (req, res) => {
       })
     }
 
-    const config = getConfig()
-    const provider = config.aiSources.providers.find(p => p.id === sourceId)
-
-    if (!provider) {
+    const result = setCurrentLLMSource(sourceId)
+    if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: { code: 'NOT_FOUND', message: 'AI 提供商不存在' }
+        error: { code: 'NOT_FOUND', message: result.error }
       })
     }
-
-    // 保存当前选择的 AI 提供商到用户配置
-    // TODO: 实现用户级别的 AI 提供商选择
 
     res.json({
       success: true,
@@ -466,15 +449,12 @@ router.post('/switch', (req, res) => {
  */
 router.get('/models', (req, res) => {
   try {
-    const config = getConfig()
+    const llmConfig = getLLMConfig()
 
-    // 返回所有提供商的模型列表
-    // TODO: 从各提供商 API 获取实际可用模型
-    const models = config.aiSources.providers.flatMap(provider => {
+    const models = llmConfig.sources.flatMap(provider => {
       if (!provider.apiKey) return []
 
-      // 根据提供商类型返回预定义模型列表
-      switch (provider.type) {
+      switch (provider.provider) {
         case 'anthropic':
           return [
             { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: provider.id },
