@@ -57,7 +57,8 @@ export function LoginPage() {
         await initialize()
       } else {
         console.log('[Login] Login failed:', result.error)
-        setError(result.error || t('Login failed'))
+        const errorMsg = typeof result.error === 'string' ? result.error : result.error?.message || t('Login failed')
+        setError(errorMsg)
       }
     } catch (err) {
       console.error('[Login] Error:', err)

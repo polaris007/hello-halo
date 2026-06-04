@@ -4,6 +4,7 @@
 
 import { create } from 'zustand'
 import { api } from '../api'
+import { getAuthToken } from '../api/transport'
 import type { HaloConfig, AppView, McpServerStatus } from '../types'
 import { hasAnyAISource } from '../types'
 
@@ -246,6 +247,13 @@ export const useAppStore = create<AppState>((set, get) => ({
             console.log('[Store] Auth disabled or header mode, skipping login')
           } else {
             // Check if user is authenticated
+            const token = getAuthToken()
+            if (!token) {
+              console.log('[Store] No auth token, showing login')
+              set({ view: 'login', isLoading: false })
+              return
+            }
+
             const userResult = await api.getCurrentUser()
             if (!userResult.success) {
               console.log('[Store] Not authenticated, showing login')

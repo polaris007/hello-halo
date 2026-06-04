@@ -44,7 +44,7 @@ export const api = {
     const result = await httpRequest<any>('POST', '/api/v1/auth/login', { email: username, password })
     if (result.success && result.data?.tokens) {
       const { accessToken, refreshToken, expiresIn } = result.data.tokens
-      setAuthTokens(accessToken, refreshToken)
+      setAuthToken(accessToken, refreshToken)
       // Store token expiration time
       localStorage.setItem('halo_token_expires_at', (Date.now() + expiresIn * 1000).toString())
       connectWebSocket()

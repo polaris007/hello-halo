@@ -25,7 +25,7 @@ export function getRefreshToken(): string | null {
 }
 
 // Set auth tokens
-export function setAuthTokens(accessToken: string, refreshToken: string): void {
+export function setAuthToken(accessToken: string, refreshToken: string): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('halo_remote_token', accessToken)
     localStorage.setItem('halo_refresh_token', refreshToken)
@@ -33,7 +33,7 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
 }
 
 // Clear auth tokens
-export function clearAuthTokens(): void {
+export function clearAuthToken(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('halo_remote_token')
     localStorage.removeItem('halo_refresh_token')
@@ -171,7 +171,7 @@ export async function httpRequest<T>(
               const refreshData = await refreshResponse.json()
               if (refreshData.success) {
                 const { accessToken, refreshToken: newRefreshToken, expiresIn } = refreshData.data
-                setAuthTokens(accessToken, newRefreshToken)
+                setAuthToken(accessToken, newRefreshToken)
                 localStorage.setItem('halo_token_expires_at', (Date.now() + expiresIn * 1000).toString())
                 console.log('[HTTP] Token refreshed successfully')
 
@@ -198,16 +198,20 @@ export async function httpRequest<T>(
 
             // If refresh failed, clear tokens and redirect to login
             console.warn('[HTTP] Token refresh failed, clearing tokens')
-            clearAuthTokens()
+            clearAuthToken()
             document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-            window.location.href = '/login'
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'
+            }
             return { success: false, error: 'Session expired, please login again' }
 
           } catch (refreshError) {
             console.error('[HTTP] Token refresh error:', refreshError)
-            clearAuthTokens()
+            clearAuthToken()
             document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-            window.location.href = '/login'
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'
+            }
             return { success: false, error: 'Session expired, please login again' }
           }
         } else if (isRefreshing) {
@@ -231,9 +235,11 @@ export async function httpRequest<T>(
         } else {
           // No refresh token, clear and redirect to login
           console.warn('[HTTP] No refresh token available, clearing tokens')
-          clearAuthTokens()
+          clearAuthToken()
           document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
           const errorData = await response.json().catch(() => ({}))
           return { success: false, error: errorData?.error?.message || 'Authentication required' }
         }
@@ -254,6 +260,10 @@ export async function httpRequest<T>(
 
       if (!response.ok) {
         console.warn(`[HTTP] ${method} ${path} - error:`, data.error)
+      }
+
+      if (data && typeof data.error === 'object' && data.error !== null) {
+        data.error = data.error.message || JSON.stringify(data.error)
       }
 
       return data

@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken'
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'halo-default-secret-change-in-production'
 const JWT_ACCESS_EXPIRES_IN = '365d' // 1年有效期
-const JWT_REFRESH_EXPIRES_IN = '7d'
+const JWT_REFRESH_EXPIRES_IN = '3650d'
 
 // Password hashing configuration
 const SALT_LENGTH = 16

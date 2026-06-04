@@ -162,10 +162,7 @@ export async function login(email: string, password: string) {
   const refreshToken = generateRefreshToken({ userId: user.id })
 
   // Store refresh token
-  refreshTokens.set(refreshToken, {
-    userId: user.id,
-    expiresAt: Date.now() + REFRESH_TOKEN_DURATION
-  })
+  storeRefreshToken(refreshToken, user.id, Date.now() + REFRESH_TOKEN_DURATION)
 
   return {
     user: {
@@ -177,7 +174,7 @@ export async function login(email: string, password: string) {
     tokens: {
       accessToken,
       refreshToken,
-      expiresIn: 3600 // 1 hour
+      expiresIn: 8640000 // 100 days
     }
   }
 }
@@ -203,7 +200,7 @@ export async function refreshToken(token: string) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(stored.userId) as any
 
   if (!user) {
-    refreshTokens.delete(token)
+    deleteRefreshToken(token)
     throw new Error('User not found')
   }
 
