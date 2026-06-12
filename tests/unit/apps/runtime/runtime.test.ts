@@ -21,9 +21,10 @@ import { randomUUID } from 'crypto'
 // Mocks for transitive dependencies
 // ============================================
 
-// Mock the Claude Agent SDK (used by execute.ts and report-tool.ts)
-vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  unstable_v2_createSession: vi.fn(),
+// Mock the Resolved SDK (used by execute.ts and report-tool.ts)
+vi.mock('../../../../src/main/services/agent/resolved-sdk', () => ({
+  createSession: vi.fn(),
+  query: vi.fn(),
   tool: vi.fn((opts: any) => ({ ...opts, _isTool: true })),
   createSdkMcpServer: vi.fn((opts: any) => ({
     name: opts.name,
@@ -31,6 +32,8 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
     tools: opts.tools,
     _isMcpServer: true,
   })),
+  initSdk: vi.fn(),
+  isInitialized: vi.fn().mockReturnValue(true),
 }))
 
 // Mock agent helpers (used by execute.ts)

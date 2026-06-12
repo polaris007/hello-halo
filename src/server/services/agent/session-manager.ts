@@ -8,7 +8,7 @@
 import path from 'path'
 import os from 'os'
 import { existsSync, copyFileSync, mkdirSync } from 'fs'
-import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
+import { createSession } from './resolved-sdk.js'
 import type {
   V2SDKSession,
   V2SessionInfo,
@@ -266,7 +266,7 @@ export async function getOrCreateV2Session(
   console.log(`[Agent][${conversationId}]   - env.ANTHROPIC_BASE_URL: ${sdkOptions.env?.ANTHROPIC_BASE_URL}`)
   console.log(`[Agent][${conversationId}]   - env.CLAUDE_CONFIG_DIR: ${sdkOptions.env?.CLAUDE_CONFIG_DIR}`)
 
-  const session = await unstable_v2_createSession(sdkOptions)
+  const session = await createSession(sdkOptions)
 
   // Store session info
   const sessionInfo: V2SessionInfo = {

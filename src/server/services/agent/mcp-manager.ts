@@ -6,7 +6,7 @@
  * Server-side version - removed Electron dependencies.
  */
 
-import { query as claudeQuery } from '@anthropic-ai/claude-agent-sdk'
+import { query } from './resolved-sdk.js'
 import type { McpServerStatusInfo } from './types.js'
 import {
   getNodePath,
@@ -127,7 +127,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
 
     // Create query with proper configuration
     const abortController = new AbortController()
-    const queryIterator = claudeQuery({
+    const queryIterator = query({
       prompt: 'hi', // Simple prompt to trigger MCP connection
       options: {
         apiKey: anthropicApiKey,

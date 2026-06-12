@@ -38,6 +38,7 @@ import {
   buildMessageContent,
 } from './message-utils.js'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config.js'
+import { initSdk, isInitialized } from './resolved-sdk.js'
 import { processStream } from './stream-processor.js'
 import { getDatabase } from '../../utils/database.js'
 import {
@@ -68,6 +69,11 @@ const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
 export async function sendMessage(
   request: AgentRequest
 ): Promise<void> {
+  // Lazy-init SDK on first message
+  if (!isInitialized()) {
+    await initSdk()
+  }
+
   const {
     spaceId,
     conversationId,
@@ -485,6 +491,11 @@ export interface AgentSSERequest {
 export async function sendMessageWithSSE(
   request: AgentSSERequest
 ): Promise<void> {
+  // Lazy-init SDK on first message
+  if (!isInitialized()) {
+    await initSdk()
+  }
+
   const {
     spaceId,
     conversationId,
