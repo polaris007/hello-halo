@@ -118,17 +118,6 @@ COPY --from=understand-builder /build/Understand-Anything-main/understand-anythi
 RUN sed -i 's|npx vite --host 127.0.0.1|npx vite --host 0.0.0.0 --port 5183|' \
     /app/understand-anything/understand-anything-plugin/skills/understand-dashboard/SKILL.md
 
-# Plugin root symlink (for dashboard skill fallback resolution)
-RUN ln -sf /app/understand-anything/understand-anything-plugin /home/hello/.understand-anything-plugin
-
-# Skills symlinks into user-level skills directory
-RUN mkdir -p /data/hello/claude-config/skills && \
-    for skill in understand understand-chat understand-dashboard understand-diff \
-                 understand-domain understand-explain understand-knowledge understand-onboard; do \
-      ln -sf /app/understand-anything/understand-anything-plugin/skills/$skill \
-             /data/hello/claude-config/skills/$skill; \
-    done
-
 # Copy built assets from builders
 COPY --from=frontend-builder /app/dist/client ./dist/client
 COPY --from=server-builder /app/dist/server ./dist/server
@@ -137,15 +126,26 @@ COPY --from=server-builder /app/dist/shared ./dist/shared
 # Create data directory and config directory
 RUN mkdir -p /data/hello /app/config
 
-# Create non-root user
+# Create non-root user (also creates /home/hello)
 RUN addgroup -g 1001 hello && adduser -S -u 1001 -G hello hello
+
+# Plugin root symlink (for dashboard skill fallback via ~/.understand-anything-plugin)
+RUN ln -sf /app/understand-anything/understand-anything-plugin /home/hello/.understand-anything-plugin
+
+# Skills symlinks into user-level skills directory for SDK discovery
+RUN mkdir -p /data/hello/claude-config/skills && \
+    for skill in understand understand-chat understand-dashboard understand-diff \
+                 understand-domain understand-explain understand-knowledge understand-onboard; do \
+      ln -sf /app/understand-anything/understand-anything-plugin/skills/$skill \
+             /data/hello/claude-config/skills/$skill; \
+    done
 
 # Copy startup script
 COPY docker/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 # Set ownership of app directory
-RUN chown -R hello:hello /app /data/hello
+RUN chown -R hello:hello /app /data/hello /home/hello/.understand-anything-plugin
 
 # Set environment variables
 ENV NODE_ENV=production
