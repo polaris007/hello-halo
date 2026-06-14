@@ -65,6 +65,26 @@ COPY scripts ./scripts
 RUN npm run build:server
 
 # ========================================
+# Stage 2.5: Build Understand-Anything
+# ========================================
+FROM node:20-alpine AS understand-builder
+
+WORKDIR /build
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+RUN apk add --no-cache python3 make g++ rust cargo unzip
+RUN corepack enable && corepack prepare pnpm@10.6.2 --activate
+
+COPY docker/Understand-Anything-main.zip .
+RUN unzip Understand-Anything-main.zip && rm Understand-Anything-main.zip
+
+WORKDIR /build/Understand-Anything-main
+
+RUN pnpm config set registry https://registry.npmmirror.com
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
+
+# ========================================
 # Stage 3: Production Image
 # ========================================
 FROM node:20-alpine AS production
@@ -89,6 +109,25 @@ RUN npm install --registry=https://registry.npmmirror.com --omit=dev --ignore-sc
 
 # Remove build tools to reduce image size
 RUN apk del python3 make g++ rust cargo
+
+# Copy Understand-Anything plugin
+COPY --from=understand-builder /build/Understand-Anything-main/understand-anything-plugin \
+    /app/understand-anything/understand-anything-plugin
+
+# Patch dashboard skill: fix port to 5183 and host to 0.0.0.0
+RUN sed -i 's|npx vite --host 127.0.0.1|npx vite --host 0.0.0.0 --port 5183|' \
+    /app/understand-anything/understand-anything-plugin/skills/understand-dashboard/SKILL.md
+
+# Plugin root symlink (for dashboard skill fallback resolution)
+RUN ln -sf /app/understand-anything/understand-anything-plugin /home/hello/.understand-anything-plugin
+
+# Skills symlinks into user-level skills directory
+RUN mkdir -p /data/hello/claude-config/skills && \
+    for skill in understand understand-chat understand-dashboard understand-diff \
+                 understand-domain understand-explain understand-knowledge understand-onboard; do \
+      ln -sf /app/understand-anything/understand-anything-plugin/skills/$skill \
+             /data/hello/claude-config/skills/$skill; \
+    done
 
 # Copy built assets from builders
 COPY --from=frontend-builder /app/dist/client ./dist/client
