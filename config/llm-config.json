@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "currentId": "c1c48e0c-b912-427b-aab8-0873a2e11fa9",
+  "currentId": "d2a5ffeb-67fa-4d7d-aeb8-09dcd36189aa",
   "sources": [
     {
       "id": "61d90a71-2a39-4f95-a6ed-27c4109f46ed",
@@ -448,7 +448,7 @@
         }
       ],
       "createdAt": "2026-04-03T13:57:56.807Z",
-      "updatedAt": "2026-04-07T07:16:30.923Z"
+      "updatedAt": "2026-06-14T06:19:20.707Z"
     },
     {
       "id": "b0e64498-d77f-441c-ba68-9d76834aa9ee",
@@ -1405,6 +1405,286 @@
       ],
       "createdAt": "2026-04-08T06:04:10.508Z",
       "updatedAt": "2026-04-08T06:04:10.508Z"
+    },
+    {
+      "id": "c5134412-a877-404c-a83b-710fbc4b28ed",
+      "name": "魔搭-memg",
+      "provider": "openai",
+      "apiUrl": "https://api-inference.modelscope.cn/v1",
+      "apiKey": "ms-622cf97d-3828-4c5e-9ed6-770a133b8e75",
+      "model": "ZhipuAI/GLM-5",
+      "availableModels": [
+        {
+          "id": "deepseek-ai/DeepSeek-V3.2",
+          "name": "deepseek-ai/DeepSeek-V3.2"
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Flash",
+          "name": "deepseek-ai/DeepSeek-V4-Flash"
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Pro",
+          "name": "deepseek-ai/DeepSeek-V4-Pro"
+        },
+        {
+          "id": "iic/GUI-Owl-1.5-8B-Instruct",
+          "name": "iic/GUI-Owl-1.5-8B-Instruct"
+        },
+        {
+          "id": "iic/GUI-Owl-1.5-8B-Think",
+          "name": "iic/GUI-Owl-1.5-8B-Think"
+        },
+        {
+          "id": "LLM-Research/c4ai-command-r-plus-08-2024",
+          "name": "LLM-Research/c4ai-command-r-plus-08-2024"
+        },
+        {
+          "id": "LLM-Research/Llama-4-Maverick-17B-128E-Instruct",
+          "name": "LLM-Research/Llama-4-Maverick-17B-128E-Instruct"
+        },
+        {
+          "id": "MedAIBase/AntAngelMed",
+          "name": "MedAIBase/AntAngelMed"
+        },
+        {
+          "id": "meituan-longcat/LongCat-Flash-Lite",
+          "name": "meituan-longcat/LongCat-Flash-Lite"
+        },
+        {
+          "id": "MiniMax/MiniMax-M1-80k",
+          "name": "MiniMax/MiniMax-M1-80k"
+        },
+        {
+          "id": "MiniMax/MiniMax-M2.5",
+          "name": "MiniMax/MiniMax-M2.5"
+        },
+        {
+          "id": "MiniMax/MiniMax-M2.7",
+          "name": "MiniMax/MiniMax-M2.7"
+        },
+        {
+          "id": "MiniMax/MiniMax-M3",
+          "name": "MiniMax/MiniMax-M3"
+        },
+        {
+          "id": "mistralai/Ministral-8B-Instruct-2410",
+          "name": "mistralai/Ministral-8B-Instruct-2410"
+        },
+        {
+          "id": "mistralai/Mistral-Large-Instruct-2407",
+          "name": "mistralai/Mistral-Large-Instruct-2407"
+        },
+        {
+          "id": "mistralai/Mistral-Small-Instruct-2409",
+          "name": "mistralai/Mistral-Small-Instruct-2409"
+        },
+        {
+          "id": "moonshotai/Kimi-K2.5",
+          "name": "moonshotai/Kimi-K2.5"
+        },
+        {
+          "id": "MusePublic/Qwen-Image-Edit",
+          "name": "MusePublic/Qwen-Image-Edit"
+        },
+        {
+          "id": "nex-agi/Nex-N2-Pro",
+          "name": "nex-agi/Nex-N2-Pro"
+        },
+        {
+          "id": "opencompass/CompassJudger-1-32B-Instruct",
+          "name": "opencompass/CompassJudger-1-32B-Instruct"
+        },
+        {
+          "id": "OpenGVLab/InternVL3_5-241B-A28B",
+          "name": "OpenGVLab/InternVL3_5-241B-A28B"
+        },
+        {
+          "id": "PaddlePaddle/ERNIE-4.5-0.3B-PT",
+          "name": "PaddlePaddle/ERNIE-4.5-0.3B-PT"
+        },
+        {
+          "id": "PaddlePaddle/ERNIE-4.5-21B-A3B-PT",
+          "name": "PaddlePaddle/ERNIE-4.5-21B-A3B-PT"
+        },
+        {
+          "id": "PaddlePaddle/ERNIE-4.5-300B-A47B-PT",
+          "name": "PaddlePaddle/ERNIE-4.5-300B-A47B-PT"
+        },
+        {
+          "id": "PaddlePaddle/ERNIE-4.5-VL-28B-A3B-PT",
+          "name": "PaddlePaddle/ERNIE-4.5-VL-28B-A3B-PT"
+        },
+        {
+          "id": "Qwen/QVQ-72B-Preview",
+          "name": "Qwen/QVQ-72B-Preview"
+        },
+        {
+          "id": "Qwen/Qwen-Image-Edit",
+          "name": "Qwen/Qwen-Image-Edit"
+        },
+        {
+          "id": "Qwen/Qwen3-0.6B",
+          "name": "Qwen/Qwen3-0.6B"
+        },
+        {
+          "id": "Qwen/Qwen3-1.7B",
+          "name": "Qwen/Qwen3-1.7B"
+        },
+        {
+          "id": "Qwen/Qwen3-14B",
+          "name": "Qwen/Qwen3-14B"
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B",
+          "name": "Qwen/Qwen3-235B-A22B"
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+          "name": "Qwen/Qwen3-235B-A22B-Instruct-2507"
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+          "name": "Qwen/Qwen3-235B-A22B-Thinking-2507"
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B",
+          "name": "Qwen/Qwen3-30B-A3B"
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B-Thinking-2507",
+          "name": "Qwen/Qwen3-30B-A3B-Thinking-2507"
+        },
+        {
+          "id": "Qwen/Qwen3-32B",
+          "name": "Qwen/Qwen3-32B"
+        },
+        {
+          "id": "Qwen/Qwen3-4B",
+          "name": "Qwen/Qwen3-4B"
+        },
+        {
+          "id": "Qwen/Qwen3-8B",
+          "name": "Qwen/Qwen3-8B"
+        },
+        {
+          "id": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+          "name": "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+        },
+        {
+          "id": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+          "name": "Qwen/Qwen3-Next-80B-A3B-Instruct"
+        },
+        {
+          "id": "Qwen/Qwen3-Next-80B-A3B-Thinking",
+          "name": "Qwen/Qwen3-Next-80B-A3B-Thinking"
+        },
+        {
+          "id": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+          "name": "Qwen/Qwen3-VL-235B-A22B-Instruct"
+        },
+        {
+          "id": "Qwen/Qwen3-VL-8B-Instruct",
+          "name": "Qwen/Qwen3-VL-8B-Instruct"
+        },
+        {
+          "id": "Qwen/Qwen3-VL-8B-Thinking",
+          "name": "Qwen/Qwen3-VL-8B-Thinking"
+        },
+        {
+          "id": "Qwen/Qwen3.5-122B-A10B",
+          "name": "Qwen/Qwen3.5-122B-A10B"
+        },
+        {
+          "id": "Qwen/Qwen3.5-27B",
+          "name": "Qwen/Qwen3.5-27B"
+        },
+        {
+          "id": "Qwen/Qwen3.5-35B-A3B",
+          "name": "Qwen/Qwen3.5-35B-A3B"
+        },
+        {
+          "id": "Qwen/Qwen3.5-397B-A17B",
+          "name": "Qwen/Qwen3.5-397B-A17B"
+        },
+        {
+          "id": "Shanghai_AI_Laboratory/Intern-S1",
+          "name": "Shanghai_AI_Laboratory/Intern-S1"
+        },
+        {
+          "id": "Shanghai_AI_Laboratory/Intern-S1-mini",
+          "name": "Shanghai_AI_Laboratory/Intern-S1-mini"
+        },
+        {
+          "id": "Shanghai_AI_Laboratory/Intern-S2-Preview",
+          "name": "Shanghai_AI_Laboratory/Intern-S2-Preview"
+        },
+        {
+          "id": "stepfun-ai/Step-3.5-Flash",
+          "name": "stepfun-ai/Step-3.5-Flash"
+        },
+        {
+          "id": "stepfun-ai/Step-3.7-Flash",
+          "name": "stepfun-ai/Step-3.7-Flash"
+        },
+        {
+          "id": "XGenerationLab/XiYanSQL-QwenCoder-32B-2412",
+          "name": "XGenerationLab/XiYanSQL-QwenCoder-32B-2412"
+        },
+        {
+          "id": "XGenerationLab/XiYanSQL-QwenCoder-32B-2504",
+          "name": "XGenerationLab/XiYanSQL-QwenCoder-32B-2504"
+        },
+        {
+          "id": "XiaomiMiMo/MiMo-V2-Flash",
+          "name": "XiaomiMiMo/MiMo-V2-Flash"
+        },
+        {
+          "id": "ZhipuAI/GLM-4.7-Flash",
+          "name": "ZhipuAI/GLM-4.7-Flash"
+        },
+        {
+          "id": "ZhipuAI/GLM-5",
+          "name": "ZhipuAI/GLM-5"
+        },
+        {
+          "id": "ZhipuAI/GLM-5.1",
+          "name": "ZhipuAI/GLM-5.1"
+        }
+      ],
+      "createdAt": "2026-06-14T06:09:53.458Z",
+      "updatedAt": "2026-06-14T06:24:20.720Z"
+    },
+    {
+      "id": "d2a5ffeb-67fa-4d7d-aeb8-09dcd36189aa",
+      "name": "AgnesAI",
+      "provider": "openai",
+      "apiUrl": "https://apihub.agnes-ai.com/v1",
+      "apiKey": "sk-5q9piRse79BNSHOglO06ykKKh4JV1iRvqOWYWH9STmZZVWHw",
+      "model": "agnes-2.0-flash",
+      "availableModels": [
+        {
+          "id": "agnes-1.5-flash",
+          "name": "agnes-1.5-flash"
+        },
+        {
+          "id": "agnes-2.0-flash",
+          "name": "agnes-2.0-flash"
+        },
+        {
+          "id": "agnes-image-2.0-flash",
+          "name": "agnes-image-2.0-flash"
+        },
+        {
+          "id": "agnes-image-2.1-flash",
+          "name": "agnes-image-2.1-flash"
+        },
+        {
+          "id": "agnes-video-v2.0",
+          "name": "agnes-video-v2.0"
+        }
+      ],
+      "createdAt": "2026-06-14T06:28:20.166Z",
+      "updatedAt": "2026-06-14T06:28:20.166Z"
     }
   ]
 }
