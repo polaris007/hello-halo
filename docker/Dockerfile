@@ -67,7 +67,7 @@ RUN npm run build:server
 # ========================================
 # Stage 2.5: Build Understand-Anything
 # ========================================
-FROM node:20-alpine AS understand-builder
+FROM node:22.22.3-alpine AS understand-builder
 
 WORKDIR /build
 
@@ -81,10 +81,8 @@ RUN unzip Understand-Anything-main.zip && rm Understand-Anything-main.zip
 WORKDIR /build/Understand-Anything-main
 
 RUN pnpm config set registry https://registry.npmmirror.com
-# Remove homepage from workspace to avoid Astro build (needs Node >=22.12)
-RUN sed -i "/- 'homepage'/d" pnpm-workspace.yaml
 RUN pnpm install --frozen-lockfile
-RUN pnpm -r build
+RUN pnpm run build
 
 # ========================================
 # Stage 3: Production Image
