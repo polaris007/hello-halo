@@ -49,3 +49,4 @@ logs
 data/users
 data/claude-config
 .gstack/
+.codegraph
