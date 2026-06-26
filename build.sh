@@ -1,1 +1,1 @@
-docker build -t hello-server:1.5 -f docker/Dockerfile .
+docker build -t hello-server:1.4 -f docker/Dockerfile .

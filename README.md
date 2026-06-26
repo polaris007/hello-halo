@@ -1,8 +1,4 @@
-<div align="center">
-
 # Hello
-
-## &#x20;
 
 ***
 
@@ -26,7 +22,7 @@ Hello provides comprehensive logging capabilities that can be configured using e
 | `HELLO_LOG_RETENTION_DAYS` | Number of days to keep log files              | `7`                                  |
 | `HELLO_LOG_MAX_SIZE_MB`    | Maximum size of log files before rotation     | `100`                                |
 | `HELLO_LOG_API_DETAIL`     | Whether to log detailed HTTP request/response | `true`                               |
-| `HELLO_LOG_AI_DETAIL`      | Whether to log detailed AI interactions       | `true` |
+| `HELLO_LOG_AI_DETAIL`      | Whether to log detailed AI interactions       | `true`                               |
 
 ### Log File Rotation
 
@@ -44,25 +40,25 @@ Hello provides comprehensive logging capabilities that can be configured using e
 
 ```bash
 # Store logs in a custom directory
-export HALO_LOG_DIR="/var/log/halo"
+export HELLO_LOG_DIR="/var/log/hello"
 
 # Only log errors and warnings
-export HALO_LOG_LEVEL="WARN"
+export HELLO_LOG_LEVEL="WARN"
 
 # Disable console output
-export HALO_LOG_CONSOLE="false"
+export HELLO_LOG_CONSOLE="false"
 
 # Keep logs for 30 days
-export HALO_LOG_RETENTION_DAYS="30"
+export HELLO_LOG_RETENTION_DAYS="30"
 
 # Rotate logs at 50MB
-export HALO_LOG_MAX_SIZE_MB="50"
+export HELLO_LOG_MAX_SIZE_MB="50"
 
 # Disable detailed API logging for performance
-export HALO_LOG_API_DETAIL="false"
+export HELLO_LOG_API_DETAIL="false"
 
 # Enable detailed AI logging
-export HALO_LOG_AI_DETAIL="true"
+export HELLO_LOG_AI_DETAIL="true"
 ```
 
 ## Configuration Directory
@@ -73,7 +69,7 @@ Hello 使用统一的配置目录管理所有配置文件（`server.json`、`llm
 
 按优先级排列：
 
-1. **环境变量**: `HALO_CONFIG_DIR=/path/to/config`
+1. **环境变量**: `HELLO_CONFIG_DIR=/path/to/config`
 2. **命令行参数**: `--config-dir /path/to/config`
 3. **默认值**: `./config`（当前工作目录下）
 
@@ -94,8 +90,6 @@ environment:
   - HELLO_CONFIG_DIR=/app/config
 ```
 
-<br />
-
 ***
 
 ### Build from Source
@@ -106,16 +100,16 @@ For developers who want to contribute or customize:
 git clone https://github.com/hello-server.git
 cd hello-server
 npm install
-npm run prepare        # Download binary dependencies for your platform
 npm run dev
 ```
 
-> To build for all platforms, run `npm run prepare:all` first to download binaries for every target platform.
-
 ***
 
-##
+## Development
 
-***
-
-</div>
+```bash
+npm run dev          # Start development server with hot reload
+npm run build        # Build for production
+npm run test         # Run tests
+npm run package      # Package for distribution
+```

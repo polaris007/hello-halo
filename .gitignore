@@ -1,6 +1,7 @@
 node_modules
 node_modules.win
 node_modules.lin
+node_modules.0.1.76
 dist
 build
 out
